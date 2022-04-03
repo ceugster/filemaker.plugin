@@ -6,7 +6,7 @@ import ch.eugster.filemaker.fsl.plugin.swissqrbill.SwissQRBillGenerator;
 public enum ExecutorSelector
 {
 	// @formatter:off
-	CREATE_QRCODE("CreateQRCode", new SwissQRBillGenerator()), 
+	CREATE_QRBILL("CreateQRBill", new SwissQRBillGenerator()), 
 	CONVERT_CAMT_XML_TO_JSON("ConvertCamtXmlToJson", new CamtXmlToJsonConverter());
 	
 	private String command;

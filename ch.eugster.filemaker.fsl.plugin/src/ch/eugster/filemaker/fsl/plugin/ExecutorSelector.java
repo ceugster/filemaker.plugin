@@ -1,13 +1,13 @@
 package ch.eugster.filemaker.fsl.plugin;
 
-import ch.eugster.filemaker.fsl.plugin.camt.CamtXmlToJsonConverter;
+import ch.eugster.filemaker.fsl.plugin.converter.XmlToJsonConverter;
 import ch.eugster.filemaker.fsl.plugin.swissqrbill.SwissQRBillGenerator;
 
 public enum ExecutorSelector
 {
 	// @formatter:off
 	CREATE_QRBILL("CreateQRBill", new SwissQRBillGenerator()), 
-	CONVERT_CAMT_XML_TO_JSON("ConvertCamtXmlToJson", new CamtXmlToJsonConverter());
+	CONVERT_XML_TO_JSON("ConvertXmlToJson", new XmlToJsonConverter());
 	
 	private String command;
 	

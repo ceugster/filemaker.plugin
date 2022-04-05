@@ -248,7 +248,7 @@ public interface CamtParameter
 	enum CamtMain implements CamtParameter
 	{
 		// @formatter:off
-		FILENAME("Camt.xml", true), 
+		NAME("name", true), 
 		SIZE("size", false),
 		HASH("hash", false), 
 		DATABASE("database", true, CamtDatabase.values());
@@ -441,7 +441,6 @@ public interface CamtParameter
 		// @formatter:off
 		TABLE("table", true), 
 		JSON_COL("json", true),
-		NAME_COL("name", true),
 		WHERE_COL("where_col", true), 
 		WHERE_VAL("where_val", true);
 		// @formatter:on

@@ -125,21 +125,18 @@ public class CamtXmlToJsonConverter implements Executor
 	{
 		int result = 0;
 		PreparedStatement pstm = null;
-		String filename = params.get(CamtMain.FILENAME.key()).asText() + ".json";
 		JsonNode db = params.get(CamtMain.DATABASE.key());
 		JsonNode writeJson = db.get(CamtDatabase.WRITE_JSON.key());
 		String table = writeJson.get(CamtWriteJson.TABLE.key()).asText();
 		String json = writeJson.get(CamtWriteJson.JSON_COL.key()).asText();
-		String name = writeJson.get(CamtWriteJson.NAME_COL.key()).asText();
 		String whereCol = writeJson.get(CamtWriteJson.WHERE_COL.key()).asText();
 		String whereVal = writeJson.get(CamtWriteJson.WHERE_VAL.key()).asText();
 		try
 		{
-			String sql = "UPDATE " + table + " SET " + json + " = ?, " + name + " = ? WHERE " + whereCol + " = ?";
+			String sql = "UPDATE " + table + " SET " + json + " = ? WHERE " + whereCol + " = ?";
 			pstm = connection.prepareStatement(sql);
 			pstm.setString(1, jsonValue);
-			pstm.setString(2, filename);
-			pstm.setString(3, whereVal);
+			pstm.setString(2, whereVal);
 			pstm.closeOnCompletion();
 			System.out.println(sql);
 			result = pstm.executeUpdate();

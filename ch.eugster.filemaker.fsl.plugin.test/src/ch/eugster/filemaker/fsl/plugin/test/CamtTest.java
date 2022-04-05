@@ -64,7 +64,7 @@ public class CamtTest
 	public void testParametersOK() throws SQLException
 	{
 		ObjectNode source = this.mapper.createObjectNode();
-		source.put(CamtMain.FILENAME.key(), "Camt.xml");
+		source.put(CamtMain.NAME.key(), "Camt.xml");
 		source.put(CamtMain.SIZE.key(), new BigDecimal(354));
 		source.put(CamtMain.HASH.key(), "3ABA8E1C-B6FE-422F-8442-5F1C58EDAF2B");
 		ObjectNode db = source.putObject(CamtMain.DATABASE.key());
@@ -79,12 +79,11 @@ public class CamtTest
 		ObjectNode writeJson = db.putObject(CamtDatabase.WRITE_JSON.key());
 		writeJson.put(CamtWriteJson.TABLE.key(), "Camt");
 		writeJson.put(CamtWriteJson.JSON_COL.key(), "json");
-		writeJson.put(CamtWriteJson.NAME_COL.key(), "name");
 		writeJson.put(CamtWriteJson.WHERE_COL.key(), "id_text");
 		writeJson.put(CamtWriteJson.WHERE_VAL.key(), "3ABA8E1C-B6FE-422F-8442-5F1C58EDAF2B");
 		ObjectNode target = this.mapper.createObjectNode();
 		assertTrue(CamtParameter.checkAll(source, target));
-		assertEquals("Camt.xml", target.get(CamtMain.FILENAME.key()).asText());
+		assertEquals("Camt.xml", target.get(CamtMain.NAME.key()).asText());
 		assertEquals(new BigDecimal(354), target.get(CamtMain.SIZE.key()).decimalValue());
 		assertEquals("3ABA8E1C-B6FE-422F-8442-5F1C58EDAF2B", target.get(CamtMain.HASH.key()).asText());
 		assertEquals(ObjectNode.class, target.get(CamtMain.DATABASE.key()).getClass());
@@ -101,7 +100,6 @@ public class CamtTest
 		assertEquals(ObjectNode.class, db.get(CamtDatabase.WRITE_JSON.key()).getClass());
 		writeJson = ObjectNode.class.cast(db.get(CamtDatabase.WRITE_JSON.key()));
 		assertEquals("Camt", writeJson.get(CamtWriteJson.TABLE.key()).asText());
-		assertEquals("name", writeJson.get(CamtWriteJson.NAME_COL.key()).asText());
 		assertEquals("json", writeJson.get(CamtWriteJson.JSON_COL.key()).asText());
 		assertEquals("id_text", writeJson.get(CamtWriteJson.WHERE_COL.key()).asText());
 		assertEquals("3ABA8E1C-B6FE-422F-8442-5F1C58EDAF2B", writeJson.get(CamtWriteJson.WHERE_VAL.key()).asText());
@@ -113,7 +111,7 @@ public class CamtTest
 	public void convertXMLToJson() throws SQLException, IOException
 	{
 		ObjectNode source = this.mapper.createObjectNode();
-		source.put(CamtMain.FILENAME.key(), "Camt.xml");
+		source.put(CamtMain.NAME.key(), "Camt.xml");
 		source.put(CamtMain.SIZE.key(), new BigDecimal(354));
 		source.put(CamtMain.HASH.key(), "3ABA8E1C-B6FE-422F-8442-5F1C58EDAF2B");
 		ObjectNode db = source.putObject(CamtMain.DATABASE.key());
@@ -128,7 +126,6 @@ public class CamtTest
 		ObjectNode writeJson = db.putObject(CamtDatabase.WRITE_JSON.key());
 		writeJson.put(CamtWriteJson.TABLE.key(), "Camt");
 		writeJson.put(CamtWriteJson.JSON_COL.key(), "json");
-		writeJson.put(CamtWriteJson.NAME_COL.key(), "filename");
 		writeJson.put(CamtWriteJson.WHERE_COL.key(), "id_text");
 		writeJson.put(CamtWriteJson.WHERE_VAL.key(), "3ABA8E1C-B6FE-422F-8442-5F1C58EDAF2B");
 		String result = new CamtXmlToJsonConverter().execute(source);

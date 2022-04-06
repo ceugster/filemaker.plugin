@@ -6,13 +6,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-public interface Executor 
+public interface Executor
 {
-	String execute(ObjectNode node);
-	
+	String execute(ObjectNode source, ObjectNode target);
+
 	default boolean createErrorMessage(ObjectNode target, String message)
 	{
-		if (Objects.isNull(target.get("result")))
+		JsonNode result = target.get("result");
+		if (Objects.isNull(result))
+		{
+			result = target.put("result", "Fehler");
+		}
+		else if (result.asText().equals("OK"))
 		{
 			target.put("result", "Fehler");
 		}
@@ -29,10 +34,10 @@ public interface Executor
 		errors.add(message);
 		return false;
 	}
-	
+
 	default boolean createErrorMessage(ObjectNode target, Exception e)
 	{
 		return createErrorMessage(target, e.getLocalizedMessage());
 	}
-	
+
 }

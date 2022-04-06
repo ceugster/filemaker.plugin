@@ -1,11 +1,9 @@
 package ch.eugster.filemaker.fsl.plugin.converter;
 
 import java.io.IOException;
-import java.util.Objects;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
@@ -16,10 +14,8 @@ public class XmlToJsonConverter implements Executor
 {
 
 	@Override
-	public String execute(ObjectNode source)
+	public String execute(ObjectNode source, ObjectNode target)
 	{
-		ObjectMapper mapper = new ObjectMapper();
-		ObjectNode target = mapper.createObjectNode();
 		if (Parameter.checkAll(source, target))
 		{
 			try
@@ -31,12 +27,8 @@ public class XmlToJsonConverter implements Executor
 			}
 			catch (IOException e)
 			{
-				JsonNode errors = target.get("errors");
-				if (Objects.isNull(errors))
-				{
-					errors = target.putArray("errors");
-				}
-				ArrayNode.class.cast(errors).add("Konversionsfehler: " + e.getLocalizedMessage());
+				String error = "Konversionsfehler: " + e.getLocalizedMessage();
+				this.createErrorMessage(target, error);
 			}
 		}
 		return target.toString();

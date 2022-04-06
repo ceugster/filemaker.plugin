@@ -11,7 +11,6 @@ import java.sql.SQLException;
 import java.util.Objects;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.filemaker.jdbc.Driver;
 
@@ -38,12 +37,8 @@ import net.codecrete.qrbill.generator.ValidationResult;
  */
 public class SwissQRBillGenerator implements Executor
 {
-	private ObjectMapper mapper = new ObjectMapper();
-
-	public String execute(ObjectNode source)
+	public String execute(ObjectNode source, ObjectNode target)
 	{
-		ObjectNode target = mapper.createObjectNode();
-		this.mapper = new ObjectMapper();
 		if (QRBillParameter.checkAll(source, target))
 		{
 			Bill bill = new Bill();
@@ -144,7 +139,7 @@ public class SwissQRBillGenerator implements Executor
 		}
 		catch (SQLException e)
 		{
-			QRBillParameter.addErrorNode(target, e.getLocalizedMessage());
+			this.createErrorMessage(target, e.getLocalizedMessage());
 		}
 		return connection;
 	}
@@ -192,7 +187,7 @@ public class SwissQRBillGenerator implements Executor
 		}
 		catch (SQLException e)
 		{
-			return QRBillParameter.addErrorNode(target, e.getLocalizedMessage());
+			this.createErrorMessage(target, e.getLocalizedMessage());
 		}
 		return result == 1;
 
@@ -224,7 +219,7 @@ public class SwissQRBillGenerator implements Executor
 		}
 		catch (SQLException e)
 		{
-			QRBillParameter.addErrorNode(target, e.getLocalizedMessage());
+			this.createErrorMessage(target, e.getLocalizedMessage());
 		}
 		return bytes;
 	}
@@ -257,7 +252,7 @@ public class SwissQRBillGenerator implements Executor
 			}
 			catch (IOException e)
 			{
-				QRBillParameter.addErrorNode(target, e.getLocalizedMessage());
+				this.createErrorMessage(target, e.getLocalizedMessage());
 			}
 			finally
 			{
@@ -277,7 +272,7 @@ public class SwissQRBillGenerator implements Executor
 		}
 		else
 		{
-			QRBillParameter.addErrorNode(target,
+			this.createErrorMessage(target,
 					"Die Rechnung existiert nicht. Sie muss für die Verarbeitung vorhanden sein.");
 		}
 		return bytes;

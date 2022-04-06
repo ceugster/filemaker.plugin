@@ -142,6 +142,10 @@ public interface Parameter
 		{
 			target.put("result", "Fehler");
 		}
+		else if (result.asText().equals("OK"))
+		{
+			target.put("result", "Fehler");
+		}
 		JsonNode errors = target.get("errors");
 		if (Objects.isNull(errors))
 		{

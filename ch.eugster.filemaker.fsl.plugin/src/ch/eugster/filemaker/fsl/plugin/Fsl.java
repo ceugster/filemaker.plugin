@@ -2,6 +2,7 @@ package ch.eugster.filemaker.fsl.plugin;
 
 import java.util.Objects;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -37,14 +38,26 @@ public class Fsl
 		}
 		else if (!Objects.isNull(source))
 		{
-			result = executor.execute(source);
+			result = executor.execute(source, target);
+		}
+		if (Objects.isNull(target.get("errors")))
+		{
+			if (Objects.isNull(target.get("result")))
+			{
+				target.put("result", "OK");
+			}
 		}
 		return result;
 	}
 
 	private String createErrorMessage(ObjectNode target, String message)
 	{
-		if (Objects.isNull(target.get("result")))
+		JsonNode result = target.get("result");
+		if (Objects.isNull(result))
+		{
+			target.put("result", "Fehler");
+		}
+		else if (result.asText().equals("OK"))
 		{
 			target.put("result", "Fehler");
 		}

@@ -128,7 +128,8 @@ public class CamtTest
 		writeJson.put(CamtWriteJson.JSON_COL.key(), "json");
 		writeJson.put(CamtWriteJson.WHERE_COL.key(), "id_text");
 		writeJson.put(CamtWriteJson.WHERE_VAL.key(), "3ABA8E1C-B6FE-422F-8442-5F1C58EDAF2B");
-		String result = new CamtXmlToJsonConverter().execute(source);
+		ObjectNode target = this.mapper.createObjectNode();
+		String result = new CamtXmlToJsonConverter().execute(source, target);
 		assertEquals("{\n" + "  \"Camt.xml\" : \"Camt.xml\",\n" + "  \"size\" : 354,\n"
 				+ "  \"hash\" : \"3ABA8E1C-B6FE-422F-8442-5F1C58EDAF2B\",\n" + "  \"database\" : {\n"
 				+ "    \"url\" : \"jdbc:filemaker://localhost/Test\",\n" + "    \"username\" : \"Admin\",\n"

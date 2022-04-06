@@ -22,14 +22,11 @@ import ch.eugster.filemaker.fsl.plugin.camt.CamtParameter.CamtDatabase;
 import ch.eugster.filemaker.fsl.plugin.camt.CamtParameter.CamtMain;
 import ch.eugster.filemaker.fsl.plugin.camt.CamtParameter.CamtReadXml;
 import ch.eugster.filemaker.fsl.plugin.camt.CamtParameter.CamtWriteJson;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter;
 
 public class CamtXmlToJsonConverter implements Executor
 {
-	public String execute(ObjectNode source)
+	public String execute(ObjectNode source, ObjectNode target)
 	{
-		ObjectMapper mapper = new ObjectMapper();
-		ObjectNode target = mapper.createObjectNode();
 		if (CamtParameter.checkAll(source, target))
 		{
 			Connection connection = null;
@@ -79,7 +76,7 @@ public class CamtXmlToJsonConverter implements Executor
 		}
 		catch (SQLException e)
 		{
-			QRBillParameter.addErrorNode(target, e.getLocalizedMessage());
+			this.createErrorMessage(target, e.getLocalizedMessage());
 		}
 		return connection;
 	}
@@ -116,7 +113,7 @@ public class CamtXmlToJsonConverter implements Executor
 		}
 		catch (Exception e)
 		{
-			CamtParameter.addErrorNode(params, e.getLocalizedMessage());
+			this.createErrorMessage(params, e.getLocalizedMessage());
 		}
 		return Objects.isNull(baos) ? null : new String(baos.toByteArray());
 	}
@@ -143,7 +140,7 @@ public class CamtXmlToJsonConverter implements Executor
 		}
 		catch (SQLException e)
 		{
-			CamtParameter.addErrorNode(params, e.getLocalizedMessage());
+			this.createErrorMessage(params, e.getLocalizedMessage());
 		}
 		finally
 		{
@@ -173,7 +170,7 @@ public class CamtXmlToJsonConverter implements Executor
 		}
 		catch (IOException e)
 		{
-			CamtParameter.addErrorNode(params, e.getLocalizedMessage());
+			this.createErrorMessage(params, e.getLocalizedMessage());
 		}
 		return null;
 	}

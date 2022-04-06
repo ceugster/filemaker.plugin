@@ -229,22 +229,6 @@ public interface CamtParameter
 		return errors.size() == 0;
 	}
 
-	static boolean addErrorNode(ObjectNode target, String message)
-	{
-		JsonNode result = target.get("result");
-		if (Objects.isNull(result))
-		{
-			target.put("result", "Fehler");
-		}
-		JsonNode errors = target.get("errors");
-		if (Objects.isNull(errors))
-		{
-			target.putArray("errors");
-		}
-		ArrayNode.class.cast(target.get("errors")).add(message);
-		return false;
-	}
-
 	enum CamtMain implements CamtParameter
 	{
 		// @formatter:off

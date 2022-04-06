@@ -64,4 +64,22 @@ public class ConversionTest
 		assertEquals("OK", target.get("result").asText());
 		assertNull(target.get("errors"));
 	}
+
+	@Test
+	public void testParametersError() throws SQLException, IOException
+	{
+		String filename = "200924_camt.054_P_CH2909000000250094239_1110092703_0_2019042423412214.xml";
+		ObjectNode source = mapper.createObjectNode();
+		source.put(ConversionParameter.SOURCE_XML.key(), filename);
+		String result = new Fsl().execute("ConvertXmlToJson", source.toString());
+		JsonNode target = mapper.readTree(result);
+		assertNotNull(target.get(ConversionParameter.SOURCE_XML.key()));
+		assertEquals(filename, target.get(ConversionParameter.SOURCE_XML.key()).asText());
+		assertNull(target.get(ConversionParameter.TARGET_JSON.key()));
+		assertEquals("Fehler", target.get("result").asText());
+		assertEquals(1, target.get("errors").size());
+		assertEquals(
+				"Konversionsfehler: Unexpected character '2' (code 50) in prolog; expected '<'\n at [row,col {unknown-source}]: [1,1]",
+				target.get("errors").get(0).asText());
+	}
 }

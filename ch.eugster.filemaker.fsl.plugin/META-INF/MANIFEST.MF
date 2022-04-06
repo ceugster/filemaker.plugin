@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: FileMaker Plugin Bundle
 Bundle-SymbolicName: ch.eugster.filemaker.fsl.plugin
-Bundle-Version: 1.0.2.qualifier
+Bundle-Version: 1.0.3.qualifier
 Bundle-Vendor: Christian Eugster
 Automatic-Module-Name: ch.eugster.camt
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8

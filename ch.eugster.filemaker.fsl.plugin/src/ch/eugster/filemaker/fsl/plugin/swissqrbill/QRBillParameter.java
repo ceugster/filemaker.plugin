@@ -10,10 +10,7 @@ import java.util.Set;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.NumericNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
-import com.fasterxml.jackson.databind.node.ValueNode;
 
 import net.codecrete.qrbill.generator.GraphicsFormat;
 import net.codecrete.qrbill.generator.Language;
@@ -150,6 +147,20 @@ public interface QRBillParameter
 					result = false;
 				}
 			}
+			else if (value.isDouble())
+			{
+				if (this.mandatory() && Double.valueOf(value.asDouble()).equals(Double.valueOf(0D)))
+				{
+					result = false;
+				}
+			}
+			else if (value.isInt())
+			{
+				if (this.mandatory() && Integer.valueOf(value.asInt()).equals(Integer.valueOf(0)))
+				{
+					result = false;
+				}
+			}
 		}
 		return result;
 	}
@@ -254,6 +265,14 @@ public interface QRBillParameter
 				{
 					target.put(this.key(), value.bigIntegerValue());
 				}
+				else if (value.isInt())
+				{
+					target.put(this.key(), value.asInt());
+				}
+				else if (value.isDouble())
+				{
+					target.put(this.key(), value.asDouble());
+				}
 				else if (value.isBoolean())
 				{
 					target.put(this.key(), value.asBoolean());
@@ -299,12 +318,12 @@ public interface QRBillParameter
 	enum QRBillMain implements QRBillParameter
 	{
 		// @formatter:off
-		AMOUNT("amount", false, NumericNode.class), 
-		CURRENCY("currency", true, TextNode.class),
-		IBAN("iban", true, TextNode.class), 
-		INVOICE("invoice", true, TextNode.class), 
-		MESSAGE("message", false, TextNode.class),
-		REFERENCE("reference", true, TextNode.class),
+		AMOUNT("amount", false), 
+		CURRENCY("currency", true),
+		IBAN("iban", true), 
+		INVOICE("invoice", true), 
+		MESSAGE("message", false),
+		REFERENCE("reference", true),
 		DATABASE("database", true, QRBillDatabase.values()), 
 		CREDITOR("creditor", true, QRBillCreditor.values()),
 		DEBTOR("debtor", false, QRBillDebtor.values()),
@@ -315,8 +334,6 @@ public interface QRBillParameter
 
 		private String key;
 
-		private Class<? extends ValueNode> clazz;
-
 		private boolean mandatory;
 
 		private QRBillParameter[] parameter = new QRBillParameter[0];
@@ -325,12 +342,6 @@ public interface QRBillParameter
 		{
 			this.key = key;
 			this.mandatory = mandatory;
-		}
-
-		private QRBillMain(String key, boolean mandatory, Class<? extends ValueNode> clazz)
-		{
-			this(key, mandatory);
-			this.clazz = clazz;
 		}
 
 		private QRBillMain(String key, boolean mandatory, QRBillParameter[] parameter)
@@ -363,11 +374,6 @@ public interface QRBillParameter
 			return this.mandatory;
 		}
 
-		public Class<? extends ValueNode> clazz()
-		{
-			return this.clazz;
-		}
-
 		public String key()
 		{
 			return key;
@@ -383,83 +389,95 @@ public interface QRBillParameter
 			clearErrors();
 			switch (this)
 			{
-			case CURRENCY:
-			{
-				if (Objects.isNull(value))
+				case CURRENCY:
 				{
-					return addError("Der Parameter '" + this.key() + "' ist zwingend erforderlich.");
-				}
-				Set<Currency> currencies = Currency.getAvailableCurrencies();
-				for (Currency currency : currencies)
-				{
-					if (currency.getCurrencyCode().equals(value.asText()))
+					if (Objects.isNull(value))
 					{
-						return true;
+						return addError("Der Parameter '" + this.key() + "' ist zwingend erforderlich.");
 					}
-				}
-				return addError("Der Parameter '" + this.key() + "' ist ungültig (die Währung '" + value.asText()
-						+ "' wird nicht unterstützt).");
-			}
-			case IBAN:
-			{
-				if (Objects.isNull(value))
-				{
-					return addError("Der Parameter '" + this.key() + "' ist zwingend erforderlich.");
-				}
-				String iban = value.asText().trim();
-				if (iban.length() < 15 || iban.length() > 34)
-				{
-					return addError("Der Parameter '" + this.key() + "' ist ungültig (falsche Länge).");
-				}
-				iban = iban.substring(4) + iban.substring(0, 4);
-				StringBuilder builder = new StringBuilder();
-				for (int i = 0; i < iban.length(); i++)
-				{
-					builder.append(Character.getNumericValue(iban.charAt(i)));
-				}
-				BigInteger ibanNumber = new BigInteger(builder.toString());
-				if (ibanNumber.mod(new BigInteger("97")).intValue() == 1)
-				{
-					return true;
-				}
-				return addError("Der Parameter '" + this.key() + "' ist ungültig.");
-			}
-			case REFERENCE:
-			{
-				if (Objects.isNull(value))
-				{
-					return addError("Der Parameter '" + this.key() + "' ist zwingend erforderlich.");
-				}
-				String reference = value.asText();
-				if (reference.length() > 25 && reference.length() < 28)
-				{
-					String referenceWithoutErrorCheckingNumber = reference.length() == 27
-							? reference.substring(0, reference.length() - 1)
-							: reference;
-					int[] table =
-					{ 0, 9, 4, 6, 8, 2, 7, 1, 3, 5 };
-					int keep = 0;
-					for (int i = 0; i < referenceWithoutErrorCheckingNumber.length(); i++)
+					Set<Currency> currencies = Currency.getAvailableCurrencies();
+					for (Currency currency : currencies)
 					{
-						keep = table[(keep + reference.charAt(i) - '0') % 10];
+						if (currency.getCurrencyCode().equals(value.asText()))
+						{
+							return true;
+						}
 					}
-					int errorCheckingNumber = (10 - keep) % 10;
-					if (reference.length() == 26)
+					return addError("Der Parameter '" + this.key() + "' ist ungültig (die Währung '" + value.asText()
+							+ "' wird nicht unterstützt).");
+				}
+				case IBAN:
+				{
+					if (Objects.isNull(value))
 					{
-						reference = reference + String.valueOf(errorCheckingNumber);
-						return true;
+						return addError("Der Parameter '" + this.key() + "' ist zwingend erforderlich.");
 					}
-					if (Integer.valueOf(reference.substring(26)) == errorCheckingNumber)
+					String iban = value.asText().trim();
+					if (iban.length() < 15 || iban.length() > 34)
+					{
+						return addError("Der Parameter '" + this.key() + "' ist ungültig (falsche Länge).");
+					}
+					iban = iban.substring(4) + iban.substring(0, 4);
+					StringBuilder builder = new StringBuilder();
+					for (int i = 0; i < iban.length(); i++)
+					{
+						builder.append(Character.getNumericValue(iban.charAt(i)));
+					}
+					BigInteger ibanNumber = new BigInteger(builder.toString());
+					if (ibanNumber.mod(new BigInteger("97")).intValue() == 1)
 					{
 						return true;
 					}
 					return addError("Der Parameter '" + this.key() + "' ist ungültig.");
 				}
-			}
-			default:
-			{
-				return QRBillParameter.super.validate(value, source);
-			}
+				case REFERENCE:
+				{
+					if (Objects.isNull(value))
+					{
+						return addError("Der Parameter '" + this.key() + "' ist zwingend erforderlich.");
+					}
+					String reference = value.asText();
+					if (reference.length() > 27)
+					{
+						return addError("Der Parameter '" + this.key() + "' darf aus maximal 27 Ziffern bestehen.");
+					}
+					StringBuilder builder = new StringBuilder(value.asText());
+					while (builder.length() < 26)
+					{
+						builder = builder.insert(0, "0");
+					}
+					reference = builder.toString();
+					if (reference.length() > 25 && reference.length() < 28)
+					{
+						String referenceWithoutErrorCheckingNumber = reference.length() == 27
+								? reference.substring(0, reference.length() - 1)
+								: reference;
+						int[] table =
+						{ 0, 9, 4, 6, 8, 2, 7, 1, 3, 5 };
+						int keep = 0;
+						for (int i = 0; i < referenceWithoutErrorCheckingNumber.length(); i++)
+						{
+							keep = table[(keep + reference.charAt(i) - '0') % 10];
+						}
+						int errorCheckingNumber = (10 - keep) % 10;
+						if (reference.length() == 26)
+						{
+							reference = reference + String.valueOf(errorCheckingNumber);
+							source.put(QRBillMain.REFERENCE.key, reference);
+							return true;
+						}
+						if (Integer.valueOf(reference.substring(26)) == errorCheckingNumber)
+						{
+							source.put(QRBillMain.REFERENCE.key, reference);
+							return true;
+						}
+						return addError("Der Parameter '" + this.key() + "' ist ungültig.");
+					}
+				}
+				default:
+				{
+					return QRBillParameter.super.validate(value, source);
+				}
 			}
 		}
 
@@ -473,9 +491,9 @@ public interface QRBillParameter
 	enum QRBillDatabase implements QRBillParameter
 	{
 		// @formatter:off
-		URL("url", "database.", true, TextNode.class), 
-		USERNAME("username", "database.", true, TextNode.class),
-		PASSWORD("password", "database.", false, TextNode.class), 
+		URL("url", "database.", true), 
+		USERNAME("username", "database.", true),
+		PASSWORD("password", "database.", false), 
 		WRITE_QRBILL("writeqrbill", "database.", true, QRBillWrite.values()),
 		READ_INVOICE("readinvoice", "database.", false, QRBillReadInvoice.values());
 		// @formatter:on
@@ -488,8 +506,6 @@ public interface QRBillParameter
 
 		private boolean mandatory;
 
-		private Class<? extends ValueNode> clazz;
-
 		private QRBillParameter[] parameter = new QRBillParameter[0];
 
 		private QRBillDatabase(String key, String parentKey, boolean mandatory)
@@ -497,12 +513,6 @@ public interface QRBillParameter
 			this.key = key;
 			this.parentKey = (Objects.isNull(parentKey) || parentKey.isEmpty()) ? "" : parentKey;
 			this.mandatory = mandatory;
-		}
-
-		private QRBillDatabase(String key, String parentKey, boolean mandatory, Class<? extends ValueNode> clazz)
-		{
-			this(key, parentKey, mandatory);
-			this.clazz = clazz;
 		}
 
 		private QRBillDatabase(String key, String parentKey, boolean mandatory, QRBillParameter[] parameter)
@@ -530,11 +540,6 @@ public interface QRBillParameter
 			return this.mandatory;
 		}
 
-		public Class<? extends ValueNode> clazz()
-		{
-			return this.clazz;
-		}
-
 		public String key()
 		{
 			return key;
@@ -560,11 +565,11 @@ public interface QRBillParameter
 	enum QRBillWrite implements QRBillParameter
 	{
 		// @formatter:off
-		TABLE("table", "writeqrbill.", true, TextNode.class), 
-		QRBILL_COL("qrbill", "writeqrbill.", true, TextNode.class),
-		NAME_COL("name", "writeqrbill.", true, TextNode.class),
-		WHERE_COL("where_col", "writeqrbill.", true, TextNode.class), 
-		WHERE_VAL("where_val", "writeqrbill.", true, TextNode.class);
+		TABLE("table", "writeqrbill.", true), 
+		QRBILL_COL("qrbill", "writeqrbill.", true),
+		NAME_COL("name", "writeqrbill.", true),
+		WHERE_COL("where_col", "writeqrbill.", true), 
+		WHERE_VAL("where_val", "writeqrbill.", true);
 		// @formatter:on
 
 		private List<String> errors = new ArrayList<String>();
@@ -575,14 +580,11 @@ public interface QRBillParameter
 
 		private boolean mandatory;
 
-		private Class<? extends ValueNode> clazz;
-
-		private QRBillWrite(String key, String parentKey, boolean mandatory, Class<? extends ValueNode> clazz)
+		private QRBillWrite(String key, String parentKey, boolean mandatory)
 		{
 			this.key = key;
 			this.parentKey = (Objects.isNull(parentKey) || parentKey.isEmpty()) ? "" : parentKey;
 			this.mandatory = mandatory;
-			this.clazz = clazz;
 		}
 
 		public String key()
@@ -605,11 +607,6 @@ public interface QRBillParameter
 			return this.mandatory;
 		}
 
-		public Class<? extends ValueNode> clazz()
-		{
-			return this.clazz;
-		}
-
 		public List<String> errors()
 		{
 			for (QRBillParameter parameter : this.parameter())
@@ -629,10 +626,10 @@ public interface QRBillParameter
 	enum QRBillReadInvoice implements QRBillParameter
 	{
 		// @formatter:off
-			TABLE("table", "readinvoice.", true, TextNode.class), 
-			INVOICE_COL("invoice", "readinvoice.", true, TextNode.class),
-			WHERE_COL("where_col", "readinvoice.", true, TextNode.class), 
-			WHERE_VAL("where_val", "readinvoice.", true, TextNode.class);
+			TABLE("table", "readinvoice.", true), 
+			INVOICE_COL("invoice", "readinvoice.", true),
+			WHERE_COL("where_col", "readinvoice.", true), 
+			WHERE_VAL("where_val", "readinvoice.", true);
 			// @formatter:on
 
 		private String key;
@@ -641,16 +638,13 @@ public interface QRBillParameter
 
 		private boolean mandatory;
 
-		private Class<? extends ValueNode> clazz;
-
 		private List<String> errors = new ArrayList<String>();
 
-		private QRBillReadInvoice(String key, String parentKey, boolean mandatory, Class<? extends ValueNode> clazz)
+		private QRBillReadInvoice(String key, String parentKey, boolean mandatory)
 		{
 			this.key = key;
 			this.parentKey = (Objects.isNull(parentKey) || parentKey.isEmpty()) ? "" : parentKey;
 			this.mandatory = mandatory;
-			this.clazz = clazz;
 		}
 
 		public String key()
@@ -673,11 +667,6 @@ public interface QRBillParameter
 			return this.mandatory;
 		}
 
-		public Class<? extends ValueNode> clazz()
-		{
-			return this.clazz;
-		}
-
 		public List<String> errors()
 		{
 			for (QRBillParameter parameter : this.parameter())
@@ -697,10 +686,10 @@ public interface QRBillParameter
 	enum QRBillCreditor implements QRBillParameter
 	{
 		// @formatter:off
-		NAME("name", "creditor.", true, TextNode.class), 
-		ADDRESS("address", "creditor.", true, TextNode.class),
-		CITY("city", "creditor.", true, TextNode.class), 
-		COUNTRY("country", "creditor.", true, TextNode.class);
+		NAME("name", "creditor.", true), 
+		ADDRESS("address", "creditor.", true),
+		CITY("city", "creditor.", true), 
+		COUNTRY("country", "creditor.", true);
 		// @formatter:on
 
 		private List<String> errors = new ArrayList<String>();
@@ -709,16 +698,13 @@ public interface QRBillParameter
 
 		private String parentKey = "";
 
-		private Class<? extends ValueNode> clazz;
-
 		private boolean mandatory;
 
-		private QRBillCreditor(String key, String parentKey, boolean mandatory, Class<? extends ValueNode> clazz)
+		private QRBillCreditor(String key, String parentKey, boolean mandatory)
 		{
 			this.key = key;
 			this.parentKey = (Objects.isNull(parentKey) || parentKey.isEmpty()) ? "" : parentKey;
 			this.mandatory = mandatory;
-			this.clazz = clazz;
 		}
 
 		public List<String> errors()
@@ -738,11 +724,6 @@ public interface QRBillParameter
 		public boolean mandatory()
 		{
 			return this.mandatory;
-		}
-
-		public Class<? extends ValueNode> clazz()
-		{
-			return this.clazz;
 		}
 
 		public String key()
@@ -765,11 +746,11 @@ public interface QRBillParameter
 	enum QRBillDebtor implements QRBillParameter
 	{
 		// @formatter:off
-		NUMBER("number", "debtor.", true, TextNode.class), 
-		NAME("name", "debtor.", true, TextNode.class),
-		ADDRESS("address", "debtor.", true, TextNode.class), 
-		CITY("city", "debtor.", true, TextNode.class),
-		COUNTRY("country", "debtor.", true, TextNode.class);
+		NUMBER("number", "debtor.", true), 
+		NAME("name", "debtor.", true),
+		ADDRESS("address", "debtor.", true), 
+		CITY("city", "debtor.", true),
+		COUNTRY("country", "debtor.", true);
 		// @formatter:on
 
 		private List<String> errors = new ArrayList<String>();
@@ -777,8 +758,6 @@ public interface QRBillParameter
 		private String key;
 
 		private String parentKey = "";
-
-		private Class<? extends ValueNode> clazz;
 
 		private boolean mandatory;
 
@@ -788,12 +767,11 @@ public interface QRBillParameter
 			this.mandatory = mandatory;
 		}
 
-		private QRBillDebtor(String key, String parentKey, boolean mandatory, Class<? extends ValueNode> clazz)
+		private QRBillDebtor(String key, String parentKey, boolean mandatory)
 		{
 			this.key = key;
 			this.parentKey = (Objects.isNull(parentKey) || parentKey.isEmpty()) ? "" : parentKey;
 			this.mandatory = mandatory;
-			this.clazz = clazz;
 		}
 
 		public List<String> errors()
@@ -813,11 +791,6 @@ public interface QRBillParameter
 		public boolean mandatory()
 		{
 			return this.mandatory;
-		}
-
-		public Class<? extends ValueNode> clazz()
-		{
-			return this.clazz;
 		}
 
 		public String key()
@@ -840,9 +813,9 @@ public interface QRBillParameter
 	enum QRBillForm implements QRBillParameter
 	{
 		// @formatter:off
-		GRAPHICS_FORMAT("graphics_format", "form.", true, TextNode.class), 
-		OUTPUT_SIZE("output_size", "form.", false, TextNode.class),
-		LANGUAGE("language", "form.", false, TextNode.class);
+		GRAPHICS_FORMAT("graphics_format", "form.", true), 
+		OUTPUT_SIZE("output_size", "form.", false),
+		LANGUAGE("language", "form.", false);
 		// @formatter:on
 
 		private List<String> errors = new ArrayList<String>();
@@ -850,8 +823,6 @@ public interface QRBillParameter
 		private String key;
 
 		private String parentKey = "";
-
-		private Class<? extends ValueNode> clazz;
 
 		private boolean mandatory;
 
@@ -861,12 +832,11 @@ public interface QRBillParameter
 			this.mandatory = mandatory;
 		}
 
-		private QRBillForm(String key, String parentKey, boolean mandatory, Class<? extends ValueNode> clazz)
+		private QRBillForm(String key, String parentKey, boolean mandatory)
 		{
 			this.key = key;
 			this.parentKey = (Objects.isNull(parentKey) || parentKey.isEmpty()) ? "" : parentKey;
 			this.mandatory = mandatory;
-			this.clazz = clazz;
 		}
 
 		public List<String> errors()
@@ -886,11 +856,6 @@ public interface QRBillParameter
 		public boolean mandatory()
 		{
 			return this.mandatory;
-		}
-
-		public Class<? extends ValueNode> clazz()
-		{
-			return this.clazz;
 		}
 
 		public String key()
@@ -913,43 +878,43 @@ public interface QRBillParameter
 			}
 			switch (this)
 			{
-			case GRAPHICS_FORMAT:
-			{
-				for (GraphicsFormat gf : GraphicsFormat.values())
+				case GRAPHICS_FORMAT:
 				{
-					if (gf.name().equals(value.asText()))
+					for (GraphicsFormat gf : GraphicsFormat.values())
 					{
-						return true;
+						if (gf.name().equals(value.asText()))
+						{
+							return true;
+						}
 					}
+					return addError("Der Parameter '" + QRBillMain.FORM.key() + "." + this.key() + "' ist ungültig.");
 				}
-				return addError("Der Parameter '" + QRBillMain.FORM.key() + "." + this.key() + "' ist ungültig.");
-			}
-			case OUTPUT_SIZE:
-			{
-				for (OutputSize os : OutputSize.values())
+				case OUTPUT_SIZE:
 				{
-					if (os.name().equals(value.asText()))
+					for (OutputSize os : OutputSize.values())
 					{
-						return true;
+						if (os.name().equals(value.asText()))
+						{
+							return true;
+						}
 					}
+					return addError("Der Parameter '" + QRBillMain.FORM.key() + "." + this.key() + "' ist ungültig.");
 				}
-				return addError("Der Parameter '" + QRBillMain.FORM.key() + "." + this.key() + "' ist ungültig.");
-			}
-			case LANGUAGE:
-			{
-				for (Language l : Language.values())
+				case LANGUAGE:
 				{
-					if (l.name().equals(value.asText()))
+					for (Language l : Language.values())
 					{
-						return true;
+						if (l.name().equals(value.asText()))
+						{
+							return true;
+						}
 					}
+					return addError("Der Parameter '" + QRBillMain.FORM.key() + "." + this.key() + "' ist ungültig.");
 				}
-				return addError("Der Parameter '" + QRBillMain.FORM.key() + "." + this.key() + "' ist ungültig.");
-			}
-			default:
-			{
-				return QRBillParameter.super.validate(value, source);
-			}
+				default:
+				{
+					return QRBillParameter.super.validate(value, source);
+				}
 			}
 		}
 

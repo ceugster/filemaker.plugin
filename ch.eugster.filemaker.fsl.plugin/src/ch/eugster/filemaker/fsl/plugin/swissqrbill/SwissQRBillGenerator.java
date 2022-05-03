@@ -88,25 +88,28 @@ public class SwissQRBillGenerator implements Executor
 				try
 				{
 					connection = this.createConnection(target);
-					JsonNode readInvoice = target.get(QRBillParameter.QRBillDatabase.READ_INVOICE.key());
-					if (Objects.isNull(readInvoice))
+					if (!Objects.isNull(connection))
 					{
-						if (updateDatabase(connection, target, QRBill.generate(bill)))
+						JsonNode readInvoice = target.get(QRBillParameter.QRBillDatabase.READ_INVOICE.key());
+						if (Objects.isNull(readInvoice))
 						{
-
-						}
-					}
-					else
-					{
-						byte[] bytes = this.readInvoice(connection, target, bill);
-						if (!Objects.isNull(bytes))
-						{
-							bytes = this.appendQRBillToInvoice(target, bill, bytes);
-							if (!Objects.isNull(target.get(QRBillParameter.QRBillMain.DATABASE.key())))
+							if (updateDatabase(connection, target, QRBill.generate(bill)))
 							{
-								if (updateDatabase(connection, target, QRBill.generate(bill)))
-								{
 
+							}
+						}
+						else
+						{
+							byte[] bytes = this.readInvoice(connection, target, bill);
+							if (!Objects.isNull(bytes))
+							{
+								bytes = this.appendQRBillToInvoice(target, bill, bytes);
+								if (!Objects.isNull(target.get(QRBillParameter.QRBillMain.DATABASE.key())))
+								{
+									if (updateDatabase(connection, target, QRBill.generate(bill)))
+									{
+
+									}
 								}
 							}
 						}
@@ -141,6 +144,10 @@ public class SwissQRBillGenerator implements Executor
 		{
 			this.createErrorMessage(target, e.getLocalizedMessage());
 		}
+		catch (NullPointerException e)
+		{
+			this.createErrorMessage(target, "Die Verbindung zur Datenbank kann nicht hergestellt werden.");
+		}
 		return connection;
 	}
 
@@ -160,7 +167,7 @@ public class SwissQRBillGenerator implements Executor
 
 	private boolean updateDatabase(Connection connection, ObjectNode target, byte[] bytes)
 	{
-		String filename = target.get(QRBillMain.INVOICE.key()) + "."
+		String filename = target.get(QRBillMain.INVOICE.key()).asText() + "."
 				+ target.get(QRBillMain.FORM.key()).get(QRBillForm.GRAPHICS_FORMAT.key()).asText().toLowerCase();
 
 		JsonNode db = target.get(QRBillParameter.QRBillMain.DATABASE.key());

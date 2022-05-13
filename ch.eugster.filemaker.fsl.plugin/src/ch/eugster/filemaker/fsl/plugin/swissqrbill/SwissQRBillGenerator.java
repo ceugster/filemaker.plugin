@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.filemaker.jdbc.Driver;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
+import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillDatabase;
 import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillForm;
 import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillMain;
 import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillWrite;
@@ -90,7 +91,8 @@ public class SwissQRBillGenerator implements Executor
 					connection = this.createConnection(target);
 					if (!Objects.isNull(connection))
 					{
-						JsonNode readInvoice = target.get(QRBillParameter.QRBillDatabase.READ_INVOICE.key());
+						JsonNode readInvoice = target.get(QRBillMain.DATABASE.key())
+								.get(QRBillDatabase.READ_INVOICE.key());
 						if (Objects.isNull(readInvoice))
 						{
 							if (updateDatabase(connection, target, QRBill.generate(bill)))
@@ -106,7 +108,7 @@ public class SwissQRBillGenerator implements Executor
 								bytes = this.appendQRBillToInvoice(target, bill, bytes);
 								if (!Objects.isNull(target.get(QRBillParameter.QRBillMain.DATABASE.key())))
 								{
-									if (updateDatabase(connection, target, QRBill.generate(bill)))
+									if (updateDatabase(connection, target, bytes))
 									{
 
 									}
@@ -213,7 +215,7 @@ public class SwissQRBillGenerator implements Executor
 		PreparedStatement pstm = null;
 		try
 		{
-			String sql = "SELECT GetAs(" + readInvoiceColumn + ", 'FILE') FROM " + readInvoiceTable + " WHERE "
+			String sql = "SELECT GetAs(" + readInvoiceColumn + ", DEFAULT) FROM " + readInvoiceTable + " WHERE "
 					+ readInvoiceWhereCol + " = ?";
 			pstm = connection.prepareStatement(sql);
 			pstm.setString(1, readInvoiceWhereVal);
@@ -231,10 +233,10 @@ public class SwissQRBillGenerator implements Executor
 		return bytes;
 	}
 
-	private byte[] appendQRBillToInvoice(ObjectNode target, Bill bill, byte[] bytes)
+	private byte[] appendQRBillToInvoice(ObjectNode target, Bill bill, byte[] invoice)
 	{
 		PDFCanvas canvas = null;
-		if (!Objects.isNull(bytes))
+		if (!Objects.isNull(invoice))
 		{
 			try
 			{
@@ -242,7 +244,7 @@ public class SwissQRBillGenerator implements Executor
 				InputStream is = null;
 				try
 				{
-					is = new ByteArrayInputStream(bytes);
+					is = new ByteArrayInputStream(invoice);
 					targetArray = new byte[is.available()];
 					is.read(targetArray);
 				}
@@ -255,7 +257,7 @@ public class SwissQRBillGenerator implements Executor
 				}
 				canvas = new PDFCanvas(targetArray, PDFCanvas.LAST_PAGE);
 				QRBill.draw(bill, canvas);
-				bytes = canvas.toByteArray();
+				invoice = canvas.toByteArray();
 			}
 			catch (IOException e)
 			{
@@ -267,7 +269,7 @@ public class SwissQRBillGenerator implements Executor
 				{
 					if (canvas != null)
 					{
-						bytes = canvas.toByteArray();
+						invoice = canvas.toByteArray();
 						canvas.close();
 					}
 				}
@@ -282,7 +284,7 @@ public class SwissQRBillGenerator implements Executor
 			this.createErrorMessage(target,
 					"Die Rechnung existiert nicht. Sie muss für die Verarbeitung vorhanden sein.");
 		}
-		return bytes;
+		return invoice;
 	}
 
 	private Language getLanguage(String value) throws IllegalArgumentException

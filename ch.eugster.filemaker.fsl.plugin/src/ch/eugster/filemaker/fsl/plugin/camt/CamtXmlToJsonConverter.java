@@ -25,24 +25,24 @@ import ch.eugster.filemaker.fsl.plugin.camt.CamtParameter.CamtWriteJson;
 
 public class CamtXmlToJsonConverter implements Executor
 {
-	public String execute(ObjectNode source, ObjectNode target)
+	public String execute(ObjectNode source, ObjectNode results)
 	{
-		if (CamtParameter.checkAll(source, target))
+		if (CamtParameter.checkAll(source, results))
 		{
 			Connection connection = null;
 			try
 			{
-				connection = this.createConnection(target);
-				String xml = readXml(connection, target);
-				String json = convertXmlToJson(target, xml);
-				saveJson(connection, target, json);
+				connection = this.createConnection(results);
+				String xml = readXml(connection, results);
+				String json = convertXmlToJson(results, xml);
+				saveJson(connection, results, json);
 			}
 			finally
 			{
 				this.closeConnection(connection);
 			}
 		}
-		return target.toPrettyString();
+		return results.toPrettyString();
 	}
 
 	private void closeConnection(Connection connection)
@@ -76,7 +76,7 @@ public class CamtXmlToJsonConverter implements Executor
 		}
 		catch (SQLException e)
 		{
-			this.createErrorMessage(target, e.getLocalizedMessage());
+			this.addError(target, e);
 		}
 		return connection;
 	}
@@ -113,7 +113,7 @@ public class CamtXmlToJsonConverter implements Executor
 		}
 		catch (Exception e)
 		{
-			this.createErrorMessage(params, e.getLocalizedMessage());
+			this.addError(params, e);
 		}
 		return Objects.isNull(baos) ? null : new String(baos.toByteArray());
 	}
@@ -140,7 +140,7 @@ public class CamtXmlToJsonConverter implements Executor
 		}
 		catch (SQLException e)
 		{
-			this.createErrorMessage(params, e.getLocalizedMessage());
+			this.addError(params, e);
 		}
 		finally
 		{
@@ -170,7 +170,7 @@ public class CamtXmlToJsonConverter implements Executor
 		}
 		catch (IOException e)
 		{
-			this.createErrorMessage(params, e.getLocalizedMessage());
+			this.addError(params, e);
 		}
 		return null;
 	}

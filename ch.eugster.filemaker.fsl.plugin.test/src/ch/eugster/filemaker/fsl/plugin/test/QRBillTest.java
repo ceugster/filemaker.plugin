@@ -2,7 +2,6 @@ package ch.eugster.filemaker.fsl.plugin.test;
 
 import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.awt.Desktop;
@@ -28,14 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import ch.eugster.filemaker.fsl.plugin.ExecutorSelector;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillCreditor;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillDatabase;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillDebtor;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillForm;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillMain;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillReadInvoice;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBillParameter.QRBillWrite;
+import ch.eugster.filemaker.fsl.plugin.swissqrbill.SwissQRBillGenerator.Parameter;
 import net.codecrete.qrbill.generator.GraphicsFormat;
 import net.codecrete.qrbill.generator.Language;
 import net.codecrete.qrbill.generator.OutputSize;
@@ -73,13 +65,15 @@ public class QRBillTest
 	@Test
 	public void testNullParameter() throws JsonMappingException, JsonProcessingException
 	{
+		ObjectNode source = this.mapper.createObjectNode();
+		ObjectNode test = source.putObject("test");
+		test.put("properties", "");
 		Fsl fsl = new Fsl();
 		String result = fsl.execute(ExecutorSelector.CREATE_QRBILL.command(), null);
-		JsonNode target = mapper.readTree(result);
-		assertEquals("Fehler", target.get("result").asText());
-		JsonNode node = target.get("errors");
-		assertEquals(ArrayNode.class, node.getClass());
-		ArrayNode errors = ArrayNode.class.cast(node);
+		JsonNode node = this.mapper.readTree(result);
+		assertEquals("Fehler", node.get("result").asText());
+		JsonNode errors = node.get("errors");
+		assertEquals(ArrayNode.class, errors.getClass());
 		assertEquals(1, errors.size());
 		for (int i = 0; i < errors.size(); i++)
 		{
@@ -90,9 +84,11 @@ public class QRBillTest
 	@Test
 	public void testInvalidCommand() throws JsonMappingException, JsonProcessingException
 	{
-		ObjectNode root = mapper.createObjectNode();
+		ObjectNode source = this.mapper.createObjectNode();
+		ObjectNode test = source.putObject("test");
+		test.put("properties", "");
 		Fsl fsl = new Fsl();
-		String result = fsl.execute("InvalidCommand", root.toPrettyString());
+		String result = fsl.execute("InvalidCommand", source.toString());
 		JsonNode target = mapper.readTree(result);
 		assertEquals("Fehler", target.get("result").asText());
 		JsonNode node = target.get("errors");
@@ -108,370 +104,224 @@ public class QRBillTest
 	}
 
 	@Test
-	public void testAllParametersOK()
+	public void testAllParametersProvidedOK() throws JsonMappingException, JsonProcessingException
 	{
 		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.AMOUNT.key(), new BigDecimal(350));
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH4431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "00000000000000000000000000");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		source.put(QRBillMain.MESSAGE.key(), "Abonnement für 2020");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Test");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "ce_eu97");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode readInvoice = db.putObject(QRBillDatabase.READ_INVOICE.key());
-		readInvoice.put(QRBillReadInvoice.TABLE.key(), "QRBill");
-		readInvoice.put(QRBillReadInvoice.INVOICE_COL.key(), "invoice");
-		readInvoice.put(QRBillReadInvoice.WHERE_COL.key(), "id_text");
-		readInvoice.put(QRBillReadInvoice.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode creditor = source.putObject(QRBillMain.CREDITOR.key());
-		creditor.put(QRBillCreditor.NAME.key(), "Christian Eugster");
-		creditor.put(QRBillCreditor.ADDRESS.key(), "Axensteinstrasse 27");
-		creditor.put(QRBillCreditor.CITY.key(), "9000 St. Gallen");
-		creditor.put(QRBillCreditor.COUNTRY.key(), "CH");
-		ObjectNode debtor = source.putObject(QRBillMain.DEBTOR.key());
-		debtor.put(QRBillDebtor.NUMBER.key(), "K123456");
-		debtor.put(QRBillDebtor.NAME.key(), "Christian Eugster");
-		debtor.put(QRBillDebtor.ADDRESS.key(), "Axensteinstrasse 27");
-		debtor.put(QRBillDebtor.CITY.key(), "9000 St. Gallen");
-		debtor.put(QRBillDebtor.COUNTRY.key(), "CH");
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
-		form.put(QRBillForm.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
-		form.put(QRBillForm.LANGUAGE.key(), Language.DE.name());
-		ObjectNode target = mapper.createObjectNode();
-		QRBillParameter.checkAll(source, target);
-		assertEquals(new BigDecimal(350).doubleValue(),
-				target.get(QRBillMain.AMOUNT.key()).decimalValue().doubleValue());
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertEquals("CH4431999123000889012", target.get(QRBillMain.IBAN.key()).asText());
-		assertEquals("000000000000000000000000000", target.get(QRBillMain.REFERENCE.key()).asText());
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertEquals("Abonnement für 2020", target.get(QRBillMain.MESSAGE.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Test", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("ce_eu97", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.READ_INVOICE.key()).getClass());
-		readInvoice = ObjectNode.class.cast(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals("QRBill", readInvoice.get(QRBillReadInvoice.TABLE.key()).asText());
-		assertEquals("invoice", readInvoice.get(QRBillReadInvoice.INVOICE_COL.key()).asText());
-		assertEquals("id_text", readInvoice.get(QRBillReadInvoice.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC",
-				readInvoice.get(QRBillReadInvoice.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.CREDITOR.key()).getClass());
-		creditor = ObjectNode.class.cast(target.get(QRBillMain.CREDITOR.key()));
-		assertEquals("Christian Eugster", creditor.get(QRBillCreditor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", creditor.get(QRBillCreditor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", creditor.get(QRBillCreditor.CITY.key()).asText());
-		assertEquals("CH", creditor.get(QRBillCreditor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DEBTOR.key()).getClass());
-		debtor = ObjectNode.class.cast(target.get(QRBillMain.DEBTOR.key()));
-		assertEquals("K123456", debtor.get(QRBillDebtor.NUMBER.key()).asText());
-		assertEquals("Christian Eugster", debtor.get(QRBillDebtor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", debtor.get(QRBillDebtor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", debtor.get(QRBillDebtor.CITY.key()).asText());
-		assertEquals("CH", debtor.get(QRBillDebtor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.FORM.key()).getClass());
-		form = ObjectNode.class.cast(target.get(QRBillMain.FORM.key()));
-		assertEquals(GraphicsFormat.PDF.name(), form.get(QRBillForm.GRAPHICS_FORMAT.key()).asText());
-		assertEquals(OutputSize.A4_PORTRAIT_SHEET.name(), form.get(QRBillForm.OUTPUT_SIZE.key()).asText());
-		assertEquals(Language.DE.name(), form.get(QRBillForm.LANGUAGE.key()).asText());
+		ObjectNode test = source.putObject("test");
+		test.put("properties", "");
+		source.put(Parameter.AMOUNT.key(), new BigDecimal(350));
+		source.put(Parameter.CURRENCY.key(), "CHF");
+		source.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		source.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		source.put(Parameter.MESSAGE.key(), "Abonnement für 2020");
+		ObjectNode db = source.putObject(Parameter.DATABASE.key());
+		db.put(Parameter.URL.key(), "jdbc:filemaker://localhost/Test");
+		db.put(Parameter.USERNAME.key(), "christian");
+		db.put(Parameter.PASSWORD.key(), "ce_eu97");
+		ObjectNode qrBill = source.putObject(Parameter.QRBILL.key());
+		qrBill.put(Parameter.TABLE.key(), "QRBill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.CONTAINER_COL.key(), "qrbill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.WHERE_COL.key(), "id_text");
+		qrBill.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode invoice = source.putObject(Parameter.INVOICE.key());
+		invoice.put(Parameter.TABLE.key(), "QRBill");
+		invoice.put(Parameter.CONTAINER_COL.key(), "invoice");
+		invoice.put(Parameter.WHERE_COL.key(), "id_text");
+		invoice.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode creditor = source.putObject(Parameter.CREDITOR.key());
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode debtor = source.putObject(Parameter.DEBTOR.key());
+		debtor.put(Parameter.NAME.key(), "Christian Eugster");
+		debtor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		debtor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode form = source.putObject(Parameter.FORM.key());
+		form.put(Parameter.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
+		form.put(Parameter.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
+		form.put(Parameter.LANGUAGE.key(), Language.DE.name());
+
+		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), source.toString());
+		JsonNode target = mapper.readTree(result);
 		assertEquals("OK", target.get("result").asText());
 		assertNull(target.get("errors"));
 	}
 
 	@Test
-	public void createSourceParameterOK()
+	public void testWithDefaultValuesOK() throws JsonMappingException, JsonProcessingException
 	{
-		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.AMOUNT.key(), new BigDecimal(350));
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH4431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "00000000000000000000000000");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		source.put(QRBillMain.MESSAGE.key(), "Abonnement für 2020");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Test");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "ce_eu97");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode readInvoice = db.putObject(QRBillDatabase.READ_INVOICE.key());
-		readInvoice.put(QRBillReadInvoice.TABLE.key(), "QRBill");
-		readInvoice.put(QRBillReadInvoice.INVOICE_COL.key(), "invoice");
-		readInvoice.put(QRBillReadInvoice.WHERE_COL.key(), "id_text");
-		readInvoice.put(QRBillReadInvoice.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode creditor = source.putObject(QRBillMain.CREDITOR.key());
-		creditor.put(QRBillCreditor.NAME.key(), "Christian Eugster");
-		creditor.put(QRBillCreditor.ADDRESS.key(), "Axensteinstrasse 27");
-		creditor.put(QRBillCreditor.CITY.key(), "9000 St. Gallen");
-		creditor.put(QRBillCreditor.COUNTRY.key(), "CH");
-		ObjectNode debtor = source.putObject(QRBillMain.DEBTOR.key());
-		debtor.put(QRBillDebtor.NUMBER.key(), "K123456");
-		debtor.put(QRBillDebtor.NAME.key(), "Christian Eugster");
-		debtor.put(QRBillDebtor.ADDRESS.key(), "Axensteinstrasse 27");
-		debtor.put(QRBillDebtor.CITY.key(), "9000 St. Gallen");
-		debtor.put(QRBillDebtor.COUNTRY.key(), "CH");
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
-		form.put(QRBillForm.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
-		form.put(QRBillForm.LANGUAGE.key(), Language.DE.name());
-		ObjectNode target = mapper.createObjectNode();
-		QRBillParameter.checkAll(source, target);
-		assertEquals(new BigDecimal(350).doubleValue(),
-				target.get(QRBillMain.AMOUNT.key()).decimalValue().doubleValue());
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertEquals("CH4431999123000889012", target.get(QRBillMain.IBAN.key()).asText());
-		assertEquals("000000000000000000000000000", target.get(QRBillMain.REFERENCE.key()).asText());
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertEquals("Abonnement für 2020", target.get(QRBillMain.MESSAGE.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Test", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("ce_eu97", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.READ_INVOICE.key()).getClass());
-		readInvoice = ObjectNode.class.cast(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals("QRBill", readInvoice.get(QRBillReadInvoice.TABLE.key()).asText());
-		assertEquals("invoice", readInvoice.get(QRBillReadInvoice.INVOICE_COL.key()).asText());
-		assertEquals("id_text", readInvoice.get(QRBillReadInvoice.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC",
-				readInvoice.get(QRBillReadInvoice.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.CREDITOR.key()).getClass());
-		creditor = ObjectNode.class.cast(target.get(QRBillMain.CREDITOR.key()));
-		assertEquals("Christian Eugster", creditor.get(QRBillCreditor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", creditor.get(QRBillCreditor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", creditor.get(QRBillCreditor.CITY.key()).asText());
-		assertEquals("CH", creditor.get(QRBillCreditor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DEBTOR.key()).getClass());
-		debtor = ObjectNode.class.cast(target.get(QRBillMain.DEBTOR.key()));
-		assertEquals("K123456", debtor.get(QRBillDebtor.NUMBER.key()).asText());
-		assertEquals("Christian Eugster", debtor.get(QRBillDebtor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", debtor.get(QRBillDebtor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", debtor.get(QRBillDebtor.CITY.key()).asText());
-		assertEquals("CH", debtor.get(QRBillDebtor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.FORM.key()).getClass());
-		form = ObjectNode.class.cast(target.get(QRBillMain.FORM.key()));
-		assertEquals(GraphicsFormat.PDF.name(), form.get(QRBillForm.GRAPHICS_FORMAT.key()).asText());
-		assertEquals(OutputSize.A4_PORTRAIT_SHEET.name(), form.get(QRBillForm.OUTPUT_SIZE.key()).asText());
-		assertEquals(Language.DE.name(), form.get(QRBillForm.LANGUAGE.key()).asText());
-	}
+		ObjectNode source = this.mapper.createObjectNode();
+		ObjectNode test = source.putObject("test");
+		test.put("properties", "");
+		source.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		source.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		source.put(Parameter.MESSAGE.key(), "Abonnement für 2020");
+		ObjectNode db = source.putObject(Parameter.DATABASE.key());
+		db.put(Parameter.URL.key(), "jdbc:filemaker://localhost/Test");
+		db.put(Parameter.USERNAME.key(), "christian");
+		db.put(Parameter.PASSWORD.key(), "ce_eu97");
+		ObjectNode qrBill = source.putObject(Parameter.QRBILL.key());
+		qrBill.put(Parameter.TABLE.key(), "QRBill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.CONTAINER_COL.key(), "qrbill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.WHERE_COL.key(), "id_text");
+		qrBill.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode invoice = source.putObject(Parameter.INVOICE.key());
+		invoice.put(Parameter.TABLE.key(), "QRBill");
+		invoice.put(Parameter.CONTAINER_COL.key(), "invoice");
+		invoice.put(Parameter.WHERE_COL.key(), "id_text");
+		invoice.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode creditor = source.putObject(Parameter.CREDITOR.key());
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode debtor = source.putObject(Parameter.DEBTOR.key());
+		debtor.put(Parameter.NAME.key(), "Christian Eugster");
+		debtor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		debtor.put(Parameter.COUNTRY.key(), "CH");
 
-	@Test
-	public void testMinimumParametersOK()
-	{
-		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH4431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "00000000000000000000000000");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Test");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "ce_eu97");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode readInvoice = db.putObject(QRBillDatabase.READ_INVOICE.key());
-		readInvoice.put(QRBillReadInvoice.TABLE.key(), "QRBill");
-		readInvoice.put(QRBillReadInvoice.INVOICE_COL.key(), "invoice");
-		readInvoice.put(QRBillReadInvoice.WHERE_COL.key(), "id_text");
-		readInvoice.put(QRBillReadInvoice.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode creditor = source.putObject(QRBillMain.CREDITOR.key());
-		creditor.put(QRBillCreditor.NAME.key(), "Christian Eugster");
-		creditor.put(QRBillCreditor.ADDRESS.key(), "Axensteinstrasse 27");
-		creditor.put(QRBillCreditor.CITY.key(), "9000 St. Gallen");
-		creditor.put(QRBillCreditor.COUNTRY.key(), "CH");
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
-		form.put(QRBillForm.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
-		form.put(QRBillForm.LANGUAGE.key(), Language.DE.name());
-		ObjectNode target = mapper.createObjectNode();
-		QRBillParameter.checkAll(source, target);
-		assertNull(target.get(QRBillMain.AMOUNT.key()));
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertEquals("CH4431999123000889012", target.get(QRBillMain.IBAN.key()).asText());
-		assertEquals("000000000000000000000000000", target.get(QRBillMain.REFERENCE.key()).asText());
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertNull(target.get(QRBillMain.MESSAGE.key()));
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Test", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("ce_eu97", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.READ_INVOICE.key()).getClass());
-		readInvoice = ObjectNode.class.cast(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals("QRBill", readInvoice.get(QRBillReadInvoice.TABLE.key()).asText());
-		assertEquals("invoice", readInvoice.get(QRBillReadInvoice.INVOICE_COL.key()).asText());
-		assertEquals("id_text", readInvoice.get(QRBillReadInvoice.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC",
-				readInvoice.get(QRBillReadInvoice.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.CREDITOR.key()).getClass());
-		creditor = ObjectNode.class.cast(target.get(QRBillMain.CREDITOR.key()));
-		assertEquals("Christian Eugster", creditor.get(QRBillCreditor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", creditor.get(QRBillCreditor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", creditor.get(QRBillCreditor.CITY.key()).asText());
-		assertEquals("CH", creditor.get(QRBillCreditor.COUNTRY.key()).asText());
-		assertNull(target.get(QRBillMain.DEBTOR.key()));
-		assertEquals(ObjectNode.class, target.get(QRBillMain.FORM.key()).getClass());
-		form = ObjectNode.class.cast(target.get(QRBillMain.FORM.key()));
-		assertEquals(GraphicsFormat.PDF.name(), form.get(QRBillForm.GRAPHICS_FORMAT.key()).asText());
-		assertEquals(OutputSize.A4_PORTRAIT_SHEET.name(), form.get(QRBillForm.OUTPUT_SIZE.key()).asText());
-		assertEquals(Language.DE.name(), form.get(QRBillForm.LANGUAGE.key()).asText());
+		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), source.toString());
+		JsonNode target = mapper.readTree(result);
 		assertEquals("OK", target.get("result").asText());
 		assertNull(target.get("errors"));
 	}
 
 	@Test
-	public void testMissingSubParameterError() throws JsonMappingException, JsonProcessingException
+	public void testMissingOptionalValuesOK() throws JsonMappingException, JsonProcessingException
 	{
-		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH4431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "00000000000000000000000000");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Test");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "ce_eu97");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode readInvoice = db.putObject(QRBillDatabase.READ_INVOICE.key());
-		readInvoice.put(QRBillReadInvoice.TABLE.key(), "QRBill");
-		readInvoice.put(QRBillReadInvoice.INVOICE_COL.key(), "invoice");
-		readInvoice.put(QRBillReadInvoice.WHERE_COL.key(), "id_text");
-		readInvoice.put(QRBillReadInvoice.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		source.putObject(QRBillMain.CREDITOR.key());
-		source.putObject(QRBillMain.DEBTOR.key());
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
-		form.put(QRBillForm.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
-		form.put(QRBillForm.LANGUAGE.key(), Language.DE.name());
-		ObjectNode target = mapper.createObjectNode();
-		QRBillParameter.checkAll(source, target);
-		assertNull(target.get(QRBillMain.AMOUNT.key()));
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertEquals("CH4431999123000889012", target.get(QRBillMain.IBAN.key()).asText());
-		assertEquals("000000000000000000000000000", target.get(QRBillMain.REFERENCE.key()).asText());
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertNull(target.get(QRBillMain.MESSAGE.key()));
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Test", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("ce_eu97", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.READ_INVOICE.key()).getClass());
-		readInvoice = ObjectNode.class.cast(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals("QRBill", readInvoice.get(QRBillReadInvoice.TABLE.key()).asText());
-		assertEquals("invoice", readInvoice.get(QRBillReadInvoice.INVOICE_COL.key()).asText());
-		assertEquals("id_text", readInvoice.get(QRBillReadInvoice.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC",
-				readInvoice.get(QRBillReadInvoice.WHERE_VAL.key()).asText());
-		assertNull(target.get(QRBillMain.CREDITOR.key()));
-		assertNull(target.get(QRBillMain.DEBTOR.key()));
-		assertEquals(ObjectNode.class, target.get(QRBillMain.FORM.key()).getClass());
-		form = ObjectNode.class.cast(target.get(QRBillMain.FORM.key()));
-		assertEquals(GraphicsFormat.PDF.name(), form.get(QRBillForm.GRAPHICS_FORMAT.key()).asText());
-		assertEquals(OutputSize.A4_PORTRAIT_SHEET.name(), form.get(QRBillForm.OUTPUT_SIZE.key()).asText());
-		assertEquals(Language.DE.name(), form.get(QRBillForm.LANGUAGE.key()).asText());
+		ObjectNode source = this.mapper.createObjectNode();
+		ObjectNode test = source.putObject("test");
+		test.put("properties", "");
+		source.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		source.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		ObjectNode db = source.putObject(Parameter.DATABASE.key());
+		db.put(Parameter.URL.key(), "jdbc:filemaker://localhost/Test");
+		db.put(Parameter.USERNAME.key(), "christian");
+		db.put(Parameter.PASSWORD.key(), "ce_eu97");
+		ObjectNode qrBill = source.putObject(Parameter.QRBILL.key());
+		qrBill.put(Parameter.TABLE.key(), "QRBill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.CONTAINER_COL.key(), "qrbill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.WHERE_COL.key(), "id_text");
+		qrBill.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode invoice = source.putObject(Parameter.INVOICE.key());
+		invoice.put(Parameter.TABLE.key(), "QRBill");
+		invoice.put(Parameter.CONTAINER_COL.key(), "invoice");
+		invoice.put(Parameter.WHERE_COL.key(), "id_text");
+		invoice.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode creditor = source.putObject(Parameter.CREDITOR.key());
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+
+		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), source.toString());
+		JsonNode target = mapper.readTree(result);
+		assertEquals("OK", target.get("result").asText());
+		assertNull(target.get("errors"));
+	}
+
+	@Test
+	public void testMissingConnection() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectNode source = this.mapper.createObjectNode();
+		ObjectNode test = source.putObject("test");
+		test.put("properties", "");
+		source.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		source.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		ObjectNode qrBill = source.putObject(Parameter.QRBILL.key());
+		qrBill.put(Parameter.TABLE.key(), "QRBill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.CONTAINER_COL.key(), "qrbill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.WHERE_COL.key(), "id_text");
+		qrBill.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode invoice = source.putObject(Parameter.INVOICE.key());
+		invoice.put(Parameter.TABLE.key(), "QRBill");
+		invoice.put(Parameter.CONTAINER_COL.key(), "invoice");
+		invoice.put(Parameter.WHERE_COL.key(), "id_text");
+		invoice.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode creditor = source.putObject(Parameter.CREDITOR.key());
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+
+		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), source.toString());
+		JsonNode target = mapper.readTree(result);
+		assertEquals("Fehler", target.get("result").asText());
+		assertEquals(1, target.get("errors").size());
+		ArrayNode errors = ArrayNode.class.cast(target.get("errors"));
+		assertEquals("Keine Verbindungsdaten zur Datenbank gefunden.", errors.iterator().next().asText());
+	}
+
+	@Test
+	public void testMissingSubNodes() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectNode source = this.mapper.createObjectNode();
+		ObjectNode test = source.putObject("test");
+		test.put("properties", "");
+		source.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		source.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		source.putObject(Parameter.DATABASE.key());
+		source.putObject(Parameter.QRBILL.key());
+		source.putObject(Parameter.INVOICE.key());
+		source.putObject(Parameter.CREDITOR.key());
+		ObjectNode debtor = source.putObject(Parameter.DEBTOR.key());
+		debtor.put(Parameter.NAME.key(), "Christian Eugster");
+
+		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), source.toString());
+		JsonNode target = mapper.readTree(result);
 		assertEquals("Fehler", target.get("result").asText());
 		assertEquals(9, target.get("errors").size());
 		ArrayNode errors = ArrayNode.class.cast(target.get("errors"));
 		Iterator<JsonNode> iterator = errors.iterator();
 		while (iterator.hasNext())
 		{
-			JsonNode node = iterator.next();
-			String msg = node.asText();
-			if ("Der Parameter 'creditor' ist zwingend erforderlich.".equals(msg))
+			String message = iterator.next().asText();
+			if (message.equals("field_is_mandatory: 'creditor.name'"))
 			{
-				assertTrue(true);
+				assertEquals("field_is_mandatory: 'creditor.name'", message);
 			}
-			if ("Der Parameter 'creditor.name' ist zwingend erforderlich.".equals(msg))
+			else if (message.equals("field_is_mandatory: 'creditor.postalCode'"))
 			{
-				assertTrue(true);
+				assertEquals("field_is_mandatory: 'creditor.postalCode'", message);
 			}
-			else if ("Der Parameter 'creditor.address' ist zwingend erforderlich.".equals(msg))
+			else if (message.equals("field_is_mandatory: 'creditor.addressLine2'"))
 			{
-				assertTrue(true);
+				assertEquals("field_is_mandatory: 'creditor.addressLine2'", message);
 			}
-			else if ("Der Parameter 'creditor.city' ist zwingend erforderlich.".equals(msg))
+			else if (message.equals("field_is_mandatory: 'creditor.town'"))
 			{
-				assertTrue(true);
+				assertEquals("field_is_mandatory: 'creditor.town'", message);
 			}
-			else if ("Der Parameter 'creditor.country' ist zwingend erforderlich.".equals(msg))
+			else if (message.equals("field_is_mandatory: 'creditor.countryCode'"))
 			{
-				assertTrue(true);
+				assertEquals("field_is_mandatory: 'creditor.countryCode'", message);
 			}
-			else if ("Der Parameter 'debtor.name' ist zwingend erforderlich.".equals(msg))
+			else if (message.equals("field_is_mandatory: 'debtor.postalCode'"))
 			{
-				assertTrue(true);
+				assertEquals("field_is_mandatory: 'debtor.postalCode'", message);
 			}
-			else if ("Der Parameter 'debtor.address' ist zwingend erforderlich.".equals(msg))
+			else if (message.equals("field_is_mandatory: 'debtor.addressLine2'"))
 			{
-				assertTrue(true);
+				assertEquals("field_is_mandatory: 'debtor.addressLine2'", message);
 			}
-			else if ("Der Parameter 'debtor.city' ist zwingend erforderlich.".equals(msg))
+			else if (message.equals("field_is_mandatory: 'debtor.town'"))
 			{
-				assertTrue(true);
+				assertEquals("field_is_mandatory: 'debtor.town'", message);
 			}
-			else if ("Der Parameter 'debtor.country' ist zwingend erforderlich.".equals(msg))
+			else if (message.equals("field_is_mandatory: 'debtor.countryCode'"))
 			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'debtor.number' ist zwingend erforderlich.".equals(msg))
-			{
-				assertTrue(true);
+				assertEquals("field_is_mandatory: 'debtor.countryCode'", message);
 			}
 			else
 			{
@@ -481,575 +331,100 @@ public class QRBillTest
 	}
 
 	@Test
-	public void testQRBillOnlyWithoutExistingInvoiceOk() throws JsonMappingException, JsonProcessingException
+	public void testMissingConnectionDetails() throws JsonMappingException, JsonProcessingException
 	{
 		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.AMOUNT.key(), new BigDecimal(350));
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH4431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "00000000000000000000000000");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		source.put(QRBillMain.MESSAGE.key(), "Abonnement für 2020");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Test");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "ce_eu97");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode creditor = source.putObject(QRBillMain.CREDITOR.key());
-		creditor.put(QRBillCreditor.NAME.key(), "Christian Eugster");
-		creditor.put(QRBillCreditor.ADDRESS.key(), "Axensteinstrasse 27");
-		creditor.put(QRBillCreditor.CITY.key(), "9000 St. Gallen");
-		creditor.put(QRBillCreditor.COUNTRY.key(), "CH");
-		ObjectNode debtor = source.putObject(QRBillMain.DEBTOR.key());
-		debtor.put(QRBillDebtor.NUMBER.key(), "K123456");
-		debtor.put(QRBillDebtor.NAME.key(), "Christian Eugster");
-		debtor.put(QRBillDebtor.ADDRESS.key(), "Axensteinstrasse 27");
-		debtor.put(QRBillDebtor.CITY.key(), "9000 St. Gallen");
-		debtor.put(QRBillDebtor.COUNTRY.key(), "CH");
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
-		form.put(QRBillForm.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
-		form.put(QRBillForm.LANGUAGE.key(), Language.DE.name());
-		ObjectNode target = mapper.createObjectNode();
-		QRBillParameter.checkAll(source, target);
-		assertEquals(new BigDecimal(350).doubleValue(),
-				target.get(QRBillMain.AMOUNT.key()).decimalValue().doubleValue());
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertEquals("CH4431999123000889012", target.get(QRBillMain.IBAN.key()).asText());
-		assertEquals("000000000000000000000000000", target.get(QRBillMain.REFERENCE.key()).asText());
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertEquals("Abonnement für 2020", target.get(QRBillMain.MESSAGE.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Test", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("ce_eu97", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		assertNull(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals(ObjectNode.class, target.get(QRBillMain.CREDITOR.key()).getClass());
-		creditor = ObjectNode.class.cast(target.get(QRBillMain.CREDITOR.key()));
-		assertEquals("Christian Eugster", creditor.get(QRBillCreditor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", creditor.get(QRBillCreditor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", creditor.get(QRBillCreditor.CITY.key()).asText());
-		assertEquals("CH", creditor.get(QRBillCreditor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DEBTOR.key()).getClass());
-		debtor = ObjectNode.class.cast(target.get(QRBillMain.DEBTOR.key()));
-		assertEquals("K123456", debtor.get(QRBillDebtor.NUMBER.key()).asText());
-		assertEquals("Christian Eugster", debtor.get(QRBillDebtor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", debtor.get(QRBillDebtor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", debtor.get(QRBillDebtor.CITY.key()).asText());
-		assertEquals("CH", debtor.get(QRBillDebtor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.FORM.key()).getClass());
-		form = ObjectNode.class.cast(target.get(QRBillMain.FORM.key()));
-		assertEquals(GraphicsFormat.PDF.name(), form.get(QRBillForm.GRAPHICS_FORMAT.key()).asText());
-		assertEquals(OutputSize.A4_PORTRAIT_SHEET.name(), form.get(QRBillForm.OUTPUT_SIZE.key()).asText());
-		assertEquals(Language.DE.name(), form.get(QRBillForm.LANGUAGE.key()).asText());
-		assertEquals("OK", target.get("result").asText());
-		assertNull(target.get("errors"));
-	}
+		ObjectNode test = source.putObject("test");
+		test.put("properties", "");
+		source.put(Parameter.AMOUNT.key(), new BigDecimal(350));
+		source.put(Parameter.CURRENCY.key(), "CHF");
+		source.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		source.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		source.put(Parameter.MESSAGE.key(), "Abonnement für 2020");
+		source.putObject(Parameter.DATABASE.key());
+		ObjectNode qrBill = source.putObject(Parameter.QRBILL.key());
+		qrBill.put(Parameter.TABLE.key(), "QRBill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.CONTAINER_COL.key(), "qrbill");
+		qrBill.put(Parameter.NAME_COL.key(), "name");
+		qrBill.put(Parameter.WHERE_COL.key(), "id_text");
+		qrBill.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode invoice = source.putObject(Parameter.INVOICE.key());
+		invoice.put(Parameter.TABLE.key(), "QRBill");
+		invoice.put(Parameter.CONTAINER_COL.key(), "invoice");
+		invoice.put(Parameter.WHERE_COL.key(), "id_text");
+		invoice.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode creditor = source.putObject(Parameter.CREDITOR.key());
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode debtor = source.putObject(Parameter.DEBTOR.key());
+		debtor.put(Parameter.NAME.key(), "Christian Eugster");
+		debtor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		debtor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode form = source.putObject(Parameter.FORM.key());
+		form.put(Parameter.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
+		form.put(Parameter.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
+		form.put(Parameter.LANGUAGE.key(), Language.DE.name());
 
-	@Test
-	public void testWithoutMandatoryValuesError() throws JsonMappingException, JsonProcessingException
-	{
-		ObjectNode source = mapper.createObjectNode();
-		ObjectNode target = mapper.createObjectNode();
-		QRBillParameter.checkAll(source, target);
-		assertNull(target.get(QRBillMain.AMOUNT.key()));
-		assertNull(target.get(QRBillMain.CURRENCY.key()));
-		assertNull(target.get(QRBillMain.IBAN.key()));
-		assertNull(target.get(QRBillMain.REFERENCE.key()));
-		assertNull(target.get(QRBillMain.INVOICE.key()));
-		assertNull(target.get(QRBillMain.MESSAGE.key()));
-		assertNull(target.get(QRBillMain.DATABASE.key()));
-		assertNull(target.get(QRBillMain.CREDITOR.key()));
-		assertNull(target.get(QRBillMain.DEBTOR.key()));
-		assertNull(target.get(QRBillMain.FORM.key()));
-		assertEquals("Fehler", target.get("result").asText());
-		assertEquals(7, target.get("errors").size());
-		ArrayNode errors = ArrayNode.class.cast(target.get("errors"));
-		Iterator<JsonNode> iterator = errors.iterator();
-		while (iterator.hasNext())
-		{
-			JsonNode node = iterator.next();
-			String msg = node.asText();
-			if ("Der Parameter 'currency' ist zwingend erforderlich.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'iban' ist zwingend erforderlich.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'reference' ist zwingend erforderlich.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'invoice' ist zwingend erforderlich.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'database' ist zwingend erforderlich.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'creditor' ist zwingend erforderlich.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'form' ist zwingend erforderlich.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else
-			{
-				fail();
-			}
-		}
-	}
-
-	@Test
-	public void testIbanReferenceGraphicsFormatOutputSizeLanguageInvalidError()
-			throws JsonMappingException, JsonProcessingException
-	{
-		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH9431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "000000000000000000000000001");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Test");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "ce_eu97");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode readInvoice = db.putObject(QRBillDatabase.READ_INVOICE.key());
-		readInvoice.put(QRBillReadInvoice.TABLE.key(), "QRBill");
-		readInvoice.put(QRBillReadInvoice.INVOICE_COL.key(), "invoice");
-		readInvoice.put(QRBillReadInvoice.WHERE_COL.key(), "id_text");
-		readInvoice.put(QRBillReadInvoice.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode creditor = source.putObject(QRBillMain.CREDITOR.key());
-		creditor.put(QRBillCreditor.NAME.key(), "Christian Eugster");
-		creditor.put(QRBillCreditor.ADDRESS.key(), "Axensteinstrasse 27");
-		creditor.put(QRBillCreditor.CITY.key(), "9000 St. Gallen");
-		creditor.put(QRBillCreditor.COUNTRY.key(), "CH");
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), "XXX");
-		form.put(QRBillForm.OUTPUT_SIZE.key(), "XXX");
-		form.put(QRBillForm.LANGUAGE.key(), "XX");
-		ObjectNode target = mapper.createObjectNode();
-
-		QRBillParameter.checkAll(source, target);
-
-		assertNull(target.get(QRBillMain.AMOUNT.key()));
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertNull(target.get(QRBillMain.IBAN.key()));
-		assertNull(target.get(QRBillMain.REFERENCE.key()));
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertNull(target.get(QRBillMain.MESSAGE.key()));
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Test", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("ce_eu97", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.READ_INVOICE.key()).getClass());
-		readInvoice = ObjectNode.class.cast(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals("QRBill", readInvoice.get(QRBillReadInvoice.TABLE.key()).asText());
-		assertEquals("invoice", readInvoice.get(QRBillReadInvoice.INVOICE_COL.key()).asText());
-		assertEquals("id_text", readInvoice.get(QRBillReadInvoice.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC",
-				readInvoice.get(QRBillReadInvoice.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.CREDITOR.key()).getClass());
-		creditor = ObjectNode.class.cast(target.get(QRBillMain.CREDITOR.key()));
-		assertEquals("Christian Eugster", creditor.get(QRBillCreditor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", creditor.get(QRBillCreditor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", creditor.get(QRBillCreditor.CITY.key()).asText());
-		assertEquals("CH", creditor.get(QRBillCreditor.COUNTRY.key()).asText());
-		assertNull(target.get(QRBillMain.DEBTOR.key()));
-		assertNull(target.get(QRBillMain.FORM.key()));
-		assertEquals("Fehler", target.get("result").asText());
-		assertEquals(5, target.get("errors").size());
-		ArrayNode errors = ArrayNode.class.cast(target.get("errors"));
-		Iterator<JsonNode> iterator = errors.iterator();
-		while (iterator.hasNext())
-		{
-			JsonNode node = iterator.next();
-			String msg = node.asText();
-			if ("Der Parameter 'iban' ist ungültig.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'reference' ist ungültig.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'form.graphics_format' ist ungültig.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'form.output_size' ist ungültig.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else if ("Der Parameter 'form.language' ist ungültig.".equals(msg))
-			{
-				assertTrue(true);
-			}
-			else
-			{
-				fail();
-			}
-		}
-	}
-
-	@Test
-	public void testFsl() throws JsonMappingException, JsonProcessingException
-	{
-		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.AMOUNT.key(), new BigDecimal(350));
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH4431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "1234560000123456");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		source.put(QRBillMain.MESSAGE.key(), "Abonnement für 2020");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Test");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "ce_eu97");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode creditor = source.putObject(QRBillMain.CREDITOR.key());
-		creditor.put(QRBillCreditor.NAME.key(), "Christian Eugster");
-		creditor.put(QRBillCreditor.ADDRESS.key(), "Axensteinstrasse 27");
-		creditor.put(QRBillCreditor.CITY.key(), "9000 St. Gallen");
-		creditor.put(QRBillCreditor.COUNTRY.key(), "CH");
-		ObjectNode debtor = source.putObject(QRBillMain.DEBTOR.key());
-		debtor.put(QRBillDebtor.NUMBER.key(), "K123456");
-		debtor.put(QRBillDebtor.NAME.key(), "Christian Eugster");
-		debtor.put(QRBillDebtor.ADDRESS.key(), "Axensteinstrasse 27");
-		debtor.put(QRBillDebtor.CITY.key(), "9000 St. Gallen");
-		debtor.put(QRBillDebtor.COUNTRY.key(), "CH");
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
-		form.put(QRBillForm.OUTPUT_SIZE.key(), OutputSize.QR_BILL_EXTRA_SPACE.name());
-		form.put(QRBillForm.LANGUAGE.key(), Language.DE.name());
-		String result = new Fsl().execute("CreateQRBill", source.toString());
+		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), source.toString());
 		JsonNode target = mapper.readTree(result);
-		assertEquals(new BigDecimal(350).doubleValue(),
-				target.get(QRBillMain.AMOUNT.key()).decimalValue().doubleValue());
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertEquals("CH4431999123000889012", target.get(QRBillMain.IBAN.key()).asText());
-		assertEquals("000000000012345600001234567", target.get(QRBillMain.REFERENCE.key()).asText());
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertEquals("Abonnement für 2020", target.get(QRBillMain.MESSAGE.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Test", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("ce_eu97", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		assertNull(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals(ObjectNode.class, target.get(QRBillMain.CREDITOR.key()).getClass());
-		creditor = ObjectNode.class.cast(target.get(QRBillMain.CREDITOR.key()));
-		assertEquals("Christian Eugster", creditor.get(QRBillCreditor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", creditor.get(QRBillCreditor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", creditor.get(QRBillCreditor.CITY.key()).asText());
-		assertEquals("CH", creditor.get(QRBillCreditor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DEBTOR.key()).getClass());
-		debtor = ObjectNode.class.cast(target.get(QRBillMain.DEBTOR.key()));
-		assertEquals("K123456", debtor.get(QRBillDebtor.NUMBER.key()).asText());
-		assertEquals("Christian Eugster", debtor.get(QRBillDebtor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", debtor.get(QRBillDebtor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", debtor.get(QRBillDebtor.CITY.key()).asText());
-		assertEquals("CH", debtor.get(QRBillDebtor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.FORM.key()).getClass());
-		form = ObjectNode.class.cast(target.get(QRBillMain.FORM.key()));
-		assertEquals(GraphicsFormat.PDF.name(), form.get(QRBillForm.GRAPHICS_FORMAT.key()).asText());
-		assertEquals(OutputSize.QR_BILL_EXTRA_SPACE.name(), form.get(QRBillForm.OUTPUT_SIZE.key()).asText());
-		assertEquals(Language.DE.name(), form.get(QRBillForm.LANGUAGE.key()).asText());
-		assertEquals("OK", target.get("result").asText());
-		assertNull(target.get("errors"));
-	}
-
-	@Test
-	public void testFslWithInvoiceAppend() throws JsonMappingException, JsonProcessingException
-	{
-		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.AMOUNT.key(), new BigDecimal(350));
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH4431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "1234560000123456");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		source.put(QRBillMain.MESSAGE.key(), "Abonnement für 2020");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Test");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "ce_eu97");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode readInvoice = db.putObject(QRBillDatabase.READ_INVOICE.key());
-		readInvoice.put(QRBillReadInvoice.TABLE.key(), "QRBill");
-		readInvoice.put(QRBillReadInvoice.INVOICE_COL.key(), "invoice");
-		readInvoice.put(QRBillReadInvoice.WHERE_COL.key(), "id_text");
-		readInvoice.put(QRBillReadInvoice.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode creditor = source.putObject(QRBillMain.CREDITOR.key());
-		creditor.put(QRBillCreditor.NAME.key(), "Christian Eugster");
-		creditor.put(QRBillCreditor.ADDRESS.key(), "Axensteinstrasse 27");
-		creditor.put(QRBillCreditor.CITY.key(), "9000 St. Gallen");
-		creditor.put(QRBillCreditor.COUNTRY.key(), "CH");
-		ObjectNode debtor = source.putObject(QRBillMain.DEBTOR.key());
-		debtor.put(QRBillDebtor.NUMBER.key(), "K123456");
-		debtor.put(QRBillDebtor.NAME.key(), "Christian Eugster");
-		debtor.put(QRBillDebtor.ADDRESS.key(), "Axensteinstrasse 27");
-		debtor.put(QRBillDebtor.CITY.key(), "9000 St. Gallen");
-		debtor.put(QRBillDebtor.COUNTRY.key(), "CH");
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
-		form.put(QRBillForm.OUTPUT_SIZE.key(), OutputSize.QR_BILL_EXTRA_SPACE.name());
-		form.put(QRBillForm.LANGUAGE.key(), Language.DE.name());
-		String result = new Fsl().execute("CreateQRBill", source.toString());
-		JsonNode target = mapper.readTree(result);
-		assertEquals(new BigDecimal(350).doubleValue(),
-				target.get(QRBillMain.AMOUNT.key()).decimalValue().doubleValue());
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertEquals("CH4431999123000889012", target.get(QRBillMain.IBAN.key()).asText());
-		assertEquals("000000000012345600001234567", target.get(QRBillMain.REFERENCE.key()).asText());
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertEquals("Abonnement für 2020", target.get(QRBillMain.MESSAGE.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Test", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("ce_eu97", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		readInvoice = ObjectNode.class.cast(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals("QRBill", readInvoice.get(QRBillReadInvoice.TABLE.key()).asText());
-		assertEquals("invoice", readInvoice.get(QRBillReadInvoice.INVOICE_COL.key()).asText());
-		assertEquals("id_text", readInvoice.get(QRBillReadInvoice.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC",
-				readInvoice.get(QRBillReadInvoice.WHERE_VAL.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.CREDITOR.key()).getClass());
-		creditor = ObjectNode.class.cast(target.get(QRBillMain.CREDITOR.key()));
-		assertEquals("Christian Eugster", creditor.get(QRBillCreditor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", creditor.get(QRBillCreditor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", creditor.get(QRBillCreditor.CITY.key()).asText());
-		assertEquals("CH", creditor.get(QRBillCreditor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DEBTOR.key()).getClass());
-		debtor = ObjectNode.class.cast(target.get(QRBillMain.DEBTOR.key()));
-		assertEquals("K123456", debtor.get(QRBillDebtor.NUMBER.key()).asText());
-		assertEquals("Christian Eugster", debtor.get(QRBillDebtor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", debtor.get(QRBillDebtor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", debtor.get(QRBillDebtor.CITY.key()).asText());
-		assertEquals("CH", debtor.get(QRBillDebtor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.FORM.key()).getClass());
-		form = ObjectNode.class.cast(target.get(QRBillMain.FORM.key()));
-		assertEquals(GraphicsFormat.PDF.name(), form.get(QRBillForm.GRAPHICS_FORMAT.key()).asText());
-		assertEquals(OutputSize.QR_BILL_EXTRA_SPACE.name(), form.get(QRBillForm.OUTPUT_SIZE.key()).asText());
-		assertEquals(Language.DE.name(), form.get(QRBillForm.LANGUAGE.key()).asText());
-		assertEquals("OK", target.get("result").asText());
-		assertNull(target.get("errors"));
-	}
-
-	@Test
-	public void testFslNoConnection() throws JsonMappingException, JsonProcessingException
-	{
-		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.AMOUNT.key(), new BigDecimal(350));
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH4431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "1234560000123456");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		source.put(QRBillMain.MESSAGE.key(), "Abonnement für 2020");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Invalid");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "ce_eu97");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode creditor = source.putObject(QRBillMain.CREDITOR.key());
-		creditor.put(QRBillCreditor.NAME.key(), "Christian Eugster");
-		creditor.put(QRBillCreditor.ADDRESS.key(), "Axensteinstrasse 27");
-		creditor.put(QRBillCreditor.CITY.key(), "9000 St. Gallen");
-		creditor.put(QRBillCreditor.COUNTRY.key(), "CH");
-		ObjectNode debtor = source.putObject(QRBillMain.DEBTOR.key());
-		debtor.put(QRBillDebtor.NUMBER.key(), "K123456");
-		debtor.put(QRBillDebtor.NAME.key(), "Christian Eugster");
-		debtor.put(QRBillDebtor.ADDRESS.key(), "Axensteinstrasse 27");
-		debtor.put(QRBillDebtor.CITY.key(), "9000 St. Gallen");
-		debtor.put(QRBillDebtor.COUNTRY.key(), "CH");
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
-		form.put(QRBillForm.OUTPUT_SIZE.key(), OutputSize.QR_BILL_EXTRA_SPACE.name());
-		form.put(QRBillForm.LANGUAGE.key(), Language.DE.name());
-		String result = new Fsl().execute("CreateQRBill", source.toString());
-		JsonNode target = mapper.readTree(result);
-		assertEquals(new BigDecimal(350).doubleValue(),
-				target.get(QRBillMain.AMOUNT.key()).decimalValue().doubleValue());
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertEquals("CH4431999123000889012", target.get(QRBillMain.IBAN.key()).asText());
-		assertEquals("000000000012345600001234567", target.get(QRBillMain.REFERENCE.key()).asText());
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertEquals("Abonnement für 2020", target.get(QRBillMain.MESSAGE.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Invalid", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("ce_eu97", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		assertNull(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals(ObjectNode.class, target.get(QRBillMain.CREDITOR.key()).getClass());
-		creditor = ObjectNode.class.cast(target.get(QRBillMain.CREDITOR.key()));
-		assertEquals("Christian Eugster", creditor.get(QRBillCreditor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", creditor.get(QRBillCreditor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", creditor.get(QRBillCreditor.CITY.key()).asText());
-		assertEquals("CH", creditor.get(QRBillCreditor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DEBTOR.key()).getClass());
-		debtor = ObjectNode.class.cast(target.get(QRBillMain.DEBTOR.key()));
-		assertEquals("K123456", debtor.get(QRBillDebtor.NUMBER.key()).asText());
-		assertEquals("Christian Eugster", debtor.get(QRBillDebtor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", debtor.get(QRBillDebtor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", debtor.get(QRBillDebtor.CITY.key()).asText());
-		assertEquals("CH", debtor.get(QRBillDebtor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.FORM.key()).getClass());
-		form = ObjectNode.class.cast(target.get(QRBillMain.FORM.key()));
-		assertEquals(GraphicsFormat.PDF.name(), form.get(QRBillForm.GRAPHICS_FORMAT.key()).asText());
-		assertEquals(OutputSize.QR_BILL_EXTRA_SPACE.name(), form.get(QRBillForm.OUTPUT_SIZE.key()).asText());
-		assertEquals(Language.DE.name(), form.get(QRBillForm.LANGUAGE.key()).asText());
 		assertEquals("Fehler", target.get("result").asText());
 		assertEquals(1, target.get("errors").size());
-		assertEquals("[FileMaker][FileMaker JDBC]  (802): Unable to open file", target.get("errors").get(0).asText());
+		ArrayNode errors = ArrayNode.class.cast(target.get("errors"));
+		assertEquals("The url cannot be null", errors.iterator().next().asText());
 	}
 
 	@Test
-	public void testFslInvalidPassword() throws JsonMappingException, JsonProcessingException
+	public void testMissingTableInfos() throws JsonMappingException, JsonProcessingException
 	{
 		ObjectNode source = mapper.createObjectNode();
-		source.put(QRBillMain.AMOUNT.key(), new BigDecimal(350));
-		source.put(QRBillMain.CURRENCY.key(), "CHF");
-		source.put(QRBillMain.IBAN.key(), "CH4431999123000889012");
-		source.put(QRBillMain.REFERENCE.key(), "1234560000123456");
-		source.put(QRBillMain.INVOICE.key(), "R123456");
-		source.put(QRBillMain.MESSAGE.key(), "Abonnement für 2020");
-		ObjectNode db = source.putObject(QRBillMain.DATABASE.key());
-		db.put(QRBillDatabase.URL.key(), "jdbc:filemaker://localhost/Test");
-		db.put(QRBillDatabase.USERNAME.key(), "christian");
-		db.put(QRBillDatabase.PASSWORD.key(), "wrongPassword");
-		ObjectNode writeQRBill = db.putObject(QRBillDatabase.WRITE_QRBILL.key());
-		writeQRBill.put(QRBillWrite.TABLE.key(), "QRBill");
-		writeQRBill.put(QRBillWrite.NAME_COL.key(), "name");
-		writeQRBill.put(QRBillWrite.QRBILL_COL.key(), "qrbill");
-		writeQRBill.put(QRBillWrite.WHERE_COL.key(), "id_text");
-		writeQRBill.put(QRBillWrite.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
-		ObjectNode creditor = source.putObject(QRBillMain.CREDITOR.key());
-		creditor.put(QRBillCreditor.NAME.key(), "Christian Eugster");
-		creditor.put(QRBillCreditor.ADDRESS.key(), "Axensteinstrasse 27");
-		creditor.put(QRBillCreditor.CITY.key(), "9000 St. Gallen");
-		creditor.put(QRBillCreditor.COUNTRY.key(), "CH");
-		ObjectNode debtor = source.putObject(QRBillMain.DEBTOR.key());
-		debtor.put(QRBillDebtor.NUMBER.key(), "K123456");
-		debtor.put(QRBillDebtor.NAME.key(), "Christian Eugster");
-		debtor.put(QRBillDebtor.ADDRESS.key(), "Axensteinstrasse 27");
-		debtor.put(QRBillDebtor.CITY.key(), "9000 St. Gallen");
-		debtor.put(QRBillDebtor.COUNTRY.key(), "CH");
-		ObjectNode form = source.putObject(QRBillMain.FORM.key());
-		form.put(QRBillForm.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
-		form.put(QRBillForm.OUTPUT_SIZE.key(), OutputSize.QR_BILL_EXTRA_SPACE.name());
-		form.put(QRBillForm.LANGUAGE.key(), Language.DE.name());
-		String result = new Fsl().execute("CreateQRBill", source.toString());
+		ObjectNode test = source.putObject("test");
+		test.put("properties", "");
+		source.put(Parameter.AMOUNT.key(), new BigDecimal(350));
+		source.put(Parameter.CURRENCY.key(), "CHF");
+		source.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		source.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		source.put(Parameter.MESSAGE.key(), "Abonnement für 2020");
+		ObjectNode db = source.putObject(Parameter.DATABASE.key());
+		db.put(Parameter.URL.key(), "jdbc:filemaker://localhost/Test");
+		db.put(Parameter.USERNAME.key(), "christian");
+		db.put(Parameter.PASSWORD.key(), "ce_eu97");
+		source.putObject(Parameter.QRBILL.key());
+		source.putObject(Parameter.INVOICE.key());
+		ObjectNode creditor = source.putObject(Parameter.CREDITOR.key());
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+
+		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), source.toString());
 		JsonNode target = mapper.readTree(result);
-		assertEquals(new BigDecimal(350).doubleValue(),
-				target.get(QRBillMain.AMOUNT.key()).decimalValue().doubleValue());
-		assertEquals("CHF", target.get(QRBillMain.CURRENCY.key()).asText());
-		assertEquals("CH4431999123000889012", target.get(QRBillMain.IBAN.key()).asText());
-		assertEquals("000000000012345600001234567", target.get(QRBillMain.REFERENCE.key()).asText());
-		assertEquals("R123456", target.get(QRBillMain.INVOICE.key()).asText());
-		assertEquals("Abonnement für 2020", target.get(QRBillMain.MESSAGE.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DATABASE.key()).getClass());
-		db = ObjectNode.class.cast(target.get(QRBillMain.DATABASE.key()));
-		assertEquals("jdbc:filemaker://localhost/Test", db.get(QRBillDatabase.URL.key()).asText());
-		assertEquals("christian", db.get(QRBillDatabase.USERNAME.key()).asText());
-		assertEquals("wrongPassword", db.get(QRBillDatabase.PASSWORD.key()).asText());
-		assertEquals(ObjectNode.class, db.get(QRBillDatabase.WRITE_QRBILL.key()).getClass());
-		writeQRBill = ObjectNode.class.cast(db.get(QRBillDatabase.WRITE_QRBILL.key()));
-		assertEquals("QRBill", writeQRBill.get(QRBillWrite.TABLE.key()).asText());
-		assertEquals("name", writeQRBill.get(QRBillWrite.NAME_COL.key()).asText());
-		assertEquals("qrbill", writeQRBill.get(QRBillWrite.QRBILL_COL.key()).asText());
-		assertEquals("id_text", writeQRBill.get(QRBillWrite.WHERE_COL.key()).asText());
-		assertEquals("7019891C-7AA9-4831-B0DC-EB69F5012BDC", writeQRBill.get(QRBillWrite.WHERE_VAL.key()).asText());
-		assertNull(db.get(QRBillDatabase.READ_INVOICE.key()));
-		assertEquals(ObjectNode.class, target.get(QRBillMain.CREDITOR.key()).getClass());
-		creditor = ObjectNode.class.cast(target.get(QRBillMain.CREDITOR.key()));
-		assertEquals("Christian Eugster", creditor.get(QRBillCreditor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", creditor.get(QRBillCreditor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", creditor.get(QRBillCreditor.CITY.key()).asText());
-		assertEquals("CH", creditor.get(QRBillCreditor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.DEBTOR.key()).getClass());
-		debtor = ObjectNode.class.cast(target.get(QRBillMain.DEBTOR.key()));
-		assertEquals("K123456", debtor.get(QRBillDebtor.NUMBER.key()).asText());
-		assertEquals("Christian Eugster", debtor.get(QRBillDebtor.NAME.key()).asText());
-		assertEquals("Axensteinstrasse 27", debtor.get(QRBillDebtor.ADDRESS.key()).asText());
-		assertEquals("9000 St. Gallen", debtor.get(QRBillDebtor.CITY.key()).asText());
-		assertEquals("CH", debtor.get(QRBillDebtor.COUNTRY.key()).asText());
-		assertEquals(ObjectNode.class, target.get(QRBillMain.FORM.key()).getClass());
-		form = ObjectNode.class.cast(target.get(QRBillMain.FORM.key()));
-		assertEquals(GraphicsFormat.PDF.name(), form.get(QRBillForm.GRAPHICS_FORMAT.key()).asText());
-		assertEquals(OutputSize.QR_BILL_EXTRA_SPACE.name(), form.get(QRBillForm.OUTPUT_SIZE.key()).asText());
-		assertEquals(Language.DE.name(), form.get(QRBillForm.LANGUAGE.key()).asText());
 		assertEquals("Fehler", target.get("result").asText());
 		assertEquals(1, target.get("errors").size());
-		assertEquals("[FileMaker][FileMaker JDBC]  (212): Invalid account/password",
-				target.get("errors").get(0).asText());
+		ArrayNode errors = ArrayNode.class.cast(target.get("errors"));
+		assertEquals(
+				"Fehler in der Datenbankabfrage: SELECT CAST(null AS VARCHAR) , GetAs(null, DEFAULT) FROM null WHERE null = ?",
+				errors.iterator().next().asText());
 	}
 
+	@Test
+	public void testMerge() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectNode source = this.mapper.createObjectNode();
+		source.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		source.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		ObjectNode creditor = source.putObject(Parameter.CREDITOR.key());
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+
+		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), source.toString());
+		JsonNode target = this.mapper.readTree(result);
+		assertEquals("OK", target.get("result").asText());
+		assertNull(target.get("errors"));
+	}
 }

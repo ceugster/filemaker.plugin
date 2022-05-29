@@ -14,24 +14,24 @@ public class XmlToJsonConverter implements Executor
 {
 
 	@Override
-	public String execute(ObjectNode source, ObjectNode target)
+	public String execute(ObjectNode source, ObjectNode results)
 	{
-		if (Parameter.checkAll(source, target))
+		if (Parameter.checkAll(source, results))
 		{
 			try
 			{
 				String xml = source.get(ConversionParameter.SOURCE_XML.key()).asText();
 				String json = this.convertXmlToJson(xml);
-				target.put(ConversionParameter.TARGET_JSON.key(), json);
+				results.put(ConversionParameter.TARGET_JSON.key(), json);
 
 			}
 			catch (IOException e)
 			{
 				String error = "Konversionsfehler: " + e.getLocalizedMessage();
-				this.createErrorMessage(target, error);
+				this.addError(results, error);
 			}
 		}
-		return target.toString();
+		return results.toString();
 	}
 
 	private String convertXmlToJson(String xml) throws IOException

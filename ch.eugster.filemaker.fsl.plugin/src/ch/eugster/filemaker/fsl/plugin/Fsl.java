@@ -13,11 +13,11 @@ public class Fsl
 	{
 		String result = null;
 		ObjectMapper mapper = new ObjectMapper();
-		ObjectNode target = mapper.createObjectNode();
+		ObjectNode results = mapper.createObjectNode();
 		ObjectNode source = null;
 		if (Objects.isNull(json))
 		{
-			result = createErrorMessage(target, "Der Übergabeparameter 'json' muss vorhanden sein.");
+			result = createErrorMessage(results, "Der Übergabeparameter 'json' muss vorhanden sein.");
 		}
 		else
 		{
@@ -27,46 +27,46 @@ public class Fsl
 			}
 			catch (Exception e)
 			{
-				result = createErrorMessage(target, "Der Übergabeparameter 'json' hat ein ungültiges Format.");
+				result = createErrorMessage(results, "Der Übergabeparameter 'json' hat ein ungültiges Format.");
 			}
 		}
 		Executor executor = ExecutorSelector.find(command);
 		if (Objects.isNull(executor))
 		{
-			result = createErrorMessage(target,
+			result = createErrorMessage(results,
 					"Der Befehl '" + command + "' wird nicht unterstützt. Bitte überprüfen Sie den Befehlsparameter.");
 		}
 		else if (!Objects.isNull(source))
 		{
-			result = executor.execute(source, target);
+			result = executor.execute(source, results);
 		}
-		if (Objects.isNull(target.get("errors")))
+		if (Objects.isNull(results.get("errors")))
 		{
-			if (Objects.isNull(target.get("result")))
+			if (Objects.isNull(results.get("result")))
 			{
-				target.put("result", "OK");
+				results.put("result", "OK");
 			}
 		}
 		return result;
 	}
 
-	private String createErrorMessage(ObjectNode target, String message)
+	private String createErrorMessage(ObjectNode results, String message)
 	{
-		JsonNode result = target.get("result");
+		JsonNode result = results.get("result");
 		if (Objects.isNull(result))
 		{
-			target.put("result", "Fehler");
+			results.put("result", "Fehler");
 		}
 		else if (result.asText().equals("OK"))
 		{
-			target.put("result", "Fehler");
+			results.put("result", "Fehler");
 		}
-		ArrayNode errors = ArrayNode.class.cast(target.get("errors"));
+		ArrayNode errors = ArrayNode.class.cast(results.get("errors"));
 		if (Objects.isNull(errors))
 		{
-			errors = target.putArray("errors");
+			errors = results.putArray("errors");
 		}
 		errors.add(message);
-		return target.toPrettyString();
+		return results.toPrettyString();
 	}
 }

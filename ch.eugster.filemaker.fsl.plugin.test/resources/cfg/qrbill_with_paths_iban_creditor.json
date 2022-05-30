@@ -1,0 +1,18 @@
+{
+	"iban": "CH4431999123000889012",
+	"source":
+	{
+		"path":"/Users/christian/invoice.pdf"
+	},
+	"target":
+	{
+		"path":"/Users/christian/Rechnung.pdf"
+	},
+	"creditor":
+	{
+		"name":"Kreditorname",
+		"address":"Kreditoradresse",
+		"city":"9000 Kreditorstadt",
+		"country":"CH"
+	}
+}

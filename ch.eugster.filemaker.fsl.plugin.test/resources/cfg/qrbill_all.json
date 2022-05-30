@@ -1,0 +1,42 @@
+{
+	"iban": "CH4400999123000889012",
+	"reference":"FS000000000000000000000000",
+	"currency":"EUR",
+	"message":"Konfigurationsmeldung",
+	"amount":230,
+	"source":
+	{
+		"table":"QRBoll",
+		"container_col":"onvoice",
+		"where_col":"od_text",
+		"where_val":"test"
+	},
+	"target":
+	{
+		"table":"QRBoll",
+		"container_col":"qrboll",
+		"name_col":"nome",
+		"where_col":"od_text",
+		"where_val":"test"
+	},
+	"database":
+	{
+		"url":"jdbc:filemaker://localhost/Tester",
+		"username":"christiano",
+		"password":"ce_eu98"
+	},
+	"creditor":
+	{
+		"name":"Kreditorname",
+		"address":"Kreditoradresse",
+		"city":"9000 Kreditorstadt",
+		"country":"AT"
+	},
+	"debtor":
+	{
+		"name":"Debitorname",
+		"address":"Debitoradresse",
+		"city":"9000 Debitorstadt",
+		"country":"DE"
+	}
+}

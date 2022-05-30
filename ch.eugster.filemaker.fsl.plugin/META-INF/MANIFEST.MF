@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: FileMaker Plugin Bundle
 Bundle-SymbolicName: ch.eugster.filemaker.fsl.plugin
-Bundle-Version: 1.0.5.qualifier
+Bundle-Version: 1.0.6.qualifier
 Bundle-Vendor: Christian Eugster
 Automatic-Module-Name: ch.eugster.camt
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
@@ -30,6 +30,7 @@ Bundle-ClassPath: lib/commons-lang3-3.12.0.jar,
  lib/org.eclipse.jface_3.25.0.v20220218-1636.jar,
  lib/org.eclipse.swt_3.119.0.v20220223-1102.jar,
  lib/org.eclipse.swt.cocoa.macosx.x86_64_3.119.0.v20220223-1102.jar,
+ lib/jasypt-1.9.3.jar,
  .
 Import-Package: com.fasterxml.jackson.databind,
  org.eclipse.swt.widgets

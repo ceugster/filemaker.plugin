@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
+	<classpathentry exported="true" kind="lib" path="lib/jasypt-1.9.3.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.core.runtime_3.24.100.v20220211-2001.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.jface_3.25.0.v20220218-1636.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.swt_3.119.0.v20220223-1102.jar"/>

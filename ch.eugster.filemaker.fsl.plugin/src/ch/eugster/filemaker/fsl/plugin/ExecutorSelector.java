@@ -8,17 +8,18 @@ public enum ExecutorSelector
 	// @formatter:off
 	CREATE_QRBILL("CreateQRBill", new SwissQRBillGenerator()), 
 	CONVERT_XML_TO_JSON("ConvertXmlToJson", new XmlToJsonConverter());
-	
+	// @formatter:on
+
 	private String command;
-	
+
 	private Executor executor;
-	
+
 	private ExecutorSelector(String command, Executor executor)
 	{
 		this.command = command;
 		this.executor = executor;
 	}
-	
+
 	public static final Executor find(String command)
 	{
 		ExecutorSelector[] selectors = ExecutorSelector.values();
@@ -31,7 +32,7 @@ public enum ExecutorSelector
 		}
 		return null;
 	}
-	
+
 	public String command()
 	{
 		return this.command;

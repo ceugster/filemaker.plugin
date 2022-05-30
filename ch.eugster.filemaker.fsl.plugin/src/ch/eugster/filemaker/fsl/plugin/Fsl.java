@@ -13,60 +13,44 @@ public class Fsl
 	{
 		String result = null;
 		ObjectMapper mapper = new ObjectMapper();
-		ObjectNode results = mapper.createObjectNode();
-		ObjectNode source = null;
-		if (Objects.isNull(json))
+		ObjectNode params = mapper.createObjectNode();
+		Executor executor = ExecutorSelector.find(command);
+		if (Objects.isNull(executor))
 		{
-			result = createErrorMessage(results, "Der Übergabeparameter 'json' muss vorhanden sein.");
+			result = createErrorMessage(params,
+					"Der Befehl '" + command + "' wird nicht unterstützt. Bitte überprüfen Sie den Befehlsparameter.");
 		}
 		else
 		{
 			try
 			{
-				source = ObjectNode.class.cast(mapper.readTree(json));
+				result = executor.execute(json, params);
 			}
 			catch (Exception e)
 			{
-				result = createErrorMessage(results, "Der Übergabeparameter 'json' hat ein ungültiges Format.");
-			}
-		}
-		Executor executor = ExecutorSelector.find(command);
-		if (Objects.isNull(executor))
-		{
-			result = createErrorMessage(results,
-					"Der Befehl '" + command + "' wird nicht unterstützt. Bitte überprüfen Sie den Befehlsparameter.");
-		}
-		else if (!Objects.isNull(source))
-		{
-			result = executor.execute(source, results);
-		}
-		if (Objects.isNull(results.get("errors")))
-		{
-			if (Objects.isNull(results.get("result")))
-			{
-				results.put("result", "OK");
+				result = createErrorMessage(params, "Der Übergabeparameter 'json' hat ein ungültiges Format.");
 			}
 		}
 		return result;
 	}
 
-	private String createErrorMessage(ObjectNode results, String message)
+	private String createErrorMessage(ObjectNode result, String message)
 	{
-		JsonNode result = results.get("result");
-		if (Objects.isNull(result))
+		JsonNode resultNode = result.get("result");
+		if (Objects.isNull(resultNode))
 		{
-			results.put("result", "Fehler");
+			result.put("result", "Fehler");
 		}
-		else if (result.asText().equals("OK"))
+		else if (resultNode.asText().equals("OK"))
 		{
-			results.put("result", "Fehler");
+			result.put("result", "Fehler");
 		}
-		ArrayNode errors = ArrayNode.class.cast(results.get("errors"));
+		ArrayNode errors = ArrayNode.class.cast(result.get("errors"));
 		if (Objects.isNull(errors))
 		{
-			errors = results.putArray("errors");
+			errors = result.putArray("errors");
 		}
 		errors.add(message);
-		return results.toPrettyString();
+		return result.toPrettyString();
 	}
 }

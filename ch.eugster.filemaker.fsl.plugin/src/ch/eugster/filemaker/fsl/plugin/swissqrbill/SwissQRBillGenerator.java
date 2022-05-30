@@ -1,19 +1,21 @@
 package ch.eugster.filemaker.fsl.plugin.swissqrbill;
 
 import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.exc.StreamReadException;
+import com.fasterxml.jackson.databind.DatabindException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.filemaker.jdbc.Driver;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
 import net.codecrete.qrbill.canvas.PDFCanvas;
@@ -36,94 +38,136 @@ import net.codecrete.qrbill.generator.ValidationResult;
  */
 public class SwissQRBillGenerator implements Executor
 {
-	public String execute(ObjectNode source, ObjectNode result)
+	public String execute(String json, ObjectNode result)
 	{
-		/*
-		 * Read properties from json file in user.home/.fsl/qrbill.json
-		 */
-		try
-		{
-			source = this.loadProperties(source);
-		}
-		catch (Exception e)
-		{
-			this.addError(result, e);
-		}
-
+		ObjectMapper mapper = new ObjectMapper();
+		Parameters parameters = parseParameters(mapper, json, result);
+		Parameters properties = parseConfiguration(parameters, mapper, result);
 		if (Objects.isNull(result.get("errors")))
 		{
 			Bill bill = new Bill();
-			bill.setAccount(this.getStringValue(source.get(Parameter.IBAN.key())));
-
-			String reference = this.getStringValue(source.get(Parameter.REFERENCE.key()));
-			if (Objects.isNull(reference) || reference.trim().isEmpty())
+			if (Objects.nonNull(properties.getIban()))
 			{
-				bill.setReferenceType(Bill.REFERENCE_TYPE_NO_REF);
+				bill.setAccount(properties.getIban());
 			}
-			else
+
+			if (Objects.nonNull(properties.getReference()))
 			{
-				if (reference.toUpperCase().startsWith("FS"))
+				String reference = properties.getReference();
+				if (Objects.isNull(reference) || reference.trim().isEmpty())
 				{
-					bill.createAndSetCreditorReference(reference);
+					bill.setReferenceType(Bill.REFERENCE_TYPE_NO_REF);
 				}
 				else
 				{
-					bill.createAndSetQRReference(reference);
+					if (reference.toUpperCase().startsWith("FS"))
+					{
+						bill.createAndSetCreditorReference(reference);
+					}
+					else
+					{
+						bill.createAndSetQRReference(reference);
+					}
 				}
 			}
 
-			Double amount = this.getDoubleValue(source, Parameter.AMOUNT.key());
+			Double amount = properties.getAmount();
 			if (Objects.nonNull(amount) && !amount.equals(Double.valueOf(0D)))
 			{
 				bill.setAmountFromDouble(amount);
 			}
 
-			bill.setCurrency(this.getCurrency(source));
-
-			Address creditor = new Address();
-			JsonNode parent = source.get(Parameter.CREDITOR.key());
-			if (Objects.nonNull(parent))
+			if (Objects.nonNull(properties.getCurrency()))
 			{
-				creditor.setName(this.getStringValue(parent.get(Parameter.NAME.key())));
-				creditor.setAddressLine1(this.getStringValue(parent.get(Parameter.ADDRESS.key())));
-				creditor.setAddressLine2(this.getStringValue(parent.get(Parameter.CITY.key())));
-				creditor.setCountryCode(this.getStringValue(parent.get(Parameter.COUNTRY.key())));
+				bill.setCurrency(properties.getCurrency());
+			}
+
+			if (Objects.nonNull(properties.getCreditor()))
+			{
+				Address creditor = new Address();
+				creditor.setName(properties.getCreditor().getName());
+				creditor.setAddressLine1(properties.getCreditor().getAddress());
+				creditor.setAddressLine2(properties.getCreditor().getCity());
+				creditor.setCountryCode(properties.getCreditor().getCountry());
 				bill.setCreditor(creditor);
 			}
 
-			parent = source.get(Parameter.DEBTOR.key());
-			if (Objects.nonNull(parent))
+			if (Objects.nonNull(properties.getDebtor()))
 			{
 				Address debtor = new Address();
-				debtor.setName(this.getStringValue(parent.get(Parameter.NAME.key())));
-				debtor.setAddressLine1(this.getStringValue(parent.get(Parameter.ADDRESS.key())));
-				debtor.setAddressLine2(this.getStringValue(parent.get(Parameter.CITY.key())));
-				debtor.setCountryCode(this.getStringValue(parent.get(Parameter.COUNTRY.key())));
+				debtor.setName(properties.getDebtor().getName());
+				debtor.setAddressLine1(properties.getDebtor().getAddress());
+				debtor.setAddressLine2(properties.getDebtor().getCity());
+				debtor.setCountryCode(properties.getDebtor().getCountry());
 				bill.setDebtor(debtor);
 			}
 
 			BillFormat format = new BillFormat();
-			format.setGraphicsFormat(this.getGraphicsFormat(source));
-			format.setLanguage(this.getLanguage(source));
-			format.setOutputSize(this.getOutputSize(source));
+			format.setGraphicsFormat(this.validateGraphicsFormat(properties));
+			format.setLanguage(this.validateLanguage(properties));
+			format.setOutputSize(this.validateOutputSize(properties));
 			bill.setFormat(format);
 
-			JsonNode message = source.get(Parameter.MESSAGE.key());
-			if (Objects.nonNull(message))
+			String message = properties.getMessage();
+			if (Objects.nonNull(message) && !message.trim().isEmpty())
 			{
-				bill.setUnstructuredMessage(message.asText());
+				bill.setUnstructuredMessage(message);
 			}
 
 			ValidationResult validation = QRBill.validate(bill);
 			if (validation.isValid())
 			{
-				try
+				if (Objects.nonNull(properties.getTarget()))
 				{
-					updateDatabase(source, bill);
+					Target target = properties.getTarget();
+					if (target.isValid())
+					{
+						if (Objects.nonNull(properties.getSource()))
+						{
+							Source source = properties.getSource();
+							if (source.isValid())
+							{
+								try
+								{
+									Blob blob = source.getBlob(properties.getDatabase());
+									blob = this.merge(properties, bill, blob);
+									Result updated = target.update(properties.getDatabase(), blob);
+									if (updated.getResult() && Objects.nonNull(updated.getFile()))
+									{
+										result.put("target", updated.getFile().getAbsolutePath());
+									}
+								}
+								catch (Exception e)
+								{
+									this.addError(result, e);
+								}
+							}
+							else
+							{
+								this.addError(result, "Ein Quellobjekt wird erwartet, ist aber nicht verfügbar.");
+							}
+						}
+						else
+						{
+							try
+							{
+								Blob blob = this.generate(bill);
+								Result updated = target.update(properties.getDatabase(), blob);
+								if (updated.getResult() && Objects.nonNull(updated.getFile()))
+								{
+									result.put("target", updated.getFile().getAbsolutePath());
+								}
+							}
+							catch (Exception e)
+							{
+								this.addError(result, e);
+							}
+						}
+					}
 				}
-				catch (Exception e)
+				else
 				{
-					this.addError(result, e);
+					this.addError(result, "Die Tabellendaten für das Zielobjekt sind fehlerhaft.");
 				}
 			}
 			List<ValidationMessage> msgs = validation.getValidationMessages();
@@ -145,293 +189,149 @@ public class SwissQRBillGenerator implements Executor
 		return result.toString();
 	}
 
-	private String getStringValue(JsonNode node)
+	private Parameters parseParameters(ObjectMapper mapper, String json, ObjectNode result)
 	{
-		return Objects.isNull(node) ? null : node.asText();
-	}
-
-	private Double getDoubleValue(JsonNode source, String key)
-	{
-		JsonNode node = source.get(key);
-		return Objects.isNull(node) ? null : node.asDouble();
-	}
-
-	private Connection createConnection(ObjectNode source) throws Exception
-	{
-		Connection connection = null;
-		JsonNode db = source.get(Parameter.DATABASE.key());
-		if (Objects.nonNull(db))
-		{
-			String url = this.getStringValue(db.get(Parameter.URL.key()));
-			String username = this.getStringValue(db.get(Parameter.USERNAME.key()));
-			String password = Objects.isNull(db.get(Parameter.PASSWORD.key())) ? ""
-					: db.get(Parameter.PASSWORD.key()).asText();
-
-			Driver driver = new Driver();
-			DriverManager.registerDriver(driver);
-			connection = DriverManager.getConnection(url, username, password);
-		}
-		else
-		{
-			throw new Exception("Keine Verbindungsdaten zur Datenbank gefunden.");
-		}
-		return connection;
-	}
-
-	private void closeConnection(Connection connection)
-	{
+		Parameters parameters = new Parameters();
 		try
 		{
-			if (connection != null)
-			{
-				connection.close();
-			}
+			parameters = mapper.readValue(json, Parameters.class);
 		}
-		catch (SQLException e)
+		catch (JsonMappingException e1)
+		{
+			this.addError(result, "Die Übergabeparameter enthalten ungültige Elemente.");
+		}
+		catch (JsonProcessingException e1)
+		{
+			this.addError(result, "Beim Verarbeiten der Übergabeparameter ist ein Fehler aufgetreten.");
+		}
+		catch (IllegalArgumentException e)
 		{
 		}
+		return parameters;
 	}
 
-	private void updateDatabase(ObjectNode source, Bill bill) throws Exception
+	private Parameters parseConfiguration(Parameters parameters, ObjectMapper mapper, ObjectNode result)
 	{
-		Connection connection = null;
+		Path path = Paths.get(System.getProperty("user.home"), ".fsl", "qrbill.json");
+		Parameters properties = parameters;
 		try
 		{
-			connection = this.createConnection(source);
-			Invoice invoice = new Invoice();
-			if (Objects.isNull(source.get(Parameter.INVOICE.key())))
-			{
-				invoice.setName("Rechnung." + bill.getFormat().getGraphicsFormat().name().toLowerCase());
-				invoice.setBlob(QRBill.generate(bill));
-			}
-			else
-			{
-				invoice = this.readInvoice(connection, source);
-				invoice = this.appendQRBillToInvoice(source, bill, invoice);
-			}
-
-			int r = 0;
-			JsonNode parent = source.get(Parameter.QRBILL.key());
-			if (Objects.nonNull(parent))
-			{
-				String table = this.getStringValue(parent.get(Parameter.TABLE.key()));
-				String containerColumn = this.getStringValue(parent.get(Parameter.CONTAINER_COL.key()));
-				String nameColumn = this.getStringValue(parent.get(Parameter.NAME_COL.key()));
-				String whereCol = this.getStringValue(parent.get(Parameter.WHERE_COL.key()));
-				String whereVal = this.getStringValue(parent.get(Parameter.WHERE_VAL.key()));
-
-				String sql = "UPDATE " + table + " SET " + containerColumn + " = ? AS '" + invoice.getName() + "', "
-						+ nameColumn + " = ? WHERE " + whereCol + " = ?";
-				PreparedStatement pstm = null;
-				pstm = connection.prepareStatement(sql);
-				pstm.setBytes(1, invoice.getBlob());
-				pstm.setString(2, invoice.getName());
-				pstm.setString(3, whereVal);
-				pstm.closeOnCompletion();
-				System.out.println(sql);
-				r = pstm.executeUpdate();
-			}
-			else
-			{
-				throw new Exception("Informationen zur Zieltabelle fehlen.");
-			}
-			if (r != 1)
-			{
-				throw new Exception("Die Zieltabelle wurde nicht aktualisiert.");
-			}
+			properties = mapper.readValue(path.toFile(), Parameters.class);
+			properties.merge(parameters);
 		}
-		finally
+		catch (StreamReadException e)
 		{
-			if (Objects.nonNull(connection))
-			{
-				this.closeConnection(connection);
-			}
+			this.addError(result, "Die Konfigurationsdatei '" + path.getFileName() + "' ist fehlerhaft.");
 		}
+		catch (DatabindException e)
+		{
+			this.addError(result, "Die Konfigurationsdatei '" + path.getFileName() + "' enthält ungültige Elemente.");
+		}
+		catch (FileNotFoundException e)
+		{
+		}
+		catch (IOException e)
+		{
+			this.addError(result, "Die Konfigurationsdatei '" + path.getFileName() + "' kann ncht gelesen werden.");
+		}
+		return properties;
 	}
 
-	private Invoice readInvoice(Connection connection, ObjectNode source) throws Exception
+	private Blob generate(Bill bill)
 	{
-		Invoice invoice = new Invoice();
-		JsonNode parent = source.get(Parameter.INVOICE.key());
-		if (Objects.nonNull(parent))
-		{
-			String table = this.getStringValue(parent.get(Parameter.TABLE.key()));
-			String column = this.getStringValue(parent.get(Parameter.CONTAINER_COL.key()));
-			String whereCol = this.getStringValue(parent.get(Parameter.WHERE_COL.key()));
-			String whereVal = this.getStringValue(parent.get(Parameter.WHERE_VAL.key()));
+		Blob blob = new Blob();
+		blob.setBlob(QRBill.generate(bill));
+		blob.setName("invoice.pdf");
+		return blob;
+	}
 
-			String sql = "SELECT CAST(" + column + " AS VARCHAR) , GetAs(" + column + ", DEFAULT) FROM " + table
-					+ " WHERE " + whereCol + " = ?";
-			ResultSet rst = null;
+	private Blob merge(Parameters properties, Bill bill, Blob blob) throws Exception
+	{
+		if (Objects.nonNull(blob) && Objects.nonNull(blob.getBlob()))
+		{
+			InputStream is = null;
+			byte[] targetArray = null;
 			try
 			{
-				PreparedStatement pstm = null;
-				pstm = connection.prepareStatement(sql);
-				pstm.closeOnCompletion();
-				pstm.setString(1, whereVal);
-				System.out.println(sql);
-				rst = pstm.executeQuery();
-				if (rst.next())
-				{
-					invoice.setName(rst.getString(1));
-					invoice.setBlob(rst.getBytes(2));
-				}
+				is = new ByteArrayInputStream(blob.getBlob());
+				targetArray = new byte[is.available()];
+				is.read(targetArray);
 			}
-			catch (Exception e)
+			catch (NullPointerException e)
 			{
-				throw new Exception("Fehler in der Datenbankabfrage: " + sql);
+				throw new Exception("Das Quellobjekt kann nicht gelesen werden.");
 			}
 			finally
 			{
-				if (Objects.nonNull(rst))
+				if (is != null)
 				{
-					rst.close();
+					is.close();
 				}
 			}
-		}
-		return invoice;
-	}
-
-	private Invoice appendQRBillToInvoice(ObjectNode source, Bill bill, Invoice invoice) throws Exception
-	{
-		PDFCanvas canvas = null;
-		if (Objects.nonNull(invoice) && Objects.nonNull(invoice.getBlob()))
-		{
+			PDFCanvas canvas = null;
 			try
 			{
-				byte[] targetArray = null;
-				InputStream is = null;
-				try
-				{
-					is = new ByteArrayInputStream(invoice.getBlob());
-					targetArray = new byte[is.available()];
-					is.read(targetArray);
-				}
-				catch (NullPointerException e)
-				{
-					throw new Exception(
-							"Die Rechnung, an die der Einzahlungsschein angefügt werden soll, kann nicht gelesen werden.");
-				}
-				finally
-				{
-					if (is != null)
-					{
-						is.close();
-					}
-				}
-				canvas = new PDFCanvas(targetArray, PDFCanvas.LAST_PAGE);
+				canvas = new PDFCanvas(targetArray, PDFCanvas.NEW_PAGE_AT_END);
 				QRBill.draw(bill, canvas);
-				invoice.setBlob(canvas.toByteArray());
+				blob.setBlob(canvas.toByteArray());
+			}
+			catch (IOException e)
+			{
+				throw new Exception("Beim Erstellen der Rechnung ist ein Fehler aufgetreten.");
 			}
 			finally
 			{
 				if (canvas != null)
 				{
-					invoice.setBlob(canvas.toByteArray());
+					blob.setBlob(canvas.toByteArray());
 					canvas.close();
 				}
 			}
 		}
 		else
 		{
-			throw new Exception("Rechnung existiert nicht. Sie muss für die Verarbeitung vorhanden sein.");
+			throw new Exception("Ein Quellobjekt wird erwartet, ist aber nicht verfügbar.");
 		}
-		return invoice;
+		return blob;
 	}
 
-	private String getCurrency(JsonNode source)
-	{
-		String currency = "CHF";
-		JsonNode node = source.get(Parameter.CURRENCY.key());
-		if (Objects.nonNull(node))
-		{
-			String value = node.asText();
-			if (Objects.nonNull(value) && !value.trim().isEmpty())
-			{
-				String[] validCurrencies = new String[]
-				{ "CHF", "EUR" };
-				for (String validCurrency : validCurrencies)
-				{
-					if (validCurrency.equals(value))
-					{
-						currency = validCurrency;
-					}
-				}
-			}
-		}
-		return currency;
-	}
-
-	private Language getLanguage(JsonNode source) throws IllegalArgumentException
+	private Language validateLanguage(Parameters properties) throws IllegalArgumentException
 	{
 		Language language = Language.DE;
-		JsonNode parent = source.get(Parameter.FORM.key());
-		if (Objects.nonNull(parent))
+		Form form = properties.getForm();
+		if (Objects.nonNull(form))
 		{
-			JsonNode node = parent.get(Parameter.LANGUAGE.key());
-			if (Objects.nonNull(node))
+			if (Objects.nonNull(form.getLanguage()))
 			{
-				String value = node.asText();
-				if (Objects.nonNull(value) && !value.trim().isEmpty())
-				{
-					for (Language l : Language.values())
-					{
-						if (l.name().equals(value))
-						{
-							language = l;
-						}
-					}
-				}
+				language = form.getLanguage();
 			}
 		}
 		return language;
 	}
 
-	private OutputSize getOutputSize(JsonNode source) throws IllegalArgumentException
+	private OutputSize validateOutputSize(Parameters properties) throws IllegalArgumentException
 	{
 		OutputSize size = OutputSize.A4_PORTRAIT_SHEET;
-		JsonNode parent = source.get(Parameter.FORM.key());
-		if (Objects.nonNull(parent))
+		Form form = properties.getForm();
+		if (Objects.nonNull(form))
 		{
-			JsonNode node = parent.get(Parameter.OUTPUT_SIZE.key());
-			if (Objects.nonNull(node))
+			if (Objects.nonNull(form.getOutputSize()))
 			{
-				String value = node.asText();
-				if (Objects.nonNull(value) && !value.trim().isEmpty())
-				{
-					for (OutputSize outputSize : OutputSize.values())
-					{
-						if (outputSize.name().equals(value))
-						{
-							size = outputSize;
-						}
-					}
-				}
+				size = form.getOutputSize();
 			}
 		}
 		return size;
 	}
 
-	private GraphicsFormat getGraphicsFormat(JsonNode source) throws IllegalArgumentException
+	private GraphicsFormat validateGraphicsFormat(Parameters properties) throws IllegalArgumentException
 	{
 		GraphicsFormat format = GraphicsFormat.PDF;
-		JsonNode parent = source.get(Parameter.FORM.key());
-		if (Objects.nonNull(parent))
+		Form form = properties.getForm();
+		if (Objects.nonNull(form))
 		{
-			JsonNode node = parent.get(Parameter.GRAPHICS_FORMAT.key());
-			if (Objects.nonNull(node))
+			if (Objects.nonNull(form.getGraphicsFormat()))
 			{
-				String value = node.asText();
-				if (Objects.nonNull(value) && !value.trim().isEmpty())
-				{
-					for (GraphicsFormat graphicsFormat : GraphicsFormat.values())
-					{
-						if (graphicsFormat.name().equals(value))
-						{
-							format = graphicsFormat;
-						}
-					}
-				}
+				format = form.getGraphicsFormat();
 			}
 		}
 		return format;
@@ -451,15 +351,17 @@ public class SwissQRBillGenerator implements Executor
 		USERNAME("username"),
 		PASSWORD("password"),
 		
-		QRBILL("qrbill"),
-		INVOICE("invoice"),
+		TARGET("target"),
+		SOURCE("source"),
 
+		PATH("path"),
+		
 		TABLE("table"), 
 		CONTAINER_COL("container_col"),
 		NAME_COL("name_col"),
 		WHERE_COL("where_col"), 
 		WHERE_VAL("where_val"),
-		
+
 		CREDITOR("creditor"),
 		DEBTOR("debtor"),
 
@@ -471,7 +373,10 @@ public class SwissQRBillGenerator implements Executor
 		FORM("form"),
 		GRAPHICS_FORMAT("graphics_format"), 
 		OUTPUT_SIZE("output_size"),
-		LANGUAGE("language");
+		LANGUAGE("language"),
+		
+		TEST("test"),
+		PROPERTIES("properties");
 		// @formatter:on
 
 		private String key;
@@ -484,34 +389,6 @@ public class SwissQRBillGenerator implements Executor
 		public String key()
 		{
 			return this.key;
-		}
-
-	}
-
-	class Invoice
-	{
-		private String name;
-
-		private byte[] blob;
-
-		public void setName(String name)
-		{
-			this.name = name;
-		}
-
-		public String getName()
-		{
-			return this.name;
-		}
-
-		public void setBlob(byte[] blob)
-		{
-			this.blob = blob;
-		}
-
-		public byte[] getBlob()
-		{
-			return this.blob;
 		}
 	}
 }

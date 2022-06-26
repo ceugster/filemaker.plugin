@@ -376,6 +376,54 @@ public class QRBillTest
 	}
 
 	@Test
+	public void testIbanWithoutReference() throws IOException
+	{
+		this.copyConfiguration("resources/cfg/qrbill_all.json");
+
+		ObjectNode parameters = mapper.createObjectNode();
+		parameters.put(Parameter.AMOUNT.key(), new BigDecimal(350));
+		parameters.put(Parameter.CURRENCY.key(), "CHF");
+		parameters.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		parameters.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		parameters.put(Parameter.MESSAGE.key(), "Abonnement für 2020");
+		ObjectNode db = parameters.putObject(Parameter.DATABASE.key());
+		db.put(Parameter.URL.key(), "jdbc:filemaker://localhost/Test");
+		db.put(Parameter.USERNAME.key(), "christian");
+		db.put(Parameter.PASSWORD.key(), "ce_eu97");
+		ObjectNode target = parameters.putObject(Parameter.TARGET.key());
+		target.put(Parameter.TABLE.key(), "QRBill");
+		target.put(Parameter.NAME_COL.key(), "name");
+		target.put(Parameter.CONTAINER_COL.key(), "qrbill");
+		target.put(Parameter.NAME_COL.key(), "name");
+		target.put(Parameter.WHERE_COL.key(), "id_text");
+		target.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode source = parameters.putObject(Parameter.SOURCE.key());
+		source.put(Parameter.TABLE.key(), "QRBill");
+		source.put(Parameter.CONTAINER_COL.key(), "invoice");
+		source.put(Parameter.WHERE_COL.key(), "id_text");
+		source.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode creditor = parameters.putObject(Parameter.CREDITOR.key());
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode debtor = parameters.putObject(Parameter.DEBTOR.key());
+		debtor.put(Parameter.NAME.key(), "Christian Eugster");
+		debtor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		debtor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode form = parameters.putObject(Parameter.FORM.key());
+		form.put(Parameter.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
+		form.put(Parameter.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
+		form.put(Parameter.LANGUAGE.key(), Language.DE.name());
+
+		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		JsonNode resultNode = mapper.readTree(result);
+		assertEquals("OK", resultNode.get("result").asText());
+		assertNull(resultNode.get("errors"));
+	}
+
+	@Test
 	public void testMinimalParametersWithPathsOK() throws IOException
 	{
 		this.copyConfiguration("resources/cfg/qrbill_with_paths_iban_creditor.json");

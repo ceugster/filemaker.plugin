@@ -7,7 +7,6 @@ import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -129,12 +128,12 @@ public class Source
 	{
 		Blob blob = new Blob();
 		Connection connection = database.getConnection();
+		PreparedStatement pstm = null;
 		String sql = "SELECT CAST(" + this.containerCol + " AS VARCHAR) , GetAs(" + this.containerCol
 				+ ", DEFAULT) FROM " + this.table + " WHERE " + this.whereCol + " = ?";
 		ResultSet rst = null;
 		try
 		{
-			PreparedStatement pstm = null;
 			pstm = connection.prepareStatement(sql);
 			pstm.closeOnCompletion();
 			pstm.setString(1, this.whereVal);
@@ -151,16 +150,7 @@ public class Source
 		}
 		finally
 		{
-			if (Objects.nonNull(rst))
-			{
-				try
-				{
-					rst.close();
-				}
-				catch (SQLException e)
-				{
-				}
-			}
+			database.closeConnection();
 		}
 		return blob;
 	}

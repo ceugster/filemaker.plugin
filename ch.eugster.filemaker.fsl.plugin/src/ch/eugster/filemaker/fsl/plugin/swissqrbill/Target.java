@@ -124,6 +124,7 @@ public class Target
 					pstm.setString(2, blob.getName());
 					pstm.setString(3, this.whereVal);
 					result.setResult(pstm.executeUpdate() == 1);
+					database.closeConnection();
 				}
 				else
 				{

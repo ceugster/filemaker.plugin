@@ -1,7 +1,9 @@
 package ch.eugster.filemaker.fsl.plugin.converter;
 
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
@@ -19,7 +21,6 @@ import ch.eugster.filemaker.fsl.plugin.Executor;
 
 public class XmlToJsonConverter implements Executor
 {
-
 	@Override
 	public String execute(String json, ObjectNode result)
 	{
@@ -32,7 +33,7 @@ public class XmlToJsonConverter implements Executor
 			{
 				String xml = properties.getSourceXml();
 				String jzon = this.convertXmlToJson(xml);
-				result.put(properties.getTargetJson(), jzon);
+				result.put(Parameter.TARGET_JSON.key(), jzon);
 
 			}
 			catch (IOException e)
@@ -69,12 +70,20 @@ public class XmlToJsonConverter implements Executor
 
 	private Parameters parseConfiguration(Parameters parameters, ObjectMapper mapper, ObjectNode result)
 	{
-		Path path = Paths.get(System.getProperty("user.home"), ".fsl", "qrbill.json");
-		Parameters properties = parameters;
-		try
+		Parameters properties = null;
+		Path path = Paths.get(System.getProperty("user.home"), ".fsl", "fsl.json");
+		if (path.toFile().exists())
 		{
 			properties = mapper.readValue(path.toFile(), Parameters.class);
 			properties.merge(parameters);
+
+		}
+		else
+		{
+
+		}
+		try
+		{
 		}
 		catch (StreamReadException e)
 		{
@@ -86,6 +95,20 @@ public class XmlToJsonConverter implements Executor
 		}
 		catch (FileNotFoundException e)
 		{
+			try
+			{
+				if (path.toFile().createNewFile())
+				{
+					Writer w = new FileWriter(path.toFile());
+					w.write(Parameter.SOURCE_XML.key + "= \n");
+					w.write(Parameter.TARGET_JSON.key + "= \n");
+					w.close();
+				}
+			}
+			catch (IOException e1)
+			{
+				e1.printStackTrace();
+			}
 		}
 		catch (IOException e)
 		{

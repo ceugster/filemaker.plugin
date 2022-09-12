@@ -1,35 +1,111 @@
 package ch.eugster.filemaker.fsl.plugin;
 
+import java.lang.reflect.Method;
 import java.util.Objects;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-public interface Executor
+public abstract class Executor<E extends Executor<E>>
 {
-	String execute(String json, ObjectNode result);
+	protected static final String OK = "OK";
 
-	default boolean addError(ObjectNode result, String message)
+	protected static final String ERROR = "Fehler";
+
+	protected static ObjectNode resultNode;
+
+	public void execute(String command, ObjectNode results, Object[] parameters)
 	{
-		if (Objects.isNull(result.get("result")))
+		Executor.resultNode = results;
+		Method[] methods = this.getClass().getDeclaredMethods();
+		for (Method method : methods)
 		{
-			result = result.put("result", "Fehler");
+			if (method.getName().equals(command))
+			{
+				try
+				{
+					Object[] params = parameters;
+					if (method.getParameterCount() > 0)
+					{
+						if (method.getParameterTypes()[0].isArray())
+						{
+							params = new Object[] { parameters };
+						}
+					}
+					else if (method.getParameterCount() > 1)
+					{
+						params = new Object[] { parameters };
+					}
+					method.invoke(null, params);
+					if (Objects.isNull(resultNode.get("errors")))
+					{
+						resultNode.put("result", "OK");
+					}
+				}
+				catch (Exception e)
+				{
+					addErrorMessage(e);
+				}
+				return;
+			}
 		}
-		else if (result.get("result").asText().equals("OK"))
-		{
-			result = result.put("result", "Fehler");
-		}
-		if (Objects.isNull(result.get("errors")))
-		{
-			result.putArray("errors");
-		}
-		((ArrayNode) result.get("errors")).add(message);
-		return false;
+		addErrorMessage("Unbekannter Befehl");
+
 	}
 
-	default boolean addError(ObjectNode source, Exception e)
+	/**
+	 * 
+	 * @param key   key
+	 * @param value value
+	 */
+	protected static void putValue(String key, String value)
 	{
-		return addError(source, e.getLocalizedMessage());
+		resultNode.put(key, value);
 	}
 
+	/**
+	 * 
+	 * @param key   key
+	 * @param value value
+	 */
+	protected static void putValue(String key, Double value)
+	{
+		resultNode.put(key, value);
+	}
+
+	/**
+	 * 
+	 * @param key   key
+	 * @param value value
+	 */
+	protected static void putValue(String key, Integer value)
+	{
+		resultNode.put(key, value);
+	}
+
+	/**
+	 * 
+	 * @param message error message
+	 * 
+	 * @return "Fehler"
+	 */
+	protected static String addErrorMessage(String message)
+	{
+		ArrayNode errors = ArrayNode.class.cast(resultNode.get("errors"));
+		if (Objects.isNull(errors))
+		{
+			errors = resultNode.putArray("errors");
+		}
+		errors.add(message);
+		if (Objects.isNull(resultNode.get("result")) || resultNode.get("result").asText().equals("OK"))
+		{
+			resultNode.put("result", "Fehler");
+		}
+		return ERROR;
+	}
+
+	public static String addErrorMessage(Exception e)
+	{
+		return addErrorMessage(e.getLocalizedMessage());
+	}
 }

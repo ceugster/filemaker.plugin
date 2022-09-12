@@ -28,10 +28,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import ch.eugster.filemaker.fsl.plugin.ExecutorSelector;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
 import ch.eugster.filemaker.fsl.plugin.swissqrbill.Parameters;
-import ch.eugster.filemaker.fsl.plugin.swissqrbill.SwissQRBillGenerator.Parameter;
+import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBill.Parameter;
 import net.codecrete.qrbill.generator.GraphicsFormat;
 import net.codecrete.qrbill.generator.Language;
 import net.codecrete.qrbill.generator.OutputSize;
@@ -41,7 +40,7 @@ public class QRBillTest
 	private ObjectMapper mapper;
 
 	@BeforeAll
-	public static void beforeAll() throws IOException, URISyntaxException
+	public static void beforeAll() throws IOException, URISyntaxException, InterruptedException
 	{
 		if (Desktop.isDesktopSupported())
 		{
@@ -51,6 +50,7 @@ public class QRBillTest
 				File file = new File("resources/fm/Test.fmp12");
 				desktop.open(file);
 			}
+			Thread.sleep(20000L);
 		}
 	}
 
@@ -71,7 +71,7 @@ public class QRBillTest
 		File target = Paths.get(System.getProperty("user.home"), ".fsl", "qrbill.json").toFile();
 		if (target.exists())
 		{
-			afterEach();
+			target.delete();
 		}
 		File source = new File(sourcePath).getAbsoluteFile();
 		FileUtils.copyFile(source, target);
@@ -80,46 +80,47 @@ public class QRBillTest
 	@Test
 	public void testNullParameter() throws JsonMappingException, JsonProcessingException
 	{
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), null);
+		String result = Fsl.execute("QRBill.generate", new Object[0]);
 
 		JsonNode resultNode = this.mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
 		assertEquals(ArrayNode.class, resultNode.get("errors").getClass());
-		assertEquals(6, resultNode.get("errors").size());
+		assertEquals(1, resultNode.get("errors").size());
 		ArrayNode errors = ArrayNode.class.cast(resultNode.get("errors"));
-		Iterator<JsonNode> iterator = errors.iterator();
-		while (iterator.hasNext())
-		{
-			String error = iterator.next().asText();
-			if (error.equals("field_is_mandatory: 'account'"))
-			{
-				assertEquals("field_is_mandatory: 'account'", error);
-			}
-			else if (error.equals("field_is_mandatory: 'creditor.name'"))
-			{
-				assertEquals("field_is_mandatory: 'creditor.name'", error);
-			}
-			else if (error.equals("field_is_mandatory: 'creditor.postalCode'"))
-			{
-				assertEquals("field_is_mandatory: 'creditor.postalCode'", error);
-			}
-			else if (error.equals("field_is_mandatory: 'creditor.addressLine2'"))
-			{
-				assertEquals("field_is_mandatory: 'creditor.addressLine2'", error);
-			}
-			else if (error.equals("field_is_mandatory: 'creditor.town'"))
-			{
-				assertEquals("field_is_mandatory: 'creditor.town'", error);
-			}
-			else if (error.equals("field_is_mandatory: 'creditor.countryCode'"))
-			{
-				assertEquals("field_is_mandatory: 'creditor.countryCode'", error);
-			}
-			else
-			{
-				fail();
-			}
-		}
+		assertEquals("Falsche Anzahl Parameter", errors.get(0).asText());
+//		Iterator<JsonNode> iterator = errors.iterator();
+//		while (iterator.hasNext())
+//		{
+//			String error = iterator.next().asText();
+//			if (error.equals("field_is_mandatory: 'account'"))
+//			{
+//				assertEquals("field_is_mandatory: 'account'", error);
+//			}
+//			else if (error.equals("field_is_mandatory: 'creditor.name'"))
+//			{
+//				assertEquals("field_is_mandatory: 'creditor.name'", error);
+//			}
+//			else if (error.equals("field_is_mandatory: 'creditor.postalCode'"))
+//			{
+//				assertEquals("field_is_mandatory: 'creditor.postalCode'", error);
+//			}
+//			else if (error.equals("field_is_mandatory: 'creditor.addressLine2'"))
+//			{
+//				assertEquals("field_is_mandatory: 'creditor.addressLine2'", error);
+//			}
+//			else if (error.equals("field_is_mandatory: 'creditor.town'"))
+//			{
+//				assertEquals("field_is_mandatory: 'creditor.town'", error);
+//			}
+//			else if (error.equals("field_is_mandatory: 'creditor.countryCode'"))
+//			{
+//				assertEquals("field_is_mandatory: 'creditor.countryCode'", error);
+//			}
+//			else
+//			{
+//				fail();
+//			}
+//		}
 	}
 
 	@Test
@@ -127,7 +128,7 @@ public class QRBillTest
 	{
 		ObjectNode parameters = this.mapper.createObjectNode();
 
-		String result = new Fsl().execute("InvalidCommand", parameters.toString());
+		String result = Fsl.execute("InvalidCommand", parameters.toString());
 
 		JsonNode target = this.mapper.readTree(result);
 		assertEquals("Fehler", target.get("result").asText());
@@ -135,8 +136,7 @@ public class QRBillTest
 		assertEquals(ArrayNode.class, node.getClass());
 		ArrayNode errors = ArrayNode.class.cast(node);
 		assertEquals(1, errors.size());
-		assertEquals("Der Befehl 'InvalidCommand' wird nicht unterstützt. Bitte überprüfen Sie den Befehlsparameter.",
-				errors.get(0).asText());
+		assertEquals("Der Befehl ist ungültig.", errors.get(0).asText());
 	}
 
 	@Test
@@ -146,7 +146,7 @@ public class QRBillTest
 
 		ObjectNode parameters = this.mapper.createObjectNode();
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
@@ -162,7 +162,7 @@ public class QRBillTest
 
 		ObjectNode parameters = this.mapper.createObjectNode();
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
@@ -177,7 +177,7 @@ public class QRBillTest
 	{
 		ObjectNode parameters = this.mapper.createObjectNode();
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
@@ -230,7 +230,7 @@ public class QRBillTest
 		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		creditor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
@@ -253,7 +253,7 @@ public class QRBillTest
 		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		creditor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
@@ -279,7 +279,7 @@ public class QRBillTest
 		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		creditor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("OK", resultNode.get("result").asText());
@@ -298,7 +298,7 @@ public class QRBillTest
 		ObjectNode target = parameters.putObject(Parameter.TARGET.key());
 		target.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = this.mapper.readTree(result);
 		assertEquals("OK", resultNode.get("result").asText());
@@ -317,7 +317,7 @@ public class QRBillTest
 		ObjectNode source = parameters.putObject(Parameter.SOURCE.key());
 		source.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = this.mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
@@ -369,7 +369,56 @@ public class QRBillTest
 		form.put(Parameter.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
 		form.put(Parameter.LANGUAGE.key(), Language.DE.name());
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
+		JsonNode resultNode = mapper.readTree(result);
+		assertEquals("OK", resultNode.get("result").asText());
+		assertNull(resultNode.get("errors"));
+	}
+
+	@Test
+	public void testMergeList() throws IOException
+	{
+		this.copyConfiguration("resources/cfg/qrbill_all.json");
+
+		ObjectNode base = mapper.createObjectNode();
+		base.put(Parameter.AMOUNT.key(), new BigDecimal(350));
+		base.put(Parameter.CURRENCY.key(), "CHF");
+		base.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		base.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		base.put(Parameter.MESSAGE.key(), "Abonnement für 2020");
+		ObjectNode db = mapper.createObjectNode();
+		db.put(Parameter.URL.key(), "jdbc:filemaker://localhost/Test");
+		db.put(Parameter.USERNAME.key(), "christian");
+		db.put(Parameter.PASSWORD.key(), "ce_eu97");
+		ObjectNode target = mapper.createObjectNode();
+		target.put(Parameter.TABLE.key(), "QRBill");
+		target.put(Parameter.NAME_COL.key(), "name");
+		target.put(Parameter.CONTAINER_COL.key(), "qrbill");
+		target.put(Parameter.NAME_COL.key(), "name");
+		target.put(Parameter.WHERE_COL.key(), "id_text");
+		target.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode source = mapper.createObjectNode();
+		source.put(Parameter.TABLE.key(), "QRBill");
+		source.put(Parameter.CONTAINER_COL.key(), "invoice");
+		source.put(Parameter.WHERE_COL.key(), "id_text");
+		source.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode creditor = mapper.createObjectNode();
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode debtor = mapper.createObjectNode();
+		debtor.put(Parameter.NAME.key(), "Christian Eugster");
+		debtor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		debtor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode form = mapper.createObjectNode();
+		form.put(Parameter.GRAPHICS_FORMAT.key(), GraphicsFormat.PDF.name());
+		form.put(Parameter.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
+		form.put(Parameter.LANGUAGE.key(), Language.DE.name());
+
+		String result = Fsl.execute("QRBill.generate", base.toString(), db.toString(), source.toString(),
+				target.toString(), creditor.toString(), debtor.toString(), form.toString());
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("OK", resultNode.get("result").asText());
 		assertNull(resultNode.get("errors"));
@@ -417,7 +466,7 @@ public class QRBillTest
 		form.put(Parameter.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
 		form.put(Parameter.LANGUAGE.key(), Language.DE.name());
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("OK", resultNode.get("result").asText());
 		assertNull(resultNode.get("errors"));
@@ -438,7 +487,7 @@ public class QRBillTest
 		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		debtor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("OK", resultNode.get("result").asText());
@@ -468,7 +517,7 @@ public class QRBillTest
 		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		debtor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("OK", resultNode.get("result").asText());
@@ -495,7 +544,7 @@ public class QRBillTest
 		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		debtor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
@@ -523,7 +572,7 @@ public class QRBillTest
 		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		debtor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
@@ -563,7 +612,7 @@ public class QRBillTest
 		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		debtor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("OK", resultNode.get("result").asText());
@@ -605,7 +654,7 @@ public class QRBillTest
 		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		debtor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("OK", resultNode.get("result").asText());
@@ -641,7 +690,7 @@ public class QRBillTest
 		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
 		debtor.put(Parameter.COUNTRY.key(), "CH");
 
-		String result = new Fsl().execute(ExecutorSelector.CREATE_QRBILL.command(), parameters.toString());
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
 
 		JsonNode resultNode = this.mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());

@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
+	<classpathentry exported="true" kind="lib" path="lib/commons-codec-1.15.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/commons-math3-3.6.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/curvesapi-1.07.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/slf4j-api-1.7.36.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/SparseBitSet-1.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/log4j-core-2.18.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/commons-compress-1.21.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/log4j-api-2.18.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/commons-collections4-4.4.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/xmlbeans-5.1.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/javassist.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/org.slf4j.api_1.7.30.v20200204-2150.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/reflections-0.10.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/poi-ooxml-full-5.2.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/poi-5.2.2.jar" sourcepath="libsrc/poi-src-5.2.2.zip"/>
+	<classpathentry exported="true" kind="lib" path="lib/poi-ooxml-5.2.2.jar" sourcepath="libsrc/poi-ooxml-src-5.2.2.zip"/>
 	<classpathentry exported="true" kind="lib" path="lib/jasypt-1.9.3.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.core.runtime_3.24.100.v20220211-2001.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.jface_3.25.0.v20220218-1636.jar"/>
@@ -7,7 +23,7 @@
 	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.swt.cocoa.macosx.x86_64_3.119.0.v20220223-1102.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/stax2-api-4.2.1.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/woodstox-core-6.2.7.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/jackson-dataformat-xml-2.13.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jackson-dataformat-xml-2.13.2.jar" sourcepath="libsrc/jackson-dataformat-xml-2.13.2-sources.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/commons-io-2.11.0.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/jaxb-runtime-3.0.2.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/fmjdbc.jar"/>
@@ -25,7 +41,11 @@
 	<classpathentry exported="true" kind="lib" path="lib/jaxb-impl-2.3.6.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/commons-lang3-3.12.0.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/gson-2.8.9.jar"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-9">
+		<attributes>
+			<attribute name="module" value="true"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="output" path="bin"/>

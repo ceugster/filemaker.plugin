@@ -1,8 +1,8 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Test Bundle
-Bundle-SymbolicName: ch.eugster.filemaker.fsl.plugin.test
-Bundle-Version: 1.0.8.qualifier
+Bundle-SymbolicName: ch.eugster.filemaker.fsl.plugin.test;singleton:=true
+Bundle-Version: 1.0.9.qualifier
 Bundle-Vendor: Christian Eugster
 Fragment-Host: ch.eugster.filemaker.fsl.plugin;bundle-version="[1.0.0,2.0.0)"
 Automatic-Module-Name: ch.eugster.camt.test

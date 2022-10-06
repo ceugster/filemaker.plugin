@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Objects;
 
 import org.apache.poi.ss.formula.FormulaParser;
@@ -18,11 +19,13 @@ import org.apache.poi.ss.formula.ptg.AreaPtgBase;
 import org.apache.poi.ss.formula.ptg.Ptg;
 import org.apache.poi.ss.formula.ptg.RefPtgBase;
 import org.apache.poi.ss.usermodel.CellCopyPolicy;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormat;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Footer;
 import org.apache.poi.ss.usermodel.Header;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.util.CellAddress;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFCell;
@@ -33,6 +36,9 @@ import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
 
@@ -187,8 +193,7 @@ public class Xls extends Executor<Xls>
 			}
 			else
 			{
-				throw new IllegalArgumentException(
-						"Falscher Parameter (" + parameters[0].getClass().getSimpleName() + " statt String)");
+				throw new IllegalArgumentException("Falscher Parameter (" + parameters[0].getClass().getSimpleName() + " statt String)");
 			}
 		}
 		catch (Exception e)
@@ -267,8 +272,7 @@ public class Xls extends Executor<Xls>
 			}
 			else
 			{
-				throw new IllegalArgumentException(
-						"Falscher Parameter (" + parameters[0].getClass().getSimpleName() + " statt String)");
+				throw new IllegalArgumentException("Falscher Parameter (" + parameters[0].getClass().getSimpleName() + " statt String)");
 			}
 		}
 		catch (Exception e)
@@ -719,8 +723,7 @@ public class Xls extends Executor<Xls>
 			}
 			else if (parameters.length == 3)
 			{
-				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1])
-						|| String.class.isInstance(parameters[2]))
+				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1]) || String.class.isInstance(parameters[2]))
 				{
 					sourceCellAddress = new CellAddress(String.class.cast(parameters[0]));
 					startTargetCellAddress = new CellAddress(String.class.cast(parameters[1]));
@@ -734,13 +737,10 @@ public class Xls extends Executor<Xls>
 			}
 			else if (parameters.length == 4)
 			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1])
-						&& Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]))
+				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]))
 				{
-					sourceCellAddress = new CellAddress(Integer.class.cast(parameters[0]).intValue(),
-							Integer.class.cast(parameters[1]).intValue());
-					startTargetCellAddress = new CellAddress(Integer.class.cast(parameters[2]).intValue(),
-							Integer.class.cast(parameters[3]).intValue());
+					sourceCellAddress = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
+					startTargetCellAddress = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
 				}
 				else
 				{
@@ -749,16 +749,12 @@ public class Xls extends Executor<Xls>
 			}
 			else if (parameters.length == 6)
 			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1])
-						&& Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3])
-						&& Integer.class.isInstance(parameters[4]) && Integer.class.isInstance(parameters[5]))
+				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]) && Integer.class.isInstance(parameters[4])
+						&& Integer.class.isInstance(parameters[5]))
 				{
-					sourceCellAddress = new CellAddress(Integer.class.cast(parameters[0]).intValue(),
-							Integer.class.cast(parameters[1]).intValue());
-					startTargetCellAddress = new CellAddress(Integer.class.cast(parameters[2]).intValue(),
-							Integer.class.cast(parameters[3]).intValue());
-					endTargetCellAddress = new CellAddress(Integer.class.cast(parameters[4]).intValue(),
-							Integer.class.cast(parameters[5]).intValue());
+					sourceCellAddress = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
+					startTargetCellAddress = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
+					endTargetCellAddress = new CellAddress(Integer.class.cast(parameters[4]).intValue(), Integer.class.cast(parameters[5]).intValue());
 				}
 				else
 				{
@@ -771,15 +767,12 @@ public class Xls extends Executor<Xls>
 			}
 			int startRowDifferenceIndex = startTargetCellAddress.getRow() - sourceCellAddress.getRow();
 			int startColumnDifferenceIndex = startTargetCellAddress.getColumn() - sourceCellAddress.getColumn();
-			int endRowDifferenceIndex = Objects.isNull(endTargetCellAddress) ? startRowDifferenceIndex
-					: endTargetCellAddress.getRow() - sourceCellAddress.getRow();
-			int endColumnDifferenceIndex = Objects.isNull(endTargetCellAddress) ? startColumnDifferenceIndex
-					: endTargetCellAddress.getColumn() - sourceCellAddress.getColumn();
+			int endRowDifferenceIndex = Objects.isNull(endTargetCellAddress) ? startRowDifferenceIndex : endTargetCellAddress.getRow() - sourceCellAddress.getRow();
+			int endColumnDifferenceIndex = Objects.isNull(endTargetCellAddress) ? startColumnDifferenceIndex : endTargetCellAddress.getColumn() - sourceCellAddress.getColumn();
 			XSSFCell sourceCell = getOrCreateCell(sourceCellAddress);
 			for (int rowIndex = startRowDifferenceIndex; rowIndex <= endRowDifferenceIndex; rowIndex++)
 			{
-				XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()),
-						sourceCell.getRowIndex() + rowIndex);
+				XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), sourceCell.getRowIndex() + rowIndex);
 				for (int columnIndex = startColumnDifferenceIndex; columnIndex <= endColumnDifferenceIndex; columnIndex++)
 				{
 					XSSFCell cell = getOrCreateCell(row, sourceCell.getColumnIndex() + columnIndex);
@@ -787,8 +780,7 @@ public class Xls extends Executor<Xls>
 					if (cell.getCellType().equals(CellType.FORMULA))
 					{
 						XSSFEvaluationWorkbook evaluationWorkbook = XSSFEvaluationWorkbook.create(Xls.workbook);
-						Ptg[] ptgs = FormulaParser.parse(cell.getCellFormula(), evaluationWorkbook, FormulaType.CELL,
-								Xls.workbook.getActiveSheetIndex());
+						Ptg[] ptgs = FormulaParser.parse(cell.getCellFormula(), evaluationWorkbook, FormulaType.CELL, Xls.workbook.getActiveSheetIndex());
 						for (Ptg ptg : ptgs)
 						{
 							if (ptg instanceof RefPtgBase)
@@ -843,8 +835,7 @@ public class Xls extends Executor<Xls>
 			prepareWorkbookAndSheetIfMissing();
 			if (parameters.length == 2)
 			{
-				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1])
-						|| String.class.isInstance(parameters[2]))
+				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1]) || String.class.isInstance(parameters[2]))
 				{
 					CellAddress startCellRange = new CellAddress(String.class.cast(parameters[0]));
 					CellAddress endCellRange = new CellAddress(String.class.cast(parameters[1]));
@@ -855,14 +846,10 @@ public class Xls extends Executor<Xls>
 			}
 			else if (parameters.length == 4)
 			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1])
-						&& Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3])
-						&& String.class.isInstance(parameters[4]))
+				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]) && String.class.isInstance(parameters[4]))
 				{
-					CellAddress startCellRange = new CellAddress(Integer.class.cast(parameters[0]).intValue(),
-							Integer.class.cast(parameters[1]).intValue());
-					CellAddress endCellRange = new CellAddress(Integer.class.cast(parameters[2]).intValue(),
-							Integer.class.cast(parameters[3]).intValue());
+					CellAddress startCellRange = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
+					CellAddress endCellRange = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
 					setSumCell(startCellRange, endCellRange, Target.SUM_ROW_VALUES);
 				}
 				else
@@ -906,8 +893,7 @@ public class Xls extends Executor<Xls>
 			prepareWorkbookAndSheetIfMissing();
 			if (parameters.length == 3)
 			{
-				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1])
-						|| String.class.isInstance(parameters[2]))
+				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1]) || String.class.isInstance(parameters[2]))
 				{
 					CellAddress startCellRange = new CellAddress(String.class.cast(parameters[0]));
 					CellAddress endCellRange = new CellAddress(String.class.cast(parameters[1]));
@@ -919,14 +905,10 @@ public class Xls extends Executor<Xls>
 			}
 			else if (parameters.length == 5)
 			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1])
-						&& Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3])
-						&& String.class.isInstance(parameters[4]))
+				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]) && String.class.isInstance(parameters[4]))
 				{
-					CellAddress startCellRange = new CellAddress(Integer.class.cast(parameters[0]).intValue(),
-							Integer.class.cast(parameters[1]).intValue());
-					CellAddress endCellRange = new CellAddress(Integer.class.cast(parameters[2]).intValue(),
-							Integer.class.cast(parameters[3]).intValue());
+					CellAddress startCellRange = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
+					CellAddress endCellRange = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
 					String style = String.class.cast(parameters[4]);
 					applyNumberStyleToCellRange(startCellRange, endCellRange, style);
 				}
@@ -972,14 +954,10 @@ public class Xls extends Executor<Xls>
 			prepareWorkbookAndSheetIfMissing();
 			if (parameters.length == 5)
 			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1])
-						&& Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3])
-						&& Integer.class.isInstance(parameters[4]))
+				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]) && Integer.class.isInstance(parameters[4]))
 				{
-					CellAddress startCellRange = new CellAddress(Integer.class.cast(parameters[0]).intValue(),
-							Integer.class.cast(parameters[1]).intValue());
-					CellAddress endCellRange = new CellAddress(Integer.class.cast(parameters[2]).intValue(),
-							Integer.class.cast(parameters[3]).intValue());
+					CellAddress startCellRange = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
+					CellAddress endCellRange = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
 					int style = Integer.class.cast(parameters[4]).intValue();
 					applyFontStyleToCellRange(startCellRange, endCellRange, style);
 				}
@@ -990,8 +968,7 @@ public class Xls extends Executor<Xls>
 			}
 			if (parameters.length == 3)
 			{
-				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1])
-						|| String.class.isInstance(parameters[2]))
+				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1]) || String.class.isInstance(parameters[2]))
 				{
 					CellAddress startCellRange = new CellAddress(String.class.cast(parameters[0]));
 					CellAddress endCellRange = new CellAddress(String.class.cast(parameters[1]));
@@ -1066,6 +1043,167 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
+	public static void createDebtorReport(Object[] arguments)
+	{
+		JsonNode json = null;
+		ObjectMapper mapper = new ObjectMapper();
+		try
+		{
+			int rowIndex = 0;
+			int startRow = 0;
+			int endRow = 0;
+			json = mapper.readTree(arguments[0].toString());
+			prepareWorkbookAndSheetIfMissing();
+
+			XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
+			sheet.getPrintSetup().setLandscape(true);
+			try
+			{
+				String title = json.get("sheet").get("header").get("title").asText();
+				sheet.getHeader().setLeft(title);
+			}
+			catch (Exception e)
+			{
+			}
+			try
+			{
+				String period = json.get("sheet").get("header").get("period").asText();
+				sheet.getHeader().setCenter(period);
+			}
+			catch (Exception e)
+			{
+			}
+			try
+			{
+				String from = json.get("sheet").get("header").get("from").asText();
+				String to = json.get("sheet").get("header").get("to").asText();
+				sheet.getHeader().setRight(from + " - " + to);
+			}
+			catch (Exception e)
+			{
+			}
+			try
+			{
+				sheet.getFooter().setCenter("Seite &P von &N");
+			}
+			catch (Exception e)
+			{
+			}
+
+			XSSFRow row = getOrCreateRow(rowIndex++);
+			Iterator<Entry<String, JsonNode>> columns = json.get("column").fields();
+			while (columns.hasNext())
+			{
+				Entry<String, JsonNode> column = columns.next();
+				getOrCreateCell(row, Integer.valueOf(column.getKey()), column.getValue().asText(), true);
+			}
+
+			JsonNode details = json.get("details");
+			Iterator<Entry<String, JsonNode>> types = details.fields();
+			while (types.hasNext())
+			{
+				Entry<String, JsonNode> type = types.next();
+				Iterator<Entry<String, JsonNode>> receipts = type.getValue().fields();
+				startRow = rowIndex;
+				String typeName = "";
+				while (receipts.hasNext())
+				{
+					row = getOrCreateRow(rowIndex++);
+					Entry<String, JsonNode> receipt = receipts.next();
+					Iterator<Entry<String, JsonNode>> receiptColumns = receipt.getValue().fields();
+					while (receiptColumns.hasNext())
+					{
+						Entry<String, JsonNode> receiptColumn = receiptColumns.next();
+						int columnIndex = Integer.valueOf(receiptColumn.getKey());
+						switch (columnIndex)
+						{
+						case 0:
+						{
+							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asText());
+							typeName = receiptColumn.getValue().asText();
+							break;
+						}
+						case 1:
+						{
+							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asText());
+							break;
+						}
+						case 2:
+						{
+							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asText());
+							break;
+						}
+						case 3:
+						{
+							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
+							break;
+						}
+						case 4:
+						{
+							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asText());
+							break;
+						}
+						case 5:
+						{
+							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
+							break;
+						}
+						case 6:
+						{
+							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
+							break;
+						}
+						case 7:
+						{
+							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
+							break;
+						}
+						case 8:
+						{
+							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
+							break;
+						}
+						default:
+						{
+//						throw new IllegalArgumentException("Ungültige Spaltennummer (" + String.valueOf(columnIndex) + ")");
+							break;
+						}
+						}
+					}
+					endRow = row.getRowNum();
+				}
+				row = getOrCreateRow(rowIndex++);
+				getOrCreateCell(new CellAddress(row.getRowNum(), 0), "Total " + typeName, true);
+				getOrCreateCell(new CellAddress(row.getRowNum(), 3), "SUM", new CellRangeAddress(startRow, endRow, 3, 3), "0.00", true);
+				getOrCreateCell(new CellAddress(row.getRowNum(), 5), "SUM", new CellRangeAddress(startRow, endRow, 5, 5), "0.00", true);
+				getOrCreateCell(new CellAddress(row.getRowNum(), 6), "SUM", new CellRangeAddress(startRow, endRow, 6, 6), "0.00", true);
+				getOrCreateCell(new CellAddress(row.getRowNum(), 7), "SUM", new CellRangeAddress(startRow, endRow, 7, 7), "0.00", true);
+				getOrCreateCell(new CellAddress(row.getRowNum(), 8), "SUM", new CellRangeAddress(startRow, endRow, 8, 8), "0.00", true);
+			}
+
+			for (int i = 0; i < 9; i++)
+			{
+				sheet.autoSizeColumn(i);
+			}
+			String reference = new CellRangeAddress(0, rowIndex, 0, 8).formatAsString();
+			workbook.setPrintArea(workbook.getActiveSheetIndex(), reference);
+			File file = new File(System.getProperty("user.home") + File.separator + "myWorkbook.xlsx");
+			save(new Object[] { file.getAbsolutePath() });
+		}
+		catch (Exception e)
+		{
+			addErrorMessage(e.getLocalizedMessage());
+		}
+	}
+
+	protected static void setCellStyle(XSSFCell cell, String styleFormat)
+	{
+		CellStyle style = workbook.createCellStyle();
+		DataFormat format = workbook.createDataFormat();
+		style.setDataFormat(format.getFormat(styleFormat));
+		cell.setCellStyle(style);
+	}
+
 	protected static void setSumCell(CellAddress startCellRange, CellAddress endCellRange, Target target)
 	{
 		prepareWorkbookAndSheetIfMissing();
@@ -1116,12 +1254,10 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	protected static void applyNumberStyleToCellRange(CellAddress startCellRange, CellAddress endCellRange,
-			String style)
+	protected static void applyNumberStyleToCellRange(CellAddress startCellRange, CellAddress endCellRange, String style)
 	{
 		prepareWorkbookAndSheetIfMissing();
-		CellRangeAddress cellRange = new CellRangeAddress(startCellRange.getRow(), startCellRange.getColumn(),
-				endCellRange.getRow(), endCellRange.getColumn());
+		CellRangeAddress cellRange = new CellRangeAddress(startCellRange.getRow(), startCellRange.getColumn(), endCellRange.getRow(), endCellRange.getColumn());
 		XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
 		XSSFCellStyle cellStyle = workbook.createCellStyle();
 		DataFormat dataFormat = workbook.createDataFormat();
@@ -1145,12 +1281,10 @@ public class Xls extends Executor<Xls>
 
 	}
 
-	protected static void applyFontStyleToCellRange(CellAddress startCellRange, CellAddress endCellRange, int style)
-			throws IllegalArgumentException
+	protected static void applyFontStyleToCellRange(CellAddress startCellRange, CellAddress endCellRange, int style) throws IllegalArgumentException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		CellRangeAddress cellRange = new CellRangeAddress(startCellRange.getRow(), startCellRange.getColumn(),
-				endCellRange.getRow(), endCellRange.getColumn());
+		CellRangeAddress cellRange = new CellRangeAddress(startCellRange.getRow(), startCellRange.getColumn(), endCellRange.getRow(), endCellRange.getColumn());
 		XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
 		XSSFCellStyle cellStyle = workbook.createCellStyle();
 		XSSFFont font = workbook.createFont();
@@ -1234,6 +1368,17 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
+	protected static XSSFRow getOrCreateRow(int rowIndex)
+	{
+		XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
+		XSSFRow row = sheet.getRow(rowIndex);
+		if (Objects.isNull(row))
+		{
+			row = sheet.createRow(rowIndex);
+		}
+		return row;
+	}
+
 	protected static XSSFRow getOrCreateRow(XSSFSheet sheet, int rowIndex)
 	{
 		XSSFRow row = sheet.getRow(rowIndex);
@@ -1251,18 +1396,136 @@ public class Xls extends Executor<Xls>
 
 	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex)
 	{
+		return getOrCreateCell(row, columnIndex, false);
+	}
+
+	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, boolean bold)
+	{
 		XSSFCell cell = row.getCell(columnIndex);
 		if (Objects.isNull(cell))
 		{
 			cell = row.createCell(columnIndex);
 		}
+		Font font = workbook.createFont();
+		font.setBold(bold);
+		CellStyle style = workbook.createCellStyle();
+		style.setFont(font);
+		return cell;
+	}
+
+	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, String value)
+	{
+		return getOrCreateCell(row, columnIndex, value, false);
+	}
+
+	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, String value, boolean bold)
+	{
+		XSSFCell cell = row.getCell(columnIndex);
+		if (Objects.isNull(cell))
+		{
+			cell = row.createCell(columnIndex);
+		}
+		CellStyle style = workbook.createCellStyle();
+		Font font = workbook.createFont();
+		font.setBold(bold);
+		style.setFont(font);
+		cell.setCellStyle(style);
+		cell.setCellType(CellType.STRING);
+		cell.setCellValue(new XSSFRichTextString(value));
+		return cell;
+	}
+
+	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, Double value, String styleFormat)
+	{
+		return getOrCreateCell(row, columnIndex, value, styleFormat, false);
+	}
+
+	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, Double value, String styleFormat, boolean bold)
+	{
+		XSSFCell cell = row.getCell(columnIndex);
+		if (Objects.isNull(cell))
+		{
+			cell = row.createCell(columnIndex);
+		}
+		CellStyle style = workbook.createCellStyle();
+		DataFormat format = workbook.createDataFormat();
+		Font font = workbook.createFont();
+		font.setBold(bold);
+		style.setFont(font);
+		style.setDataFormat(format.getFormat(styleFormat));
+		style.setAlignment(HorizontalAlignment.RIGHT);
+		cell.setCellType(CellType.NUMERIC);
+		cell.setCellValue(value);
+		cell.setCellStyle(style);
+		return cell;
+	}
+
+	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, String formula, CellRangeAddress range, String styleFormat)
+	{
+		return getOrCreateCell(row, columnIndex, formula, range, styleFormat, false);
+	}
+
+	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, String formula, CellRangeAddress range, String styleFormat, boolean bold)
+	{
+		XSSFCell cell = row.getCell(columnIndex);
+		if (Objects.isNull(cell))
+		{
+			cell = row.createCell(columnIndex);
+		}
+		CellStyle style = workbook.createCellStyle();
+		DataFormat format = workbook.createDataFormat();
+		Font font = workbook.createFont();
+		font.setBold(bold);
+		style.setAlignment(HorizontalAlignment.RIGHT);
+		style.setFont(font);
+		style.setDataFormat(format.getFormat(styleFormat));
+		cell.setCellFormula(formula + "(" + range.formatAsString() + ")");
+		cell.setCellStyle(style);
 		return cell;
 	}
 
 	protected static XSSFCell getOrCreateCell(CellAddress cellAddress)
 	{
+		return getOrCreateCell(cellAddress, false);
+	}
+
+	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, boolean bold)
+	{
 		XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), cellAddress.getRow());
-		return getOrCreateCell(row, cellAddress.getColumn());
+		return getOrCreateCell(row, cellAddress.getColumn(), bold);
+	}
+
+	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, String value)
+	{
+		return getOrCreateCell(cellAddress, value, false);
+	}
+
+	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, String value, boolean bold)
+	{
+		XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), cellAddress.getRow());
+		return getOrCreateCell(row, cellAddress.getColumn(), value, bold);
+	}
+
+	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, String formula, CellRangeAddress range, String styleFormat)
+	{
+		return getOrCreateCell(cellAddress, formula, range, styleFormat, false);
+	}
+
+	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, String formula, CellRangeAddress range, String styleFormat, boolean bold)
+	{
+		XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), cellAddress.getRow());
+		return getOrCreateCell(row, cellAddress.getColumn(), formula, range, styleFormat, bold);
+	}
+
+	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, Double value, String styleFormat)
+	{
+		return getOrCreateCell(cellAddress, value, styleFormat, false);
+	}
+
+	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, Double value, String styleFormat, boolean bold)
+	{
+		XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), cellAddress.getRow());
+		return getOrCreateCell(row, cellAddress.getColumn(), value, styleFormat, bold);
 	}
 
 	protected static boolean isSupportedFormula(XSSFCell cell)
@@ -1296,26 +1559,26 @@ public class Xls extends Executor<Xls>
 		{
 			switch (this)
 			{
-				case NORMAL:
-				{
-					font.setBold(false);
-					font.setItalic(false);
-				}
-				case BOLD:
-				{
-					font.setBold(true);
-					font.setItalic(false);
-				}
-				case ITALIC:
-				{
-					font.setBold(false);
-					font.setItalic(true);
-				}
-				case BOLD_ITALIC:
-				{
-					font.setBold(true);
-					font.setItalic(true);
-				}
+			case NORMAL:
+			{
+				font.setBold(false);
+				font.setItalic(false);
+			}
+			case BOLD:
+			{
+				font.setBold(true);
+				font.setItalic(false);
+			}
+			case ITALIC:
+			{
+				font.setBold(false);
+				font.setItalic(true);
+			}
+			case BOLD_ITALIC:
+			{
+				font.setBold(true);
+				font.setItalic(true);
+			}
 			}
 		}
 	}
@@ -1353,4 +1616,5 @@ public class Xls extends Executor<Xls>
 			return this.horizontalPosition;
 		}
 	}
+
 }

@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import ch.eugster.filemaker.fsl.plugin.ExecuterCommand;
 import ch.eugster.filemaker.fsl.plugin.Executor;
 import net.codecrete.qrbill.canvas.PDFCanvas;
 import net.codecrete.qrbill.generator.Address;
@@ -39,11 +38,6 @@ import net.codecrete.qrbill.generator.ValidationResult;
 public class QRBill extends Executor<QRBill>
 {
 	public static String json;
-
-	public Command[] getCommands()
-	{
-		return Command.values();
-	}
 
 	public static void generate(Object[] arguments)
 	{
@@ -199,8 +193,7 @@ public class QRBill extends Executor<QRBill>
 				}
 			}
 		}
-		resultNode.put("result",
-				(Objects.isNull(resultNode.get("errors")) || resultNode.get("errors").isEmpty()) ? "OK" : "Fehler");
+		resultNode.put("result", (Objects.isNull(resultNode.get("errors")) || resultNode.get("errors").isEmpty()) ? "OK" : "Fehler");
 		json = resultNode.toString();
 	}
 
@@ -454,25 +447,6 @@ public class QRBill extends Executor<QRBill>
 		public Class<?> clazz()
 		{
 			return this.clazz;
-		}
-	}
-
-	enum Command implements ExecuterCommand
-	{
-		// @formatter:off
-		GENERATE("generate");
-		// @formatter:on
-
-		private String command;
-
-		private Command(String command)
-		{
-			this.command = command;
-		}
-
-		public String getCommand()
-		{
-			return this.command;
 		}
 	}
 }

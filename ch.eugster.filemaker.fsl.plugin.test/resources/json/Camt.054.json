@@ -1,0 +1,199 @@
+{
+	"bkToCstmrDbtCdtNtfctn": {
+		"grpHdr": {
+			"msgId": "054D2013-12-31T01:59:36.0N130000007",
+			"creDtTm": {
+				"year": 2013,
+				"month": 12,
+				"day": 31,
+				"timezone": 60,
+				"hour": 1,
+				"minute": 59,
+				"second": 40,
+				"fractionalSecond": 0.0
+			},
+			"msgPgntn": {
+				"pgNb": "1",
+				"lastPgInd": true
+			}
+		},
+		"ntfctn": [
+			{
+				"id": "0352C5420131231015954",
+				"elctrncSeqNb": 130000007,
+				"creDtTm": {
+					"year": 2013,
+					"month": 12,
+					"day": 31,
+					"timezone": 60,
+					"hour": 1,
+					"minute": 59,
+					"second": 40,
+					"fractionalSecond": 0.0
+				},
+				"acct": {
+					"id": {
+						"iban": "DE58740618130100033626"
+					},
+					"ccy": "EUR",
+					"ownr": {
+						"nm": "Testkonto Nummer 2"
+					},
+					"svcr": {
+						"finInstnId": {
+							"bic": "GENODEF1PFK",
+							"nm": "VR-Bank Rottal-Inn eG",
+							"othr": {
+								"id": "DE 129267947",
+								"issr": "UmsStId"
+							}
+						}
+					}
+				},
+				"ntry": [
+					{
+						"amt": {
+							"value": 1.10,
+							"ccy": "EUR"
+						},
+						"cdtDbtInd": "DBIT",
+						"sts": "BOOK",
+						"bookgDt": {
+							"dt": {
+								"year": 2013,
+								"month": 12,
+								"day": 30,
+								"timezone": -2147483648,
+								"hour": -2147483648,
+								"minute": -2147483648,
+								"second": -2147483648
+							}
+						},
+						"valDt": {
+							"dt": {
+								"year": 2013,
+								"month": 12,
+								"day": 30,
+								"timezone": -2147483648,
+								"hour": -2147483648,
+								"minute": -2147483648,
+								"second": -2147483648
+							}
+						},
+						"acctSvcrRef": "2013122812211780000",
+						"bkTxCd": {
+							
+						},
+						"ntryDtls": [
+							{
+								"txDtls": [
+									{
+										"refs": {
+											"msgId": "STZV-Msg28122013-11:29",
+											"endToEndId": "STZV-EtE28122013-11:29-1"
+										},
+										"amtDtls": {
+											"txAmt": {
+												"amt": {
+													"value": 0.60,
+													"ccy": "EUR"
+												}
+											}
+										},
+										"bkTxCd": {
+											"prtry": {
+												"cd": "NMSC+201",
+												"issr": "ZKA"
+											}
+										},
+										"rltdPties": {
+											"dbtr": {
+												"nm": "Testkonto Nummer 2"
+											},
+											"dbtrAcct": {
+												"id": {
+													"iban": "DE14740618130000033626"
+												}
+											},
+											"ultmtDbtr": {
+												"nm": "keine Information vorhanden"
+											},
+											"cdtr": {
+												"nm": "Testkonto Nummer 1"
+											},
+											"cdtrAcct": {
+												"id": {
+													"iban": "DE58740618130100033626"
+												}
+											},
+											"ultmtCdtr": {
+												"nm": "Testkonto 1"
+											}
+										},
+										"rmtInf": {
+											"ustrd": [
+												"Sammler aus Testknto 2 Zweite Ueberweisung   TAN:704515   "
+											]
+										}
+									},
+									{
+										"refs": {
+											"msgId": "STZV-Msg28122013-11:29",
+											"endToEndId": "STZV-EtE28122013-11:29-2"
+										},
+										"amtDtls": {
+											"txAmt": {
+												"amt": {
+													"value": 0.50,
+													"ccy": "EUR"
+												}
+											}
+										},
+										"bkTxCd": {
+											"prtry": {
+												"cd": "NMSC+201",
+												"issr": "ZKA"
+											}
+										},
+										"rltdPties": {
+											"dbtr": {
+												"nm": "Testkonto Nummer 2"
+											},
+											"dbtrAcct": {
+												"id": {
+													"iban": "DE14740618130000033626"
+												}
+											},
+											"ultmtDbtr": {
+												"nm": "keine Information vorhanden"
+											},
+											"cdtr": {
+												"nm": "Testkonto Nummer 1"
+											},
+											"cdtrAcct": {
+												"id": {
+													"iban": "DE58740618130100033626"
+												}
+											},
+											"ultmtCdtr": {
+												"nm": "Testkonto 1"
+											}
+										},
+										"rmtInf": {
+											"ustrd": [
+												"Sammler aus Testkonto 2 Erste Ueberweisung   TAN:704515   "
+											]
+										}
+									}
+								]
+							}
+						]
+					}
+				]
+			}
+		]
+	},
+	"type": "MX",
+	"@xmlns": "urn:iso:std:iso:20022:tech:xsd:camt.054.001.02",
+	"identifier": "camt.054.001.02"
+}

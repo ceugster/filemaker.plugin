@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
-import ch.eugster.filemaker.fsl.plugin.ExecuterCommand;
 import ch.eugster.filemaker.fsl.plugin.Executor;
 
 public class Converter extends Executor<Converter>
@@ -79,25 +78,6 @@ public class Converter extends Executor<Converter>
 		catch (Exception e)
 		{
 			addErrorMessage(e);
-		}
-	}
-
-	enum Command implements ExecuterCommand
-	{
-		// @formatter:off
-		CONVERT_XML_TO_JSON("convertXmlToJson");
-		// @formatter:on
-
-		private String command;
-
-		private Command(String command)
-		{
-			this.command = command;
-		}
-
-		public String getCommand()
-		{
-			return this.command;
 		}
 	}
 

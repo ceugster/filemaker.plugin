@@ -2,11 +2,11 @@
 	"iban": "CH4431999123000889012",
 	"source":
 	{
-		"path":"/Users/christian/invoice.pdf"
+		"path":"resources/invoice.pdf"
 	},
 	"target":
 	{
-		"path":"/Users/christian/Rechnung.pdf"
+		"path":"resources/Rechnung.pdf"
 	},
 	"creditor":
 	{

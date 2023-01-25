@@ -6,20 +6,22 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
 import ch.eugster.filemaker.fsl.plugin.Fsl;
 import ch.eugster.filemaker.fsl.plugin.converter.Converter.Parameter;
@@ -28,10 +30,20 @@ public class ConversionTest
 {
 	private ObjectMapper mapper;
 
+	private String sourcePath = "resources/xml/camt.054_P_CH0809000000450010065_1111204750_0_2022121623562233.xml";
+
+	private String filepath = "resources/xml/200924_camt.054_P_CH2909000000250094239_1110092703_0_2019042423412214.xml";
+
+	private String targetFilename = "resources/json/camt.054_P_CH0809000000450010065_1111204750_0_2022121623562233.json";
+
+	private String targetContent;
+
 	@BeforeEach
-	public void beforeEach()
+	public void beforeEach() throws IOException
 	{
 		this.mapper = new ObjectMapper();
+		File targetFile = new File(targetFilename);
+		targetContent = FileUtils.readFileToString(targetFile, Charset.defaultCharset());
 	}
 
 	@AfterEach
@@ -73,8 +85,7 @@ public class ConversionTest
 	@Test
 	public void testParameterAsJsonContainerWithInvalidXmlData() throws SQLException, IOException
 	{
-		String filename = "resources/200924_camt.054_P_CH2909000000250094239_1110092703_0_2019042423412214.xml";
-		Path path = Paths.get(filename);
+		Path path = Paths.get(filepath);
 		List<String> lines = Files.readAllLines(path);
 		StringBuilder sb = new StringBuilder();
 		for (String line : lines)
@@ -98,8 +109,7 @@ public class ConversionTest
 	@Test
 	public void testParameterAsJsonContainerWithXmlData() throws SQLException, IOException
 	{
-		String filename = "resources/200924_camt.054_P_CH2909000000250094239_1110092703_0_2019042423412214.xml";
-		Path path = Paths.get(filename);
+		Path path = Paths.get(filepath);
 		List<String> lines = Files.readAllLines(path);
 		StringBuilder sb = new StringBuilder();
 		for (String line : lines)
@@ -127,8 +137,7 @@ public class ConversionTest
 	@Test
 	public void testParameterAsXmlData() throws SQLException, IOException
 	{
-		String filename = "resources/200924_camt.054_P_CH2909000000250094239_1110092703_0_2019042423412214.xml";
-		Path path = Paths.get(filename);
+		Path path = Paths.get(filepath);
 		List<String> lines = Files.readAllLines(path);
 		StringBuilder sb = new StringBuilder();
 		for (String line : lines)
@@ -153,10 +162,8 @@ public class ConversionTest
 	@Test
 	public void testWithSourcePathOK() throws SQLException, IOException
 	{
-		String filename = "resources/200924_camt.054_P_CH2909000000250094239_1110092703_0_2019042423412214.xml";
-
 		ObjectNode parameters = mapper.createObjectNode();
-		parameters.put(Parameter.SOURCE_XML.key(), filename);
+		parameters.put(Parameter.SOURCE_XML.key(), filepath);
 
 		String result = Fsl.execute("Converter.convertXmlToJson", parameters.toString());
 
@@ -172,10 +179,28 @@ public class ConversionTest
 	}
 
 	@Test
+	public void testPflugerWithSourcePathOK() throws SQLException, IOException
+	{
+		ObjectNode parameters = mapper.createObjectNode();
+		parameters.put(Parameter.SOURCE_XML.key(), sourcePath);
+
+		String result = Fsl.execute("Converter.convertXmlToJson", parameters.toString());
+
+		JsonNode resultNode = mapper.readTree(result);
+		JsonNode json = resultNode.get(Parameter.TARGET_JSON.key());
+		assertNotNull(json);
+		assertEquals(json.asText(), resultNode.get(Parameter.TARGET_JSON.key()).asText());
+		assertEquals(
+				"{\"schemaLocation\":\"urn:iso:std:iso:20022:tech:xsd:camt.054.001.04 camt.054.001.04.xsd\",\"BkToCstmrDbtCdtNtfctn\":{\"GrpHdr\":{\"MsgId\":\"20221216375204007304861\",\"CreDtTm\":\"2022-12-16T23:39:55\",\"MsgPgntn\":{\"PgNb\":\"1\",\"LastPgInd\":\"true\"},\"AddtlInf\":\"SPS/1.7/PROD\"},\"Ntfctn\":{\"Id\":\"20221216375204007304863\",\"CreDtTm\":\"2022-12-16T23:39:55\",\"FrToDt\":{\"FrDtTm\":\"2022-12-10T00:00:00\",\"ToDtTm\":\"2022-12-16T23:59:59\"},\"RptgSrc\":{\"Prtry\":\"OTHR\"},\"Acct\":{\"Id\":{\"IBAN\":\"CH0809000000450010065\"},\"Ownr\":{\"Nm\":\"Pfluger Christoph August Der Zeitpunkt Solothurn\"}},\"Ntry\":{\"NtryRef\":\"CH5630000001450010065\",\"Amt\":{\"Ccy\":\"CHF\",\"\":\"50.00\"},\"CdtDbtInd\":\"CRDT\",\"RvslInd\":\"false\",\"Sts\":\"BOOK\",\"BookgDt\":{\"Dt\":\"2022-12-16\"},\"ValDt\":{\"Dt\":\"2022-12-16\"},\"AcctSvcrRef\":\"350220009M2I8XBU\",\"BkTxCd\":{\"Domn\":{\"Cd\":\"PMNT\",\"Fmly\":{\"Cd\":\"RCDT\",\"SubFmlyCd\":\"VCOM\"}}},\"NtryDtls\":{\"Btch\":{\"NbOfTxs\":\"3\"},\"TxDtls\":[{\"Refs\":{\"AcctSvcrRef\":\"221215CH09LS26M5\",\"InstrId\":\"20221215000800994396358\",\"Prtry\":{\"Tp\":\"00\",\"Ref\":\"20221216375204708963137\"}},\"Amt\":{\"Ccy\":\"CHF\",\"\":\"20.00\"},\"CdtDbtInd\":\"CRDT\",\"BkTxCd\":{\"Domn\":{\"Cd\":\"PMNT\",\"Fmly\":{\"Cd\":\"RCDT\",\"SubFmlyCd\":\"AUTT\"}}},\"RltdPties\":{\"Dbtr\":{\"Nm\":\"Pfluger, Christoph August\",\"PstlAdr\":{\"StrtNm\":\"Werkhofstrasse\",\"BldgNb\":\"19\",\"PstCd\":\"4500\",\"TwnNm\":\"Solothurn\",\"Ctry\":\"CH\"}},\"DbtrAcct\":{\"Id\":{\"IBAN\":\"CH9209000000407516054\"}},\"UltmtDbtr\":{\"Nm\":\"Linda Biedermann\",\"PstlAdr\":{\"StrtNm\":\"Florastr. 16\",\"PstCd\":\"4500\",\"TwnNm\":\"Solothurn\",\"Ctry\":\"CH\"}},\"CdtrAcct\":{\"Id\":{\"IBAN\":\"CH5630000001450010065\"}}},\"RltdAgts\":{\"DbtrAgt\":{\"FinInstnId\":{\"BICFI\":\"POFICHBEXXX\",\"Nm\":\"POSTFINANCE AG\",\"PstlAdr\":{\"AdrLine\":[\"MINGERSTRASSE 20\",\"3030 BERN\"]}}}},\"RmtInf\":{\"Strd\":{\"CdtrRefInf\":{\"Tp\":{\"CdOrPrtry\":{\"Prtry\":\"QRR\"}},\"Ref\":\"000000372142141220226485603\"},\"AddtlRmtInf\":[\"?REJECT?0\",\"?ERROR?000\",\"Rechnung Nr. 372142\"]}},\"RltdDts\":{\"AccptncDtTm\":\"2022-12-16T20:00:00\"}},{\"Refs\":{\"AcctSvcrRef\":\"221215CH09LSZ5WQ\",\"InstrId\":\"20221215000800994366463\",\"Prtry\":{\"Tp\":\"00\",\"Ref\":\"20221216375204708885249\"}},\"Amt\":{\"Ccy\":\"CHF\",\"\":\"10.00\"},\"CdtDbtInd\":\"CRDT\",\"BkTxCd\":{\"Domn\":{\"Cd\":\"PMNT\",\"Fmly\":{\"Cd\":\"RCDT\",\"SubFmlyCd\":\"AUTT\"}}},\"RltdPties\":{\"Dbtr\":{\"Nm\":\"Pfluger, Christoph August\",\"PstlAdr\":{\"StrtNm\":\"Werkhofstrasse\",\"BldgNb\":\"19\",\"PstCd\":\"4500\",\"TwnNm\":\"Solothurn\",\"Ctry\":\"CH\"}},\"DbtrAcct\":{\"Id\":{\"IBAN\":\"CH9209000000407516054\"}},\"UltmtDbtr\":{\"Nm\":\"Christoph Pfluger\",\"PstlAdr\":{\"StrtNm\":\"Werkhofstr. 19\",\"PstCd\":\"4500\",\"TwnNm\":\"Solothurn\",\"Ctry\":\"CH\"}},\"CdtrAcct\":{\"Id\":{\"IBAN\":\"CH5630000001450010065\"}}},\"RltdAgts\":{\"DbtrAgt\":{\"FinInstnId\":{\"BICFI\":\"POFICHBEXXX\",\"Nm\":\"POSTFINANCE AG\",\"PstlAdr\":{\"AdrLine\":[\"MINGERSTRASSE 20\",\"3030 BERN\"]}}}},\"RmtInf\":{\"Strd\":{\"CdtrRefInf\":{\"Tp\":{\"CdOrPrtry\":{\"Prtry\":\"QRR\"}},\"Ref\":\"000000372144141220225496407\"},\"AddtlRmtInf\":[\"?REJECT?0\",\"?ERROR?000\",\"Rechnung Nr. 372144\"]}},\"RltdDts\":{\"AccptncDtTm\":\"2022-12-16T20:00:00\"}},{\"Refs\":{\"AcctSvcrRef\":\"221215CH09LUCD83\",\"InstrId\":\"20221215000800994414138\",\"Prtry\":{\"Tp\":\"00\",\"Ref\":\"20221216375204708914844\"}},\"Amt\":{\"Ccy\":\"CHF\",\"\":\"20.00\"},\"CdtDbtInd\":\"CRDT\",\"BkTxCd\":{\"Domn\":{\"Cd\":\"PMNT\",\"Fmly\":{\"Cd\":\"RCDT\",\"SubFmlyCd\":\"AUTT\"}}},\"RltdPties\":{\"Dbtr\":{\"Nm\":\"Pfluger, Christoph August\",\"PstlAdr\":{\"StrtNm\":\"Werkhofstrasse\",\"BldgNb\":\"19\",\"PstCd\":\"4500\",\"TwnNm\":\"Solothurn\",\"Ctry\":\"CH\"}},\"DbtrAcct\":{\"Id\":{\"IBAN\":\"CH9209000000407516054\"}},\"UltmtDbtr\":{\"Nm\":\"Linda Biedermann\",\"PstlAdr\":{\"StrtNm\":\"Spinngasse 6\",\"PstCd\":\"4552\",\"TwnNm\":\"Derendingen\",\"Ctry\":\"CH\"}},\"CdtrAcct\":{\"Id\":{\"IBAN\":\"CH5630000001450010065\"}}},\"RltdAgts\":{\"DbtrAgt\":{\"FinInstnId\":{\"BICFI\":\"POFICHBEXXX\",\"Nm\":\"POSTFINANCE AG\",\"PstlAdr\":{\"AdrLine\":[\"MINGERSTRASSE 20\",\"3030 BERN\"]}}}},\"RmtInf\":{\"Strd\":{\"CdtrRefInf\":{\"Tp\":{\"CdOrPrtry\":{\"Prtry\":\"QRR\"}},\"Ref\":\"000000372143141220225247907\"},\"AddtlRmtInf\":[\"?REJECT?0\",\"?ERROR?000\",\"Rechnung Nr. 372143\"]}},\"RltdDts\":{\"AccptncDtTm\":\"2022-12-16T20:00:00\"}}]},\"AddtlNtryInf\":\"SAMMELGUTSCHRIFT FÜR KONTO: CH5630000001450010065 VERARBEITUNG VOM 16.12.2022 PAKET ID: 221216CH000008UO\"}}}}",
+				resultNode.get(Parameter.TARGET_JSON.key()).asText());
+		assertEquals("OK", resultNode.get("result").asText());
+		assertNull(resultNode.get("errors"));
+	}
+
+	@Test
 	public void testParametersWithJsonContainerAndXmlFilepath() throws SQLException, IOException
 	{
-		String filename = "resources/200924_camt.054_P_CH2909000000250094239_1110092703_0_2019042423412214.xml";
-		File file = new File(filename);
+		File file = new File(filepath);
 
 		ObjectNode parameters = mapper.createObjectNode();
 		parameters.put(Parameter.SOURCE_XML.key(), file.getAbsolutePath());
@@ -186,7 +211,7 @@ public class ConversionTest
 		assertEquals("OK", resultNode.get("result").asText());
 		assertNotNull(resultNode.get(Parameter.TARGET_JSON.key()).asText());
 
-		Path jsonPath = Paths.get("json", "camt.054.001.04.json");
+		Path jsonPath = Paths.get("resources", "json", "camt.054.001.04.json");
 		String json = mapper.readTree(jsonPath.toFile()).toString();
 		assertEquals(json, resultNode.get(Parameter.TARGET_JSON.key()).asText());
 	}
@@ -194,7 +219,7 @@ public class ConversionTest
 	@Test
 	public void testParametersWithJsonContainerAndInvalidXmlFilepath() throws SQLException, IOException
 	{
-		String filename = "resources/200924_camt";
+		String filename = "resources/xml/200924_camt";
 		File file = new File(filename);
 
 		ObjectNode parameters = mapper.createObjectNode();

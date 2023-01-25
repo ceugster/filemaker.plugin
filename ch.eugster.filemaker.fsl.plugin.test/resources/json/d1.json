@@ -1,0 +1,653 @@
+{
+	"bkToCstmrDbtCdtNtfctn": {
+		"grpHdr": {
+			"msgId": "2019042475204228731867",
+			"creDtTm": {
+				"year": 2020,
+				"month": 6,
+				"day": 17,
+				"timezone": -2147483648,
+				"hour": 23,
+				"minute": 33,
+				"second": 9
+			},
+			"msgPgntn": {
+				"pgNb": "1",
+				"lastPgInd": true
+			},
+			"addtlInf": "SPS/1.6/PROD"
+		},
+		"ntfctn": [
+			{
+				"id": "20180316375204228731887",
+				"creDtTm": {
+					"year": 2020,
+					"month": 6,
+					"day": 17,
+					"timezone": -2147483648,
+					"hour": 23,
+					"minute": 33,
+					"second": 9
+				},
+				"frToDt": {
+					"frDtTm": {
+						"year": 2020,
+						"month": 6,
+						"day": 17,
+						"timezone": -2147483648,
+						"hour": 0,
+						"minute": 0,
+						"second": 0
+					},
+					"toDtTm": {
+						"year": 2020,
+						"month": 6,
+						"day": 17,
+						"timezone": -2147483648,
+						"hour": 23,
+						"minute": 59,
+						"second": 59
+					}
+				},
+				"acct": {
+					"id": {
+						"iban": "CH2909000000250094239"
+					},
+					"ownr": {
+						"nm": "Robert Schneider SA Grands magasins Biel/Bienne"
+					}
+				},
+				"ntry": [
+					{
+						"amt": {
+							"value": 1500.00,
+							"ccy": "CHF"
+						},
+						"cdtDbtInd": "CRDT",
+						"rvslInd": false,
+						"sts": "BOOK",
+						"bookgDt": {
+							"dt": {
+								"year": 2020,
+								"month": 6,
+								"day": 17,
+								"timezone": -2147483648,
+								"hour": -2147483648,
+								"minute": -2147483648,
+								"second": -2147483648
+							}
+						},
+						"valDt": {
+							"dt": {
+								"year": 2020,
+								"month": 6,
+								"day": 17,
+								"timezone": -2147483648,
+								"hour": -2147483648,
+								"minute": -2147483648,
+								"second": -2147483648
+							}
+						},
+						"acctSvcrRef": "0000000000000001",
+						"bkTxCd": {
+							"domn": {
+								"cd": "PMNT",
+								"fmly": {
+									"cd": "RCDT",
+									"subFmlyCd": "AUTT"
+								}
+							}
+						},
+						"ntryDtls": [
+							{
+								"btch": {
+									"nbOfTxs": "6"
+								},
+								"txDtls": [
+									{
+										"refs": {
+											"msgId": "MsgId-001",
+											"acctSvcrRef": "0000000000000001",
+											"pmtInfId": "PmtInfId-001-03",
+											"instrId": "InstrId-001-03-02",
+											"endToEndId": "EndToEndId-001-03-01",
+											"prtry": [
+												{
+													"tp": "00",
+													"ref": "00000000000000000000001"
+												}
+											]
+										},
+										"amt": {
+											"value": 400.00,
+											"ccy": "CHF"
+										},
+										"cdtDbtInd": "CRDT",
+										"bkTxCd": {
+											"domn": {
+												"cd": "PMNT",
+												"fmly": {
+													"cd": "RCDT",
+													"subFmlyCd": "AUTT"
+												}
+											}
+										},
+										"rltdPties": {
+											"dbtr": {
+												"nm": "Bernasconi Maria",
+												"pstlAdr": {
+													"strtNm": "Place de la Gare",
+													"bldgNb": "12",
+													"pstCd": "2502",
+													"twnNm": "Biel/Bienne",
+													"ctry": "CH"
+												}
+											},
+											"dbtrAcct": {
+												"id": {
+													"iban": "CH5109000000250092291"
+												}
+											},
+											"cdtrAcct": {
+												"id": {
+													"iban": "CH2909000000250094239"
+												}
+											}
+										},
+										"rltdAgts": {
+											"dbtrAgt": {
+												"finInstnId": {
+													"bicfi": "POFICHBEXXX",
+													"nm": "POSTFINANCE AG",
+													"pstlAdr": {
+														"adrLine": [
+															"MINGERSTRASSE 20",
+															"3030 BERNE"
+														]
+													}
+												}
+											}
+										},
+										"rmtInf": {
+											"ustrd": [
+												"Kontouebertrag"
+											],
+											"strd": [
+												{
+													"addtlRmtInf": [
+														"?REJECT?0",
+														"?ERROR?000"
+													]
+												}
+											]
+										},
+										"rltdDts": {
+											"accptncDtTm": {
+												"year": 2020,
+												"month": 6,
+												"day": 17,
+												"timezone": -2147483648,
+												"hour": 20,
+												"minute": 0,
+												"second": 0
+											}
+										}
+									},
+									{
+										"refs": {
+											"msgId": "MsgId-001",
+											"acctSvcrRef": "0000000000000002",
+											"pmtInfId": "PmtInfId-001-03",
+											"instrId": "InstrId-001-03-01",
+											"endToEndId": "EndToEndId-001-03-02",
+											"prtry": [
+												{
+													"tp": "00",
+													"ref": "00000000000000000000002"
+												}
+											]
+										},
+										"amt": {
+											"value": 350.00,
+											"ccy": "CHF"
+										},
+										"cdtDbtInd": "CRDT",
+										"bkTxCd": {
+											"domn": {
+												"cd": "PMNT",
+												"fmly": {
+													"cd": "RCDT",
+													"subFmlyCd": "AUTT"
+												}
+											}
+										},
+										"rltdPties": {
+											"dbtr": {
+												"nm": "Bernasconi Maria",
+												"pstlAdr": {
+													"strtNm": "Place de la Gare",
+													"bldgNb": "12",
+													"pstCd": "2502",
+													"twnNm": "Biel/Bienne",
+													"ctry": "CH"
+												}
+											},
+											"dbtrAcct": {
+												"id": {
+													"iban": "CH5109000000250092291"
+												}
+											},
+											"cdtrAcct": {
+												"id": {
+													"iban": "CH2909000000250094239"
+												}
+											}
+										},
+										"rltdAgts": {
+											"dbtrAgt": {
+												"finInstnId": {
+													"bicfi": "POFICHBEXXX",
+													"nm": "POSTFINANCE AG",
+													"pstlAdr": {
+														"adrLine": [
+															"MINGERSTRASSE 20",
+															"3030 BERNE"
+														]
+													}
+												}
+											}
+										},
+										"rmtInf": {
+											"ustrd": [
+												"Kontouebertrag"
+											],
+											"strd": [
+												{
+													"addtlRmtInf": [
+														"?REJECT?0",
+														"?ERROR?000"
+													]
+												}
+											]
+										},
+										"rltdDts": {
+											"accptncDtTm": {
+												"year": 2020,
+												"month": 6,
+												"day": 17,
+												"timezone": -2147483648,
+												"hour": 20,
+												"minute": 0,
+												"second": 0
+											}
+										}
+									},
+									{
+										"refs": {
+											"msgId": "MsgId-001",
+											"acctSvcrRef": "0000000000000003",
+											"pmtInfId": "PmtInfId-001-03",
+											"instrId": "InstrId-001-03-03",
+											"endToEndId": "EndToEndId-001-03-03",
+											"prtry": [
+												{
+													"tp": "00",
+													"ref": "00000000000000000000003"
+												}
+											]
+										},
+										"amt": {
+											"value": 450.00,
+											"ccy": "CHF"
+										},
+										"cdtDbtInd": "CRDT",
+										"bkTxCd": {
+											"domn": {
+												"cd": "PMNT",
+												"fmly": {
+													"cd": "RCDT",
+													"subFmlyCd": "AUTT"
+												}
+											}
+										},
+										"rltdPties": {
+											"dbtr": {
+												"nm": "Bernasconi Maria",
+												"pstlAdr": {
+													"strtNm": "Place de la Gare",
+													"bldgNb": "12",
+													"pstCd": "2502",
+													"twnNm": "Biel/Bienne",
+													"ctry": "CH"
+												}
+											},
+											"dbtrAcct": {
+												"id": {
+													"iban": "CH5109000000250092291"
+												}
+											},
+											"cdtrAcct": {
+												"id": {
+													"iban": "CH2909000000250094239"
+												}
+											}
+										},
+										"rltdAgts": {
+											"dbtrAgt": {
+												"finInstnId": {
+													"bicfi": "POFICHBEXXX",
+													"nm": "POSTFINANCE AG",
+													"pstlAdr": {
+														"adrLine": [
+															"MINGERSTRASSE 20",
+															"3030 BERNE"
+														]
+													}
+												}
+											}
+										},
+										"rmtInf": {
+											"ustrd": [
+												"Kontouebertrag"
+											],
+											"strd": [
+												{
+													"addtlRmtInf": [
+														"?REJECT?0",
+														"?ERROR?000"
+													]
+												}
+											]
+										},
+										"rltdDts": {
+											"accptncDtTm": {
+												"year": 2020,
+												"month": 6,
+												"day": 17,
+												"timezone": -2147483648,
+												"hour": 20,
+												"minute": 0,
+												"second": 0
+											}
+										}
+									},
+									{
+										"refs": {
+											"msgId": "MsgId-001",
+											"acctSvcrRef": "0000000000000004",
+											"pmtInfId": "PmtInfId-001-01",
+											"instrId": "InstrId-001-01-03",
+											"endToEndId": "EndToEndId-001-03-04",
+											"prtry": [
+												{
+													"tp": "00",
+													"ref": "00000000000000000000004"
+												}
+											]
+										},
+										"amt": {
+											"value": 150.00,
+											"ccy": "CHF"
+										},
+										"cdtDbtInd": "CRDT",
+										"bkTxCd": {
+											"domn": {
+												"cd": "PMNT",
+												"fmly": {
+													"cd": "RCDT",
+													"subFmlyCd": "AUTT"
+												}
+											}
+										},
+										"rltdPties": {
+											"dbtr": {
+												"nm": "Bernasconi Maria",
+												"pstlAdr": {
+													"strtNm": "Place de la Gare",
+													"bldgNb": "12",
+													"pstCd": "2502",
+													"twnNm": "Biel/Bienne",
+													"ctry": "CH"
+												}
+											},
+											"dbtrAcct": {
+												"id": {
+													"iban": "CH5109000000250092291"
+												}
+											},
+											"cdtrAcct": {
+												"id": {
+													"iban": "CH2909000000250094239"
+												}
+											}
+										},
+										"rltdAgts": {
+											"dbtrAgt": {
+												"finInstnId": {
+													"bicfi": "POFICHBEXXX",
+													"nm": "POSTFINANCE AG",
+													"pstlAdr": {
+														"adrLine": [
+															"MINGERSTRASSE 20",
+															"3030 BERNE"
+														]
+													}
+												}
+											}
+										},
+										"rmtInf": {
+											"ustrd": [
+												"Rg.-Nr. 001"
+											],
+											"strd": [
+												{
+													"addtlRmtInf": [
+														"?REJECT?0",
+														"?ERROR?000"
+													]
+												}
+											]
+										},
+										"rltdDts": {
+											"accptncDtTm": {
+												"year": 2020,
+												"month": 6,
+												"day": 17,
+												"timezone": -2147483648,
+												"hour": 20,
+												"minute": 0,
+												"second": 0
+											}
+										}
+									},
+									{
+										"refs": {
+											"msgId": "MsgId-001",
+											"acctSvcrRef": "0000000000000005",
+											"pmtInfId": "PmtInfId-001-01",
+											"instrId": "InstrId-001-01-01",
+											"endToEndId": "EndToEndId-001-03-05",
+											"prtry": [
+												{
+													"tp": "00",
+													"ref": "00000000000000000000005"
+												}
+											]
+										},
+										"amt": {
+											"value": 50.00,
+											"ccy": "CHF"
+										},
+										"cdtDbtInd": "CRDT",
+										"bkTxCd": {
+											"domn": {
+												"cd": "PMNT",
+												"fmly": {
+													"cd": "RCDT",
+													"subFmlyCd": "AUTT"
+												}
+											}
+										},
+										"rltdPties": {
+											"dbtr": {
+												"nm": "Bernasconi Maria",
+												"pstlAdr": {
+													"strtNm": "Place de la Gare",
+													"bldgNb": "12",
+													"pstCd": "2502",
+													"twnNm": "Biel/Bienne",
+													"ctry": "CH"
+												}
+											},
+											"dbtrAcct": {
+												"id": {
+													"iban": "CH5109000000250092291"
+												}
+											},
+											"cdtrAcct": {
+												"id": {
+													"iban": "CH2909000000250094239"
+												}
+											}
+										},
+										"rltdAgts": {
+											"dbtrAgt": {
+												"finInstnId": {
+													"bicfi": "POFICHBEXXX",
+													"nm": "POSTFINANCE AG",
+													"pstlAdr": {
+														"adrLine": [
+															"MINGERSTRASSE 20",
+															"3030 BERNE"
+														]
+													}
+												}
+											}
+										},
+										"rmtInf": {
+											"ustrd": [
+												"Rg.-Nr. 1234567890"
+											],
+											"strd": [
+												{
+													"addtlRmtInf": [
+														"?REJECT?0",
+														"?ERROR?000"
+													]
+												}
+											]
+										},
+										"rltdDts": {
+											"accptncDtTm": {
+												"year": 2020,
+												"month": 6,
+												"day": 17,
+												"timezone": -2147483648,
+												"hour": 20,
+												"minute": 0,
+												"second": 0
+											}
+										}
+									},
+									{
+										"refs": {
+											"msgId": "MsgId-001",
+											"acctSvcrRef": "0000000000000006",
+											"pmtInfId": "PmtInfId-001-01",
+											"instrId": "InstrId-001-01-02",
+											"endToEndId": "EndToEndId-001-03-06",
+											"prtry": [
+												{
+													"tp": "00",
+													"ref": "00000000000000000000006"
+												}
+											]
+										},
+										"amt": {
+											"value": 100.00,
+											"ccy": "CHF"
+										},
+										"cdtDbtInd": "CRDT",
+										"bkTxCd": {
+											"domn": {
+												"cd": "PMNT",
+												"fmly": {
+													"cd": "RCDT",
+													"subFmlyCd": "AUTT"
+												}
+											}
+										},
+										"rltdPties": {
+											"dbtr": {
+												"nm": "Bernasconi Maria",
+												"pstlAdr": {
+													"strtNm": "Place de la Gare",
+													"bldgNb": "12",
+													"pstCd": "2502",
+													"twnNm": "Biel/Bienne",
+													"ctry": "CH"
+												}
+											},
+											"dbtrAcct": {
+												"id": {
+													"iban": "CH5109000000250092291"
+												}
+											},
+											"cdtrAcct": {
+												"id": {
+													"iban": "CH2909000000250094239"
+												}
+											}
+										},
+										"rltdAgts": {
+											"dbtrAgt": {
+												"finInstnId": {
+													"bicfi": "POFICHBEXXX",
+													"nm": "POSTFINANCE AG",
+													"pstlAdr": {
+														"adrLine": [
+															"MINGERSTRASSE 20",
+															"3030 BERNE"
+														]
+													}
+												}
+											}
+										},
+										"rmtInf": {
+											"ustrd": [
+												"Rg.-Nr. 987654321"
+											],
+											"strd": [
+												{
+													"addtlRmtInf": [
+														"?REJECT?0",
+														"?ERROR?000"
+													]
+												}
+											]
+										},
+										"rltdDts": {
+											"accptncDtTm": {
+												"year": 2020,
+												"month": 6,
+												"day": 17,
+												"timezone": -2147483648,
+												"hour": 20,
+												"minute": 0,
+												"second": 0
+											}
+										}
+									}
+								]
+							}
+						],
+						"addtlNtryInf": "SAMMELGUTSCHRIFT FÜR KONTO: CH2909000000250094239 VERARBEITUNG VOM 17.06.2020 PAKET ID: 9999999999999999"
+					}
+				]
+			}
+		]
+	},
+	"type": "MX",
+	"@xmlns": "urn:iso:std:iso:20022:tech:xsd:camt.054.001.04",
+	"identifier": "camt.054.001.04"
+}

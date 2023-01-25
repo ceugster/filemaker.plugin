@@ -5,8 +5,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.awt.Desktop;
-import java.awt.Desktop.Action;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -15,18 +13,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Iterator;
 
+import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
 import ch.eugster.filemaker.fsl.plugin.Fsl;
 import ch.eugster.filemaker.fsl.plugin.swissqrbill.Parameters;
@@ -42,16 +40,16 @@ public class QRBillTest
 	@BeforeAll
 	public static void beforeAll() throws IOException, URISyntaxException, InterruptedException
 	{
-		if (Desktop.isDesktopSupported())
-		{
-			Desktop desktop = Desktop.getDesktop();
-			if (desktop.isSupported(Action.OPEN))
-			{
-				File file = new File("resources/fm/Test.fmp12");
-				desktop.open(file);
-			}
-			Thread.sleep(20000L);
-		}
+//		if (Desktop.isDesktopSupported())
+//		{
+//			Desktop desktop = Desktop.getDesktop();
+//			if (desktop.isSupported(Action.OPEN))
+//			{
+//				File file = new File("resources/fm/Test.fmp12");
+//				desktop.open(file);
+//			}
+//			Thread.sleep(20000L);
+//		}
 	}
 
 	@BeforeEach
@@ -241,8 +239,7 @@ public class QRBillTest
 	}
 
 	@Test
-	public void testWithoutConfigurationButMinimalParametersPlusReference()
-			throws JsonMappingException, JsonProcessingException
+	public void testWithoutConfigurationButMinimalParametersPlusReference() throws JsonMappingException, JsonProcessingException
 	{
 		ObjectNode parameters = this.mapper.createObjectNode();
 		parameters.put(Parameter.IBAN.key(), "CH4431999123000889012");
@@ -264,14 +261,13 @@ public class QRBillTest
 	}
 
 	@Test
-	public void testWithoutConfigurationButMinimalParametersPlusReferenceWithPath()
-			throws JsonMappingException, JsonProcessingException
+	public void testWithoutConfigurationButMinimalParametersPlusReferenceWithPath() throws JsonMappingException, JsonProcessingException
 	{
 		ObjectNode parameters = this.mapper.createObjectNode();
 		parameters.put(Parameter.IBAN.key(), "CH4431999123000889012");
 		parameters.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
 		ObjectNode target = parameters.putObject(Parameter.TARGET.key());
-		Path targetPath = Paths.get(System.getProperty("user.home"), "Rechnung.pdf");
+		Path targetPath = Paths.get("resources", "Rechnung.pdf");
 		target.put(Parameter.PATH.key(), targetPath.toFile().getAbsolutePath());
 		ObjectNode creditor = parameters.putObject(Parameter.CREDITOR.key());
 		creditor.put(Parameter.NAME.key(), "Christian Eugster");
@@ -417,8 +413,7 @@ public class QRBillTest
 		form.put(Parameter.OUTPUT_SIZE.key(), OutputSize.A4_PORTRAIT_SHEET.name());
 		form.put(Parameter.LANGUAGE.key(), Language.DE.name());
 
-		String result = Fsl.execute("QRBill.generate", base.toString(), db.toString(), source.toString(),
-				target.toString(), creditor.toString(), debtor.toString(), form.toString());
+		String result = Fsl.execute("QRBill.generate", base.toString(), db.toString(), source.toString(), target.toString(), creditor.toString(), debtor.toString(), form.toString());
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("OK", resultNode.get("result").asText());
 		assertNull(resultNode.get("errors"));
@@ -493,9 +488,8 @@ public class QRBillTest
 		assertEquals("OK", resultNode.get("result").asText());
 		assertNull(resultNode.get("errors"));
 		assertNotNull(resultNode.get("target"));
-		Parameters params = mapper.readValue(new File("resources/cfg/qrbill_with_paths_iban_creditor.json"),
-				Parameters.class);
-		assertEquals(params.getTarget().getPath(), resultNode.get("target").asText());
+		Parameters params = mapper.readValue(new File("resources/cfg/qrbill_with_paths_iban_creditor.json"), Parameters.class);
+		assertEquals(new File(params.getTarget().getPath()).getAbsolutePath(), resultNode.get("target").asText());
 	}
 
 	@Test
@@ -549,8 +543,7 @@ public class QRBillTest
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
 		assertEquals(1, resultNode.get("errors").size());
-		assertEquals("Ein Quellobjekt wird erwartet, ist aber nicht verfügbar.",
-				resultNode.get("errors").get(0).asText());
+		assertEquals("Ein Quellobjekt wird erwartet, ist aber nicht verfügbar.", resultNode.get("errors").get(0).asText());
 	}
 
 	@Test
@@ -577,8 +570,7 @@ public class QRBillTest
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
 		assertEquals(1, resultNode.get("errors").size());
-		assertEquals("Ein Quellobjekt wird erwartet, ist aber nicht verfügbar.",
-				resultNode.get("errors").get(0).asText());
+		assertEquals("Ein Quellobjekt wird erwartet, ist aber nicht verfügbar.", resultNode.get("errors").get(0).asText());
 	}
 
 	@Test
@@ -599,7 +591,7 @@ public class QRBillTest
 		source.put(Parameter.WHERE_COL.key(), "id_text");
 		source.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
 		ObjectNode target = parameters.putObject(Parameter.TARGET.key());
-		Path path = Paths.get(System.getProperty("user.home"), "Rechnung.pdf");
+		Path path = Paths.get("resources", "Rechnung.pdf");
 		target.put(Parameter.PATH.key(), path.toFile().getAbsolutePath());
 		ObjectNode creditor = parameters.putObject(Parameter.CREDITOR.key());
 		creditor.put(Parameter.NAME.key(), "Christian Eugster");
@@ -618,9 +610,8 @@ public class QRBillTest
 		assertEquals("OK", resultNode.get("result").asText());
 		assertNull(resultNode.get("errors"));
 		assertNotNull(resultNode.get("target"));
-		Parameters params = mapper.readValue(new File("resources/cfg/qrbill_with_paths_iban_creditor.json"),
-				Parameters.class);
-		assertEquals(params.getTarget().getPath(), resultNode.get("target").asText());
+		Parameters params = mapper.readValue(new File("resources/cfg/qrbill_with_paths_iban_creditor.json"), Parameters.class);
+		assertEquals(new File(params.getTarget().getPath()).getAbsolutePath(), resultNode.get("target").asText());
 	}
 
 	@Test
@@ -698,5 +689,44 @@ public class QRBillTest
 		assertEquals(1, resultNode.get("errors").size());
 		ArrayNode errors = ArrayNode.class.cast(resultNode.get("errors"));
 		assertEquals("Die Zugangsdaten zur Datenbank sind fehlerhaft.", errors.get(0).asText());
+	}
+
+	@Test
+	public void testEugsterInformatik() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectNode parameters = mapper.createObjectNode();
+		parameters.put(Parameter.IBAN.key(), "CH4431999123000889012");
+		parameters.put(Parameter.AMOUNT.key(), new BigDecimal(350));
+		parameters.put(Parameter.REFERENCE.key(), "00000000000000000000000000");
+		parameters.put(Parameter.MESSAGE.key(), "Abonnement für 2020");
+		ObjectNode db = parameters.putObject(Parameter.DATABASE.key());
+		db.put(Parameter.URL.key(), "jdbc:filemaker://151.236.30.204/test");
+		db.put(Parameter.USERNAME.key(), "christian");
+		db.put(Parameter.PASSWORD.key(), "thekm2Leup");
+		ObjectNode target = parameters.putObject(Parameter.TARGET.key());
+		target.put(Parameter.TABLE.key(), "QRBill");
+		target.put(Parameter.CONTAINER_COL.key(), "qrbill");
+		target.put(Parameter.NAME_COL.key(), "name");
+		target.put(Parameter.WHERE_COL.key(), "id_text");
+		target.put(Parameter.WHERE_VAL.key(), "7019891C-7AA9-4831-B0DC-EB69F5012BDC");
+		ObjectNode creditor = parameters.putObject(Parameter.CREDITOR.key());
+		creditor.put(Parameter.NAME.key(), "Christian Eugster");
+		creditor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		creditor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		creditor.put(Parameter.COUNTRY.key(), "CH");
+		ObjectNode debtor = parameters.putObject(Parameter.DEBTOR.key());
+		debtor.put(Parameter.NAME.key(), "Christian Eugster");
+		debtor.put(Parameter.ADDRESS.key(), "Axensteinstrasse 27");
+		debtor.put(Parameter.CITY.key(), "9000 St. Gallen");
+		debtor.put(Parameter.COUNTRY.key(), "CH");
+
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
+
+		JsonNode resultNode = this.mapper.readTree(result);
+		assertEquals("OK", resultNode.get("result").asText());
+//		assertEquals(ArrayNode.class, resultNode.get("errors").getClass());
+//		assertEquals(1, resultNode.get("errors").size());
+//		ArrayNode errors = ArrayNode.class.cast(resultNode.get("errors"));
+//		assertEquals("Die Zugangsdaten zur Datenbank sind fehlerhaft.", errors.get(0).asText());
 	}
 }

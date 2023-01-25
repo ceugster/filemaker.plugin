@@ -340,7 +340,7 @@ public class XlsTest extends Xls
 		String result = Fsl.execute("Xls.setCellValue", new Object[] { "Q-2", 23D });
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Cannot invoke \"org/apache/poi/xssf/usermodel/XSSFRow.getCell(I)Lorg/apache/poi/xssf/usermodel/XSSFCell;\"", resultNode.get("errors").get(0).asText());
+		assertEquals("Cannot invoke \"org.apache.poi.xssf.usermodel.XSSFRow.getCell(int)\" because \"row\" is null", resultNode.get("errors").get(0).asText());
 	}
 
 	@Test

@@ -20,33 +20,36 @@ public abstract class Executor<E extends Executor<E>>
 		Method[] methods = this.getClass().getDeclaredMethods();
 		for (Method method : methods)
 		{
-			if (method.getName().equals(command))
+			if (method.getModifiers() == (1 | 8))
 			{
-				try
+				if (method.getName().equals(command))
 				{
-					Object[] params = parameters;
-					if (method.getParameterCount() > 0)
+					try
 					{
-						if (method.getParameterTypes()[0].isArray())
+						Object[] params = parameters;
+						if (method.getParameterCount() > 0)
+						{
+							if (method.getParameterTypes()[0].isArray())
+							{
+								params = new Object[] { parameters };
+							}
+						}
+						else if (method.getParameterCount() > 1)
 						{
 							params = new Object[] { parameters };
 						}
+						method.invoke(null, params);
+						if (Objects.isNull(resultNode.get("errors")))
+						{
+							resultNode.put("result", "OK");
+						}
 					}
-					else if (method.getParameterCount() > 1)
+					catch (Exception e)
 					{
-						params = new Object[] { parameters };
+						addErrorMessage(Objects.isNull(e.getLocalizedMessage()) ? e.getClass().getName() : e.getLocalizedMessage());
 					}
-					method.invoke(null, params);
-					if (Objects.isNull(resultNode.get("errors")))
-					{
-						resultNode.put("result", "OK");
-					}
+					return;
 				}
-				catch (Exception e)
-				{
-					addErrorMessage(e);
-				}
-				return;
 			}
 		}
 		addErrorMessage("Unbekannter Befehl");
@@ -106,6 +109,6 @@ public abstract class Executor<E extends Executor<E>>
 
 	public static String addErrorMessage(Exception e)
 	{
-		return addErrorMessage(e.getLocalizedMessage());
+		return addErrorMessage(Objects.isNull(e.getLocalizedMessage()) ? e.getClass().getName() : e.getLocalizedMessage());
 	}
 }

@@ -1,6 +1,5 @@
 package ch.eugster.filemaker.fsl.plugin;
 
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -72,19 +71,6 @@ public class Fsl<E extends Executor<?>>
 			addErrorMessage(results, "Der Befehl ist ungültig.");
 		}
 		return results.toString();
-	}
-
-	private static Method getMethod(Executor<?> executor, String methodName)
-	{
-		Method[] methods = executor.getClass().getDeclaredMethods();
-		for (Method method : methods)
-		{
-			if (method.getName().equals(methodName))
-			{
-				return method;
-			}
-		}
-		return null;
 	}
 
 	private static void addErrorMessage(ObjectNode results, String message)

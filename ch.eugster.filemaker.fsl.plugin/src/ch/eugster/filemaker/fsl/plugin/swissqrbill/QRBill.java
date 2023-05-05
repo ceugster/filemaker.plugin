@@ -1,24 +1,13 @@
 package ch.eugster.filemaker.fsl.plugin.swissqrbill;
 
-import java.io.ByteArrayInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.exc.StreamReadException;
-import com.fasterxml.jackson.databind.DatabindException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
-import net.codecrete.qrbill.canvas.PDFCanvas;
+import ch.eugster.filemaker.fsl.plugin.Fsl;
 import net.codecrete.qrbill.generator.Address;
 import net.codecrete.qrbill.generator.Bill;
 import net.codecrete.qrbill.generator.BillFormat;
@@ -37,416 +26,136 @@ import net.codecrete.qrbill.generator.ValidationResult;
  */
 public class QRBill extends Executor<QRBill>
 {
-	public static String json;
+	public static String result;
 
-	public static void generate(Object[] arguments)
+	public static void generate(JsonNode requestNode, ObjectNode responseNode)
 	{
-		Parameters parameters = null;
-		ObjectMapper mapper = new ObjectMapper();
-		if (arguments.length == 1)
-		{
-			parameters = parseJsonParameters(mapper, arguments[0].toString());
-		}
-		else
-		{
-			parameters = parseListParameters(mapper, arguments);
-		}
-		Parameters properties = parseConfiguration(parameters, mapper);
-		if (Objects.isNull(resultNode.get("errors")))
+		try 
 		{
 			Bill bill = new Bill();
-			if (Objects.nonNull(properties.getIban()))
+			bill.setAccount(checkString(requestNode, Key.IBAN.key()));
+			bill.setReference(checkString(requestNode, Key.REFERENCE.key()));
+			bill.setAmountFromDouble(checkDouble(requestNode, Key.AMOUNT.key()));
+			bill.setCurrency(checkString(requestNode, Key.CURRENCY.key()));
+			bill.setUnstructuredMessage(checkString(requestNode, Key.MESSAGE.key()));
+
+			JsonNode creditor = requestNode.get(Key.CREDITOR.key());
+			if (JsonNode.class.isInstance(creditor))
 			{
-				bill.setAccount(properties.getIban());
+				Address address = new Address();
+				address.setName(checkString(creditor, Key.NAME.key()));
+				address.setAddressLine1(checkString(creditor, Key.ADDRESS_LINE_1.key()));
+				address.setAddressLine2(checkString(creditor, Key.ADDRESS_LINE_2.key()));
+				address.setCountryCode(checkString(creditor, Key.COUNTRY.key()));
+				bill.setCreditor(address);
 			}
 
-			if (Objects.nonNull(properties.getReference()))
+			JsonNode debtor = requestNode.get(Key.DEBTOR.key());
+			if (JsonNode.class.isInstance(debtor))
 			{
-				String reference = properties.getReference();
-				if (Objects.isNull(reference) || reference.trim().isEmpty())
-				{
-					bill.setReferenceType(Bill.REFERENCE_TYPE_NO_REF);
-				}
-				else
-				{
-					if (reference.toUpperCase().startsWith("FS"))
-					{
-						bill.createAndSetCreditorReference(reference);
-					}
-					else
-					{
-						bill.createAndSetQRReference(reference);
-					}
-				}
+				Address address = new Address();
+				address.setName(checkString(debtor, Key.NAME.key()));
+				address.setAddressLine1(checkString(debtor, Key.ADDRESS_LINE_1.key()));
+				address.setAddressLine2(checkString(debtor, Key.ADDRESS_LINE_2.key()));
+				address.setCountryCode(checkString(debtor, Key.COUNTRY.key()));
+				bill.setDebtor(address);
 			}
 
-			Double amount = properties.getAmount();
-			if (Objects.nonNull(amount) && !amount.equals(Double.valueOf(0D)))
+			JsonNode form = requestNode.get(Key.FORMAT.key());
+			if (JsonNode.class.isInstance(form))
 			{
-				bill.setAmountFromDouble(amount);
-			}
-
-			if (Objects.nonNull(properties.getCurrency()))
-			{
-				bill.setCurrency(properties.getCurrency());
-			}
-
-			if (Objects.nonNull(properties.getCreditor()))
-			{
-				Address creditor = new Address();
-				creditor.setName(properties.getCreditor().getName());
-				creditor.setAddressLine1(properties.getCreditor().getAddress());
-				creditor.setAddressLine2(properties.getCreditor().getCity());
-				creditor.setCountryCode(properties.getCreditor().getCountry());
-				bill.setCreditor(creditor);
-			}
-
-			if (Objects.nonNull(properties.getDebtor()))
-			{
-				Address debtor = new Address();
-				debtor.setName(properties.getDebtor().getName());
-				debtor.setAddressLine1(properties.getDebtor().getAddress());
-				debtor.setAddressLine2(properties.getDebtor().getCity());
-				debtor.setCountryCode(properties.getDebtor().getCountry());
-				bill.setDebtor(debtor);
-			}
-
-			BillFormat format = new BillFormat();
-			format.setGraphicsFormat(validateGraphicsFormat(properties));
-			format.setLanguage(validateLanguage(properties));
-			format.setOutputSize(validateOutputSize(properties));
-			bill.setFormat(format);
-
-			String message = properties.getMessage();
-			if (Objects.nonNull(message) && !message.trim().isEmpty())
-			{
-				bill.setUnstructuredMessage(message);
+				BillFormat format = new BillFormat();
+				format.setGraphicsFormat(checkGraphicsFormat(form));
+				format.setLanguage(checkLanguage(form));
+				format.setOutputSize(checkOutputSize(form));
+				bill.setFormat(format);
 			}
 
 			ValidationResult validation = net.codecrete.qrbill.generator.QRBill.validate(bill);
 			if (validation.isValid())
 			{
-				if (Objects.nonNull(properties.getTarget()))
-				{
-					Target target = properties.getTarget();
-					if (target.isValid())
-					{
-						if (Objects.nonNull(properties.getSource()))
-						{
-							Source source = properties.getSource();
-							if (source.isValid())
-							{
-								try
-								{
-									Blob blob = source.getBlob(properties.getDatabase());
-									blob = merge(properties, bill, blob);
-									Result updated = target.update(properties.getDatabase(), blob);
-									if (updated.getResult() && Objects.nonNull(updated.getFile()))
-									{
-										resultNode.put("target", updated.getFile().getAbsolutePath());
-									}
-								}
-								catch (Exception e)
-								{
-									addErrorMessage(e);
-								}
-							}
-							else
-							{
-								addErrorMessage("Ein Quellobjekt wird erwartet, ist aber nicht verfügbar.");
-							}
-						}
-						else
-						{
-							try
-							{
-								Blob blob = generateBlob(bill);
-								Result updated = target.update(properties.getDatabase(), blob);
-								if (updated.getResult() && Objects.nonNull(updated.getFile()))
-								{
-									resultNode.put("target", updated.getFile().getAbsolutePath());
-								}
-							}
-							catch (Exception e)
-							{
-								addErrorMessage(e);
-							}
-						}
-					}
-				}
-				else
-				{
-					addErrorMessage("Die Tabellendaten für das Zielobjekt sind fehlerhaft.");
-				}
-			}
-			List<ValidationMessage> msgs = validation.getValidationMessages();
-			if (!msgs.isEmpty())
-			{
-				ArrayNode errors = ArrayNode.class.cast(resultNode.get("errors"));
-				if (Objects.isNull(errors))
-				{
-					errors = resultNode.putArray("errors");
-				}
-				for (ValidationMessage msg : msgs)
-				{
-					errors.add(msg.getMessageKey() + ": '" + msg.getField() + "'");
-				}
-			}
-		}
-		resultNode.put("result", (Objects.isNull(resultNode.get("errors")) || resultNode.get("errors").isEmpty()) ? "OK" : "Fehler");
-		json = resultNode.toString();
-	}
-
-	private static Parameters parseJsonParameters(ObjectMapper mapper, String json)
-	{
-		Parameters parameters = new Parameters();
-		try
-		{
-			parameters = mapper.readValue(json, Parameters.class);
-		}
-		catch (JsonMappingException e1)
-		{
-			addErrorMessage("Die Übergabeparameter enthalten ungültige Elemente.");
-		}
-		catch (JsonProcessingException e1)
-		{
-			addErrorMessage("Beim Verarbeiten der Übergabeparameter ist ein Fehler aufgetreten.");
-		}
-		catch (IllegalArgumentException e)
-		{
-			addErrorMessage(e);
-		}
-		return parameters;
-	}
-
-	private static Parameters parseListParameters(ObjectMapper mapper, Object[] arguments)
-	{
-		try
-		{
-			if (arguments.length == 7)
-			{
-				ObjectNode base = ObjectNode.class.cast(mapper.readTree(arguments[0].toString()));
-				ObjectNode db = ObjectNode.class.cast(mapper.readTree(arguments[1].toString()));
-				ObjectNode source = ObjectNode.class.cast(mapper.readTree(arguments[2].toString()));
-				ObjectNode target = ObjectNode.class.cast(mapper.readTree(arguments[3].toString()));
-				ObjectNode creditor = ObjectNode.class.cast(mapper.readTree(arguments[4].toString()));
-				ObjectNode debtor = ObjectNode.class.cast(mapper.readTree(arguments[5].toString()));
-				ObjectNode form = ObjectNode.class.cast(mapper.readTree(arguments[6].toString()));
-
-				base.set(Parameter.DATABASE.key(), db);
-				base.set(Parameter.SOURCE.key(), source);
-				base.set(Parameter.TARGET.key(), target);
-				base.set(Parameter.CREDITOR.key(), creditor);
-				base.set(Parameter.DEBTOR.key(), debtor);
-				base.set(Parameter.FORM.key(), form);
-
-				System.out.println(base.toPrettyString());
-				return parseJsonParameters(mapper, base.toString());
+				byte[] swissqrbill = net.codecrete.qrbill.generator.QRBill.generate(bill);
+				responseNode.put(Executor.RESULT, swissqrbill);
 			}
 			else
 			{
-				throw new IllegalArgumentException("Falsche Anzahl Parameter");
+				List<ValidationMessage> msgs = validation.getValidationMessages();
+				if (!msgs.isEmpty())
+				{
+					for (ValidationMessage msg : msgs)
+					{
+						Fsl.addErrorMessage(msg.getMessageKey() + ": '" + msg.getField() + "'");
+					}
+				}
 			}
-		}
-		catch (Exception e)
+		} 
+		catch (Exception e) 
 		{
-			addErrorMessage(e);
+			Fsl.addErrorMessage("invalid_json_format_parameter '" + e.getLocalizedMessage() + "'");
+		}
+	}
+	
+	private static String checkString(JsonNode requestNode, String key)
+	{
+		if (Objects.nonNull(requestNode))
+		{
+			JsonNode node = requestNode.get(key);
+			return Objects.nonNull(node) ? node.asText() : null;
 		}
 		return null;
 	}
 
-	private static Parameters parseConfiguration(Parameters parameters, ObjectMapper mapper)
+	private static Double checkDouble(JsonNode requestNode, String key)
 	{
-		Path path = Paths.get(System.getProperty("user.home"), ".fsl", "qrbill.json");
-		Parameters properties = parameters;
-		try
+		if (Objects.nonNull(requestNode))
 		{
-			properties = mapper.readValue(path.toFile(), Parameters.class);
-			properties.merge(parameters);
+			JsonNode node = requestNode.get(key);
+			return Objects.nonNull(node) ? node.asDouble() : null;
 		}
-		catch (StreamReadException e)
-		{
-			addErrorMessage("Die Konfigurationsdatei '" + path.getFileName() + "' ist fehlerhaft.");
-		}
-		catch (DatabindException e)
-		{
-			addErrorMessage("Die Konfigurationsdatei '" + path.getFileName() + "' enthält ungültige Elemente.");
-		}
-		catch (FileNotFoundException e)
-		{
-		}
-		catch (IOException e)
-		{
-			addErrorMessage("Die Konfigurationsdatei '" + path.getFileName() + "' kann ncht gelesen werden.");
-		}
-		return properties;
+		return null;
+	}
+	
+	private static GraphicsFormat checkGraphicsFormat(JsonNode format)
+	{
+		JsonNode f = format.get(Key.GRAPHICS_FORMAT.key());
+		if (f == null)
+			return GraphicsFormat.PDF;
+		return GraphicsFormat.valueOf(f.asText());
 	}
 
-	private static Blob generateBlob(Bill bill)
+	private static OutputSize checkOutputSize(JsonNode format)
 	{
-		Blob blob = new Blob();
-		blob.setBlob(net.codecrete.qrbill.generator.QRBill.generate(bill));
-		blob.setName("invoice.pdf");
-		return blob;
+		JsonNode f = format.get(Key.OUTPUT_SIZE.key());
+		if (f == null)
+			return OutputSize.QR_BILL_EXTRA_SPACE;
+		return OutputSize.valueOf(f.asText());
 	}
 
-	private static Blob merge(Parameters properties, Bill bill, Blob blob) throws Exception
+	private static Language checkLanguage(JsonNode format)
 	{
-		if (Objects.nonNull(blob) && Objects.nonNull(blob.getBlob()))
-		{
-			InputStream is = null;
-			byte[] targetArray = null;
-			try
-			{
-				is = new ByteArrayInputStream(blob.getBlob());
-				targetArray = new byte[is.available()];
-				is.read(targetArray);
-			}
-			catch (NullPointerException e)
-			{
-				throw new Exception("Das Quellobjekt kann nicht gelesen werden.");
-			}
-			finally
-			{
-				if (is != null)
-				{
-					is.close();
-				}
-			}
-			PDFCanvas canvas = null;
-			try
-			{
-				canvas = new PDFCanvas(targetArray, PDFCanvas.NEW_PAGE_AT_END);
-				net.codecrete.qrbill.generator.QRBill.draw(bill, canvas);
-				blob.setBlob(canvas.toByteArray());
-			}
-			catch (IOException e)
-			{
-				throw new Exception("Beim Erstellen der Rechnung ist ein Fehler aufgetreten.");
-			}
-			finally
-			{
-				if (canvas != null)
-				{
-					blob.setBlob(canvas.toByteArray());
-					canvas.close();
-				}
-			}
-		}
-		else
-		{
-			throw new Exception("Ein Quellobjekt wird erwartet, ist aber nicht verfügbar.");
-		}
-		return blob;
+		JsonNode f = format.get(Key.LANGUAGE.key());
+		if (f == null)
+			return Language.DE;
+		return Language.valueOf(f.asText());
 	}
-
-	private static Language validateLanguage(Parameters properties) throws IllegalArgumentException
-	{
-		Language language = Language.DE;
-		Form form = properties.getForm();
-		if (Objects.nonNull(form))
-		{
-			if (Objects.nonNull(form.getLanguage()))
-			{
-				language = form.getLanguage();
-			}
-		}
-		return language;
-	}
-
-	private static OutputSize validateOutputSize(Parameters properties) throws IllegalArgumentException
-	{
-		OutputSize size = OutputSize.A4_PORTRAIT_SHEET;
-		Form form = properties.getForm();
-		if (Objects.nonNull(form))
-		{
-			if (Objects.nonNull(form.getOutputSize()))
-			{
-				size = form.getOutputSize();
-			}
-		}
-		return size;
-	}
-
-	private static GraphicsFormat validateGraphicsFormat(Parameters properties) throws IllegalArgumentException
-	{
-		GraphicsFormat format = GraphicsFormat.PDF;
-		Form form = properties.getForm();
-		if (Objects.nonNull(form))
-		{
-			if (Objects.nonNull(form.getGraphicsFormat()))
-			{
-				format = form.getGraphicsFormat();
-			}
-		}
-		return format;
-	}
-
-	public enum Parameter
+	
+	public enum Key
 	{
 		// @formatter:off
-		IBAN("iban"),
-		REFERENCE("reference"),
-		CURRENCY("currency"),
-		AMOUNT("amount", Double.class),
-		MESSAGE("message"),
+		IBAN("iban"), REFERENCE("reference"), AMOUNT("amount"), CURRENCY("currency"), MESSAGE("message"),
+		CREDITOR("creditor"), DEBTOR("debtor"), NAME("name"), ADDRESS_LINE_1("address_line_1"), ADDRESS_LINE_2("address_line_2"), COUNTRY("country"),
+		FORMAT("format"), GRAPHICS_FORMAT("graphics_format"), OUTPUT_SIZE("output_size"), LANGUAGE("language");
 		
-		DATABASE("database"),
-		URL("url"), 
-		USERNAME("username"),
-		PASSWORD("password"),
-		
-		TARGET("target"),
-		SOURCE("source"),
-
-		PATH("path"),
-		
-		TABLE("table"), 
-		CONTAINER_COL("container_col"),
-		NAME_COL("name_col"),
-		WHERE_COL("where_col"), 
-		WHERE_VAL("where_val"),
-
-		CREDITOR("creditor"),
-		DEBTOR("debtor"),
-
-		NAME("name"), 
-		ADDRESS("address"),
-		CITY("city"), 
-		COUNTRY("country"),
-		
-		FORM("form"),
-		GRAPHICS_FORMAT("graphics_format"), 
-		OUTPUT_SIZE("output_size"),
-		LANGUAGE("language"),
-		
-		TEST("test"),
-		PROPERTIES("properties");
-		// @formatter:on
-
 		private String key;
-
-		private Class<?> clazz;
-
-		private Parameter(String key)
-		{
-			this(key, String.class);
-		}
-
-		private Parameter(String key, Class<?> clazz)
+		
+		private Key(String key)
 		{
 			this.key = key;
-			this.clazz = clazz;
 		}
-
+		
 		public String key()
 		{
 			return this.key;
-		}
-
-		public Class<?> clazz()
-		{
-			return this.clazz;
 		}
 	}
 }

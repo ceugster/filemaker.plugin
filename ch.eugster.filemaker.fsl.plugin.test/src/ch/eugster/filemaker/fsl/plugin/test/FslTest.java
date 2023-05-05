@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import ch.eugster.filemaker.fsl.plugin.Executor;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
 
 public class FslTest
@@ -25,36 +26,40 @@ public class FslTest
 	@Test
 	public void testFslWithoutModule() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("");
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Der Befehl ist ungültig.", resultNode.get("errors").get(0).asText());
+		String response = Fsl.execute("", "{}");
+		JsonNode responseNode = mapper.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Executor.ERRORS).size());
+		assertEquals("missing_command", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
 	public void testFslWithWrongModule() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Schmock");
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Der Befehl ist ungültig.", resultNode.get("errors").get(0).asText());
+		String response = Fsl.execute("Schmock", "{}");
+		JsonNode responseNode = mapper.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Executor.ERRORS).size());
+		assertEquals("missing_argument 'json'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
 	public void testFslWithWrongCommand() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Xls.tschaTscha");
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Unbekannter Befehl", resultNode.get("errors").get(0).asText());
+		String response = Fsl.execute("Xls.tschaTscha", "{}");
+		JsonNode responseNode = mapper.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Executor.ERRORS).size());
+		assertEquals("invalid_command 'tschaTscha'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
 	public void testFslWithWrongModuleAndCommand() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Schmock.tschaTscha");
+		String result = Fsl.execute("Schmock.tschaTscha", "{}");
 		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Schmock ist kein gültiges Modul.", resultNode.get("errors").get(0).asText());
+		assertEquals(Executor.ERROR, resultNode.get(Executor.STATUS).asText());
+		assertEquals(1, resultNode.get(Executor.ERRORS).size());
+		assertEquals("invalid_module 'Schmock'", resultNode.get(Executor.ERRORS).get(0).asText());
 	}
 }

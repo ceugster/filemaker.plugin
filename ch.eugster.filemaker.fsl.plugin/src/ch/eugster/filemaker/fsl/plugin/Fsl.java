@@ -5,85 +5,142 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ConfigurationBuilder;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 public class Fsl<E extends Executor<?>>
 {
-	private static Map<String, Executor<?>> executors = new HashMap<String, Executor<?>>();
+	private static ObjectNode REQUEST_NODE;
+	
+	private static ObjectNode RESPONSE_NODE;
+	
+	private static Map<String, Executor<?>> EXECUTORS = new HashMap<String, Executor<?>>();
 
-	private static Reflections reflections = new Reflections(
+	private static ObjectMapper MAPPER = new ObjectMapper();
+
+	private static Reflections REFLECTIONS = new Reflections(
 			new ConfigurationBuilder().forPackage("ch.eugster.filemaker.fsl.plugin").addScanners(Scanners.SubTypes));
 
-	public static String execute(String command, Object... parameters)
+	public static String execute(String command, String parameters)
 	{
-		ObjectMapper mapper = new ObjectMapper();
-		ObjectNode results = mapper.createObjectNode();
-		results.put("result", "OK");
-		String[] commands = command.split("[.]");
-		if (commands.length > 1)
+		Fsl.RESPONSE_NODE = MAPPER.createObjectNode();
+		if (Objects.nonNull(command))
 		{
-			Executor<?> executor = executors.get(commands[0]);
-			if (Objects.isNull(executor))
+			if (!command.trim().isEmpty())
 			{
-				@SuppressWarnings("rawtypes")
-				Set<Class<? extends Executor>> classes = reflections.getSubTypesOf(Executor.class);
-				for (@SuppressWarnings("rawtypes")
-				Class<? extends Executor> clazz : classes)
+				if (command.contains("."))
 				{
-					if (clazz.getSimpleName().equals(commands[0]))
+					String[] commands = command.split("[.]");
+					if (commands.length > 1)
 					{
-						try
+						Executor<?> executor = EXECUTORS.get(commands[0]);
+						if (Objects.isNull(executor))
 						{
-							executors.put(clazz.getSimpleName(), clazz.getConstructor().newInstance());
+							@SuppressWarnings("rawtypes")
+							Set<Class<? extends Executor>> classes = REFLECTIONS.getSubTypesOf(Executor.class);
+							for (@SuppressWarnings("rawtypes")
+							Class<? extends Executor> clazz : classes)
+							{
+								if (clazz.getSimpleName().equals(commands[0]))
+								{
+									try
+									{
+										EXECUTORS.put(clazz.getSimpleName(), clazz.getConstructor().newInstance());
+									}
+									catch (Exception e)
+									{
+										addErrorMessage("invalid_module '" + commands[0] + "' missing empty constructor");
+									}
+								}
+							}
+							executor = EXECUTORS.get(commands[0]);
 						}
-						catch (Exception e)
+						if (Objects.isNull(executor))
 						{
-							addErrorMessage(results, e.getLocalizedMessage());
+							addErrorMessage("invalid_module '" + commands[0] + "'");
+						}
+						else
+						{
+							if (Objects.nonNull(parameters))
+							{
+								try
+								{
+									JsonNode node = MAPPER.readTree(parameters);
+									if (ObjectNode.class.isInstance(node))
+									{
+										Fsl.REQUEST_NODE = ObjectNode.class.cast(node);
+										try
+										{
+											executor.execute(commands[1], REQUEST_NODE, RESPONSE_NODE);
+										}
+										catch (Exception e)
+										{
+											Fsl.addErrorMessage("invalid_command '" + commands[1] + "'");
+										}
+									}
+									else
+									{
+										Fsl.addErrorMessage("invalid_argument 'json'");
+									}
+								}
+								catch (Exception e)
+								{
+									Fsl.addErrorMessage("invalid_argument 'json'");
+								}
+							}
+							else
+							{
+								Fsl.addErrorMessage("missing_argument 'json'");
+							}
 						}
 					}
+					else
+					{
+						addErrorMessage("missing_command");
+					}
+					
 				}
-				executor = executors.get(commands[0]);
-			}
-			if (Objects.isNull(executor))
-			{
-				addErrorMessage(results, commands[0] + " ist kein gültiges Modul.");
+				else
+				{
+					Fsl.addErrorMessage("missing_argument 'json'");
+				}
 			}
 			else
 			{
-				try
-				{
-					executor.execute(commands[1], results, parameters);
-				}
-				catch (Exception e)
-				{
-					addErrorMessage(results, e.getLocalizedMessage());
-				}
+				Fsl.addErrorMessage("missing_command");
 			}
+			
 		}
 		else
 		{
-			addErrorMessage(results, "Der Befehl ist ungültig.");
+			Fsl.addErrorMessage("missing_module");
 		}
-		return results.toString();
+		return RESPONSE_NODE.put(Executor.STATUS, Objects.isNull(RESPONSE_NODE.get(Executor.ERRORS)) ? Executor.OK : Executor.ERROR).toString();
 	}
-
-	private static void addErrorMessage(ObjectNode results, String message)
+	
+	public static boolean hasErrorMessages()
 	{
-		ArrayNode errors = ArrayNode.class.cast(results.get("errors"));
+		return Objects.isNull(Fsl.RESPONSE_NODE.get(Executor.ERRORS));
+	}
+	
+	public static boolean addErrorMessage(String message)
+	{
+		ArrayNode errors = ArrayNode.class.cast(Fsl.RESPONSE_NODE.get(Executor.ERRORS));
 		if (Objects.isNull(errors))
 		{
-			errors = results.putArray("errors");
+			errors = Fsl.RESPONSE_NODE.arrayNode();
+			Fsl.RESPONSE_NODE.set(Executor.ERRORS, errors);
 		}
-		errors.add(message);
-		if (Objects.isNull(results.get("result")) || results.get("result").asText().equals("OK"))
+		if (errors.findValuesAsText(message).size() == 0)
 		{
-			results.put("result", "Fehler");
+			errors.add(message);
 		}
+		return false;
 	}
 }

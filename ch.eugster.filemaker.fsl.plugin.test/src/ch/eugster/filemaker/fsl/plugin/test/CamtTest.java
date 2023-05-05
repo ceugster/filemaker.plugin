@@ -14,10 +14,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import ch.eugster.filemaker.fsl.plugin.Executor;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
+import ch.eugster.filemaker.fsl.plugin.camt.Camt;
 
-public class CamtTest
+public class CamtTest extends Camt
 {
 	private ObjectMapper mapper = new ObjectMapper();
 
@@ -41,55 +44,84 @@ public class CamtTest
 	@Test
 	public void readCamtFile() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Camt.parse", new Object[] { sourceFilename });
-		JsonNode node = mapper.readTree(result);
-		assertEquals("OK", node.get("result").asText());
-		System.out.println(node.get("target").asText());
-		assertEquals(targetContent, node.get("target").asText());
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put(Camt.Parameter.XML_FILE.key(), sourceFilename);
+		String result = Fsl.execute("Camt.parseFile", requestNode.toString());
+		JsonNode responseNode = mapper.readTree(result);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
+	}
+
+	@Test
+	public void readCamtFromFile() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put(Camt.Parameter.XML_FILE.key(), sourceFilename);
+		String result = Fsl.execute("Camt.parse", requestNode.toString());
+		JsonNode responseNode = mapper.readTree(result);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
+	}
+
+	@Test
+	public void readCamtFromContent() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put(Camt.Parameter.XML_CONTENT.key(), sourceContent);
+		String result = Fsl.execute("Camt.parse", requestNode.toString());
+		JsonNode responseNode = mapper.readTree(result);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
 	}
 
 	@Test
 	public void readCamtContent() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Camt.parse", new Object[] { sourceFilename });
-		JsonNode node = mapper.readTree(result);
-		assertEquals("OK", node.get("result").asText());
-		assertEquals(targetContent, node.get("target").asText());
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put(Camt.Parameter.XML_CONTENT.key(), sourceContent);
+		String result = Fsl.execute("Camt.parseContent", requestNode.toString());
+		JsonNode responseNode = mapper.readTree(result);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
 	}
 
 	@Test
 	public void readCamtInvalidContent() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Camt.parse", new Object[] { "2345" });
-		JsonNode node = mapper.readTree(result);
-		assertEquals("Fehler", node.get("result").asText());
-		assertEquals("Ungültiges Format.", node.get("errors").get(0).asText());
+		String result = Fsl.execute("Camt.parse", "2345");
+		JsonNode responseNode = mapper.readTree(result);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals("invalid_argument 'json'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
 	public void readCamtNullContent() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Camt.parse", new Object[0]);
-		JsonNode node = mapper.readTree(result);
-		assertEquals("Fehler", node.get("result").asText());
-		assertEquals("Falsche Anzahl Parameter (Erwartet: 1, übergeben: 0).", node.get("errors").get(0).asText());
+		String result = Fsl.execute("Camt.parse", null);
+		JsonNode responseNode = mapper.readTree(result);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals("missing_argument 'json'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
 	public void testGetNtfctnFromContent() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Camt.extract", new Object[] { sourceContent });
-		JsonNode node = mapper.readTree(result);
-		assertEquals("OK", node.get("result").asText());
-		assertEquals(targetContent, node.get("target").asText());
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put(Camt.Parameter.XML_CONTENT.key(), sourceContent);
+		String result = Fsl.execute("Camt.extract", requestNode.toString());
+		JsonNode responseNode = mapper.readTree(result);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
 	}
 
 	@Test
 	public void testGetNtfctnFromFile() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Camt.extract", new Object[] { sourceFilename });
-		JsonNode node = mapper.readTree(result);
-		assertEquals("OK", node.get("result").asText());
-		assertEquals(targetContent, node.get("target").asText());
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put(Camt.Parameter.XML_FILE.key(), sourceFilename);
+		String result = Fsl.execute("Camt.extract", requestNode.toString());
+		JsonNode responseNode = mapper.readTree(result);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
 	}
 }

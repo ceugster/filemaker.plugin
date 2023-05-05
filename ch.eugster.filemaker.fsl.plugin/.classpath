@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry exported="true" kind="lib" path="lib/guava-31.1-jre.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.ui_3.201.100.v20220826-1037.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/poi-ooxml-lite-5.2.2.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/pw-iso20022-SRU2021-9.2.8.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/pw-swift-core-SRU2021-9.2.18.jar"/>
@@ -22,10 +21,6 @@
 	<classpathentry exported="true" kind="lib" path="lib/poi-5.2.2.jar" sourcepath="libsrc/poi-src-5.2.2.zip"/>
 	<classpathentry exported="true" kind="lib" path="lib/poi-ooxml-5.2.2.jar" sourcepath="libsrc/poi-ooxml-src-5.2.2.zip"/>
 	<classpathentry exported="true" kind="lib" path="lib/jasypt-1.9.3.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.core.runtime_3.24.100.v20220211-2001.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.jface_3.25.0.v20220218-1636.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.swt_3.119.0.v20220223-1102.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/org.eclipse.swt.cocoa.macosx.x86_64_3.119.0.v20220223-1102.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/stax2-api-4.2.1.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/woodstox-core-6.2.7.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/jackson-dataformat-xml-2.13.2.jar" sourcepath="libsrc/jackson-dataformat-xml-2.13.2-sources.jar"/>
@@ -34,7 +29,7 @@
 	<classpathentry exported="true" kind="lib" path="lib/fmjdbc.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/commons-logging-1.2.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/fontbox-2.0.24.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/pdfbox-2.0.24.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/pdfbox-2.0.24.jar" sourcepath="libsrc/pdfbox-2.0.24-sources.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/qrbill-generator-2.5.3.jar" sourcepath="libsrc/qrbill-generator-2.5.3-sources.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/qrcodegen-1.7.0.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/jackson-annotations-2.13.2.jar"/>

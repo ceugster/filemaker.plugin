@@ -2,13 +2,8 @@ package ch.eugster.filemaker.fsl.plugin.camt;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.IOException;
 import java.io.Reader;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.Objects;
 
@@ -16,82 +11,99 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.prowidesoftware.swift.model.mx.AbstractMX;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
+import ch.eugster.filemaker.fsl.plugin.Fsl;
 
 public class Camt extends Executor<Camt>
 {
-	public static void parse(Object[] arguments)
+	public static void parse(JsonNode requestNode, ObjectNode responseNode)
 	{
-		if (arguments.length > 0)
+		JsonNode source = requestNode.get(Parameter.XML_FILE.key());
+		if (Objects.nonNull(source) && source.isTextual())
 		{
-			if (String.class.isInstance(arguments[0]))
+			parseFile(requestNode, responseNode);
+		}
+		else
+		{
+			source = requestNode.get(Parameter.XML_CONTENT.key());
+			if (Objects.nonNull(source) && source.isTextual())
 			{
-				String argument = (String) arguments[0];
+				parseContent(requestNode, responseNode);
+			}
+			else
+			{
+				Fsl.addErrorMessage("missing_argument 'xml_file' or 'xml_content'");
+			}
+		}
+	}
+
+	public static void parseFile(JsonNode requestNode, ObjectNode responseNode)
+	{
+		JsonNode source = requestNode.get(Parameter.XML_FILE.key());
+		if (Objects.nonNull(source) && source.isTextual())
+		{
+			File file = new File(String.class.cast(source.asText()));
+			if (file.isFile())
+			{
 				try
 				{
-					Path path = Paths.get(argument);
-					File file = path.toFile();
-					if (file.exists())
+					StringBuilder builder = new StringBuilder();
+					Reader r = new FileReader(file);
+					BufferedReader br = new BufferedReader(r);
+					String line = br.readLine();
+					while (line != null)
 					{
-						if (file.isFile())
-						{
-							try
-							{
-								StringBuilder builder = new StringBuilder();
-								Reader r = new FileReader(argument);
-								BufferedReader br = new BufferedReader(r);
-								String line = br.readLine();
-								while (line != null)
-								{
-									builder.append(line);
-									line = br.readLine();
-								}
-								br.close();
-								jsonify(builder.toString());
-							}
-							catch (FileNotFoundException e)
-							{
-								addErrorMessage("Die Datei '" + new File(argument).getName() + "' kann nicht gefunden werden.");
-							}
-							catch (IOException e)
-							{
-								addErrorMessage("Beim Lesen der Datei '" + new File(argument).getName() + "' ist ein Fehler aufgetreten.");
-							}
-						}
-						else
-						{
-							jsonify(argument);
-						}
+						builder.append(line);
+						line = br.readLine();
 					}
-					else
-					{
-						jsonify(argument);
-					}
+					br.close();
+					responseNode.put(Executor.RESULT, jsonify(builder.toString()));
 				}
-				catch (InvalidPathException e)
+				catch (Exception e)
 				{
-					jsonify(argument);
+					Fsl.addErrorMessage("missing_file '" + Parameter.XML_FILE.key() + "'");
 				}
 			}
 			else
 			{
-				addErrorMessage("Falscher Parametertyp (Erwartet: " + String.class.getName() + ", übergeben: " + (Objects.isNull(arguments[0]) ? "null" : arguments[0].getClass().getName()) + ").");
+				Fsl.addErrorMessage("invalide_file_parameter '" + Parameter.XML_FILE.key() + "'");
 			}
 		}
 		else
 		{
-			addErrorMessage("Falsche Anzahl Parameter (Erwartet: 1, übergeben: " + arguments.length + ").");
+			Fsl.addErrorMessage("wrong_parameter_type '" + Parameter.XML_FILE.key() + "'");
 		}
 	}
-
-	public static void extract(Object[] arguments) throws JsonMappingException, JsonProcessingException
+	
+	public static void parseContent(JsonNode requestNode, ObjectNode responseNode)
 	{
-		parse(arguments);
-		if (!Objects.isNull(resultNode.get("target")))
+		JsonNode source = requestNode.get(Parameter.XML_CONTENT.key());
+		if (Objects.nonNull(source) && source.isTextual())
 		{
-			String content = resultNode.get("target").asText();
+			try
+			{
+				responseNode.put(Executor.RESULT, jsonify(source.asText()));
+			}
+			catch (Exception e)
+			{
+				Fsl.addErrorMessage("wrong_parameter_type. 'xml_file_path_name'");
+			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("wrong_parameter_type. 'xml_file_path_name'");
+		}
+	}
+	
+	public static void extract(JsonNode requestNode, ObjectNode responseNode) throws JsonMappingException, JsonProcessingException
+	{
+		Camt.parse(requestNode, responseNode);
+		if (!Objects.isNull(responseNode.get(Executor.RESULT)))
+		{
+			String content = responseNode.get(Executor.RESULT).asText();
 			ObjectMapper mapper = new ObjectMapper();
 			JsonNode json = mapper.readTree(content);
 			Iterator<JsonNode> ntfctns = json.get("bkToCstmrDbtCdtNtfctn").get("ntfctn").elements();
@@ -135,16 +147,34 @@ public class Camt extends Executor<Camt>
 		}
 	}
 
-	private static void jsonify(String content)
+	private static String jsonify(String content)
 	{
 		AbstractMX mx = AbstractMX.parse(content);
 		if (Objects.isNull(mx))
 		{
-			addErrorMessage("Ungültiges Format.");
+			Fsl.addErrorMessage("Ungültiges Format.");
 		}
 		else
 		{
-			resultNode.put("target", mx.toJson());
+			return mx.toJson();
+		}
+		return null;
+	}
+	
+	public enum Parameter
+	{
+		XML_FILE("xml_file"), XML_CONTENT("xml_content");
+		
+		private String key;
+		
+		private Parameter(String key)
+		{
+			this.key = key;
+		}
+		
+		public String key()
+		{
+			return this.key;
 		}
 	}
 }

@@ -3,1024 +3,2043 @@ package ch.eugster.filemaker.fsl.plugin.xls;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Calendar;
-import java.util.Date;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 
+import org.apache.poi.hssf.usermodel.HSSFEvaluationWorkbook;
+import org.apache.poi.hssf.usermodel.HSSFRichTextString;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.SpreadsheetVersion;
+import org.apache.poi.ss.formula.FormulaParseException;
 import org.apache.poi.ss.formula.FormulaParser;
+import org.apache.poi.ss.formula.FormulaParsingWorkbook;
 import org.apache.poi.ss.formula.FormulaRenderer;
+import org.apache.poi.ss.formula.FormulaRenderingWorkbook;
 import org.apache.poi.ss.formula.FormulaType;
 import org.apache.poi.ss.formula.eval.FunctionEval;
+import org.apache.poi.ss.formula.eval.FunctionNameEval;
 import org.apache.poi.ss.formula.ptg.AreaPtgBase;
 import org.apache.poi.ss.formula.ptg.Ptg;
 import org.apache.poi.ss.formula.ptg.RefPtgBase;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellCopyContext;
 import org.apache.poi.ss.usermodel.CellCopyPolicy;
+import org.apache.poi.ss.usermodel.CellRange;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormat;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Footer;
+import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.Header;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.CellUtil;
 import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFEvaluationWorkbook;
-import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
-import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.xmlbeans.impl.soap.Text;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BigIntegerNode;
+import com.fasterxml.jackson.databind.node.DecimalNode;
+import com.fasterxml.jackson.databind.node.DoubleNode;
+import com.fasterxml.jackson.databind.node.FloatNode;
+import com.fasterxml.jackson.databind.node.IntNode;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
+import com.fasterxml.jackson.databind.node.LongNode;
+import com.fasterxml.jackson.databind.node.NumericNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ShortNode;
+import com.fasterxml.jackson.databind.node.TextNode;
+import com.fasterxml.jackson.databind.node.ValueNode;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
+import ch.eugster.filemaker.fsl.plugin.Fsl;
 
 /**
  * 
  */
+/**
+ * @author christian
+ *
+ */
 public class Xls extends Executor<Xls>
 {
-//	public static Map<String, XSSFWorkbook> workbooks = new HashMap<String, XSSFWorkbook>();
-//
-//	public static Map<String, File> files = new HashMap<String, File>();
+	public static ObjectMapper MAPPER = new ObjectMapper();
 
-	public static Path path;
+	public static String SHEET0 = "Sheet0";
 
-	public static XSSFWorkbook workbook;
+	public static Map<String, Workbook> workbooks = new HashMap<String, Workbook>();
 
-	/**
-	 * Create new workbook
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param String     Specifies the path where workbook should be saved
-	 */
-	public static void createWorkbook(Object[] parameters)
+	public static Workbook activeWorkbook;
+
+	public static boolean activateSheet(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		try
+		boolean result = true;
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		Workbook workbook = getWorkbookIfPresent(workbookNode);
+		result = Objects.nonNull(workbook);
+		if (result)
 		{
-			if (parameters.length < 1)
+			result = activateWorkbook(workbook);
+			if (result)
 			{
-				throw new IllegalArgumentException("Kein Dateipfad angegeben");
-			}
-			if (String.class.isInstance(parameters[0]))
-			{
-				path = Paths.get(String.class.cast(parameters[0]));
-				if (!path.toFile().getAbsoluteFile().getParentFile().isDirectory())
+				JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+				Sheet sheet = findSheet(workbook, sheetNode);
+				result = Objects.nonNull(sheet);
+				if (result)
 				{
-					throw new IllegalArgumentException("Das Dateiverzeichnis ist ungültig");
+					workbook.setActiveSheet(workbook.getSheetIndex(sheet));
 				}
 			}
-			if (Objects.isNull(workbook))
-			{
-				workbook = new XSSFWorkbook();
-			}
-			else
-			{
-				throw new IllegalArgumentException("Die Arbeitsmappe ist bereits vorhanden");
-			}
 		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
+		return result;
 	}
 
-	/**
-	 * Set sheet headers
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param String     Specifies the left content to set
-	 * @param String     Specifies the center content to set
-	 * @param String     Specifies the right content to set
-	 */
-	public static void setHeaders(Object[] parameters)
+	public static boolean activateWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		try
+		boolean result = true;
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		if (Objects.nonNull(workbookNode))
 		{
-			prepareWorkbookAndSheetIfMissing();
-			XSSFSheet sheet = Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex());
-			Header header = sheet.getHeader();
-			if (parameters.length > 0)
+			if (TextNode.class.isInstance(workbookNode))
 			{
-				if (parameters.length > 2)
+				String name = workbookNode.asText();
+				Workbook workbook = Xls.workbooks.get(name);
+				if (Objects.nonNull(workbook))
 				{
-					header.setRight(parameters[2].toString());
-				}
-				if (parameters.length > 1)
-				{
-					header.setCenter(parameters[1].toString());
-				}
-				if (parameters.length > 0)
-				{
-					header.setLeft(parameters[0].toString());
-				}
-			}
-		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
-	}
-
-	/**
-	 * Set sheet footers
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param String     Specifies the left content to set
-	 * @param String     Specifies the center content to set
-	 * @param String     Specifies the right content to set
-	 */
-	public static void setFooters(Object[] parameters)
-	{
-		try
-		{
-			prepareWorkbookAndSheetIfMissing();
-			XSSFSheet sheet = Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex());
-			Footer footer = sheet.getFooter();
-			if (parameters.length > 0)
-			{
-				if (parameters.length > 2)
-				{
-					footer.setRight(parameters[2].toString());
-				}
-				if (parameters.length > 1)
-				{
-					footer.setCenter(parameters[1].toString());
-				}
-				if (parameters.length > 0)
-				{
-					footer.setLeft(parameters[0].toString());
-				}
-			}
-		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
-	}
-
-	/**
-	 * Create sheet
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param String     Specifies the sheet name
-	 */
-	public static void createSheet(Object[] parameters)
-	{
-		try
-		{
-			prepareWorkbookIfMissing();
-			if (parameters.length < 1)
-			{
-				throw new IllegalArgumentException("Name für das Arbeitsblatt fehlt");
-			}
-			if (String.class.isInstance(parameters[0]))
-			{
-				String name = String.class.cast(parameters[0]);
-				XSSFSheet sheet = workbook.createSheet(name);
-				workbook.setActiveSheet(workbook.getSheetIndex(sheet));
-			}
-			else
-			{
-				throw new IllegalArgumentException("Falscher Parameter (" + parameters[0].getClass().getSimpleName() + " statt String)");
-			}
-		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
-	}
-
-	/**
-	 * Get or create sheet
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param String     Specifies the sheet name
-	 */
-	public static void getOrCreateSheet(Object[] parameters)
-	{
-		try
-		{
-			prepareWorkbookIfMissing();
-			if (parameters.length < 1)
-			{
-				throw new IllegalArgumentException("Name für das Arbeitsblatt fehlt");
-			}
-			if (String.class.isInstance(parameters[0]))
-			{
-				String name = parameters[0].toString();
-				XSSFSheet sheet = workbook.createSheet(name);
-				workbook.setActiveSheet(workbook.getSheetIndex(sheet));
-			}
-			else
-			{
-				throw new IllegalArgumentException("Falscher Parameter: " + parameters[0] + " (muss String sein)");
-			}
-		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
-	}
-
-	/**
-	 * Use sheet with given name
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Object     Specifies sheet to activate: Integer (index) or String
-	 *                   (name of sheet)
-	 */
-	public static void setActiveSheet(Object[] parameters)
-	{
-		try
-		{
-			if (parameters.length < 1)
-			{
-				throw new IllegalArgumentException("Name für das Arbeitsblatt fehlt");
-			}
-			prepareWorkbookAndSheetIfMissing();
-			if (String.class.isInstance(parameters[0]))
-			{
-				String name = String.class.cast(parameters[0]);
-				int activeSheetIndex = workbook.getActiveSheetIndex();
-				if (!workbook.getSheetAt(activeSheetIndex).getSheetName().equals(name))
-				{
-					activeSheetIndex = workbook.getSheetIndex(name);
-					workbook.setActiveSheet(activeSheetIndex);
-				}
-			}
-			else if (Integer.class.isInstance(parameters[0]))
-			{
-				int activeSheetIndex = Integer.class.cast(parameters[0]).intValue();
-				if (workbook.getActiveSheetIndex() != activeSheetIndex)
-				{
-					workbook.setActiveSheet(activeSheetIndex);
-				}
-			}
-			else
-			{
-				throw new IllegalArgumentException("Falscher Parameter (" + parameters[0].getClass().getSimpleName() + " statt String)");
-			}
-		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
-	}
-
-	/**
-	 * Add row to the end in current sheet
-	 * 
-	 * @param parameters Object[] parameters
-	 */
-	public static void addRow(Objects[] parameters)
-	{
-		try
-		{
-			XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-			int rowIndex = workbook.getSpreadsheetVersion().getLastRowIndex() + 1;
-			int maxRows = workbook.getSpreadsheetVersion().getMaxRows();
-			if (rowIndex < maxRows)
-			{
-				getOrCreateRow(sheet, rowIndex);
-			}
-			else
-			{
-				throw new IndexOutOfBoundsException(rowIndex + " ist grösser als Maximalwert (" + maxRows + ")");
-			}
-		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
-	}
-
-	/**
-	 * Create row in current sheet
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param parameters Object[] parameters
-	 */
-	public static void createRow(Objects[] parameters)
-	{
-		try
-		{
-			int rowIndex = -1;
-			if (parameters.length < 1)
-			{
-				throw new IllegalArgumentException("Keine Zeile angegeben");
-			}
-			if (String.class.isInstance(parameters[0]))
-			{
-				CellAddress cellAddress = new CellAddress(String.class.cast(parameters[0]));
-				rowIndex = cellAddress.getRow();
-			}
-			else if (Integer.class.isInstance(parameters[0]))
-			{
-				rowIndex = Integer.class.cast(parameters[0]).intValue();
-			}
-			else
-			{
-				throw new IllegalArgumentException("Falscher Parameter");
-			}
-			if (rowIndex > -1 && rowIndex < workbook.getSpreadsheetVersion().getMaxRows())
-			{
-				XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-				if (Objects.isNull(sheet.getRow(rowIndex)))
-				{
-					sheet.createRow(rowIndex);
-				}
-			}
-			else
-			{
-				throw new IllegalArgumentException("Zeile ausserhalb des gültigen Bereichs");
-			}
-		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
-	}
-
-	/**
-	 * Set headings at row 0
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Object     Specifies the row from String (for CellAddress) or Integer
-	 * @param Integer    Optional Specifies the starting column (Integer) if first
-	 *                   parameter is of type Integer
-	 * @param String[]   Specifies the headers to apply
-	 */
-	public static void setHeadingsHorizontal(Object[] parameters)
-	{
-		try
-		{
-			prepareWorkbookAndSheetIfMissing();
-			int firstIndexInArray = 0;
-			int rowIndex = 0;
-			int startColumnIndex = 0;
-			if (parameters.length > 2)
-			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]))
-				{
-					rowIndex = Integer.class.cast(parameters[0]).intValue();
-					startColumnIndex = Integer.class.cast(parameters[1]).intValue();
-					firstIndexInArray = 2;
-				}
-				else if (String.class.isInstance(parameters[0]))
-				{
-					CellAddress cellAddress = new CellAddress(String.class.cast(parameters[0]));
-					rowIndex = cellAddress.getRow();
-					startColumnIndex = cellAddress.getColumn();
-					firstIndexInArray = 1;
+					if (Xls.activeWorkbook != workbook)
+					{
+						Xls.activeWorkbook = workbook;
+					}
 				}
 				else
 				{
-					throw new IllegalArgumentException("Ungültige(r) Parameter an 1./2. Stelle");
+					result = Fsl.addErrorMessage("missing_workbook '" + Key.WORKBOOK.key() + "'");
 				}
-				XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-				XSSFRow row = sheet.getRow(rowIndex);
-				if (Objects.isNull(row))
+			}
+			else
+			{
+				result = Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
+			}
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("missing_argument '" + Key.WORKBOOK.key() + "'");
+		}
+		return result;
+	}
+
+	public static boolean activeSheetPresent(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = Objects.nonNull(Xls.activeWorkbook);
+		if (result)
+		{
+			result = activeSheetPresent();
+			responseNode.put("present", result ? 1 : 0);
+		}
+		return result;
+	}
+
+	public static boolean activeWorkbookPresent(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = Objects.nonNull(Xls.activeWorkbook);
+		responseNode.put(Executor.RESULT, result ? 1 : 0);
+		return result;
+	}
+
+	public static boolean copy(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = true;
+		JsonNode sourceNode = requestNode.findPath(Key.SOURCE.key());
+		JsonNode sourceWorkbookNode = sourceNode.findPath(Key.WORKBOOK.key());
+		JsonNode sourceSheetNode = sourceNode.findPath(Key.SHEET.key());
+		Sheet sourceSheet = getSheetIfPresent(sourceWorkbookNode, sourceSheetNode);
+		result = Objects.nonNull(sourceSheet);
+		if (result)
+		{
+			CellRangeAddress sourceRangeAddress = getSourceRangeAddress(sourceNode);
+			result = validateRangeAddress(sourceSheet.getWorkbook().getSpreadsheetVersion(), sourceRangeAddress);
+			if (result)
+			{
+				JsonNode targetNode = requestNode.findPath(Key.SOURCE.key());
+				JsonNode targetWorkbookNode = targetNode.findPath(Key.WORKBOOK.key());
+				JsonNode targetSheetNode = targetNode.findPath(Key.SHEET.key());
+				JsonNode targetCellRangeAddressNode = targetNode.findPath(Key.RANGE.key());
+				Sheet targetSheet = getSheetIfPresent(targetWorkbookNode, targetSheetNode);
+				result = Objects.nonNull(targetSheet);
+				if (result)
 				{
-					row = sheet.createRow(rowIndex);
-				}
-				for (int i = 0; i < parameters.length - firstIndexInArray; i++)
-				{
-					if (String.class.isInstance(parameters[firstIndexInArray + i]))
+					CellRangeAddress targetRangeAddress = getTargetRangeAddress(targetNode);
+					result = validateRangeAddress(targetSheet.getWorkbook().getSpreadsheetVersion(), targetRangeAddress);
+					if (result)
 					{
-						XSSFCell cell = row.getCell(startColumnIndex + i);
-						if (Objects.isNull(cell))
+						if (sourceSheet == targetSheet)
 						{
-							cell = row.createCell(startColumnIndex + i);
+							result = !sourceRangeAddress.intersects(targetRangeAddress);
+							if (!result)
+							{
+								return Fsl.addErrorMessage("source_range_and_target_range_intersect");
+							}
 						}
-						cell.setCellValue(new XSSFRichTextString(String.class.cast(parameters[firstIndexInArray + i])));
+						if (sourceRangeAddress.getNumberOfCells() == 1)
+						{
+							Row sourceRow = sourceSheet.getRow(sourceRangeAddress.getFirstRow());
+							if (Objects.nonNull(sourceRow))
+							{
+								Cell sourceCell = sourceRow.getCell(sourceRangeAddress.getFirstColumn());
+								if (Objects.nonNull(sourceCell))
+								{
+									Iterator<CellAddress> targetAddresses = targetRangeAddress.iterator();
+									while (targetAddresses.hasNext())
+									{
+										CellAddress sourceAddress = new CellAddress(sourceCell);
+										CellAddress targetAddress = targetAddresses.next();
+										int rowDiff = targetAddress.getRow() - sourceAddress.getRow();
+										int colDiff = targetAddress.getColumn() - sourceAddress.getColumn();
+										if (sourceCell.getCellType().equals(CellType.FORMULA))
+										{
+											String copiedFormula = copyFormula(sourceSheet, sourceCell.getCellFormula(),
+													rowDiff, colDiff);
+											Cell targetCell = getOrCreateCell(targetSheet, targetAddress);
+											targetCell.setCellFormula(copiedFormula);
+										}
+										else
+										{
+											int targetTop = targetRangeAddress.getFirstRow();
+											int targetBottom = targetRangeAddress.getLastRow();
+											int targetLeft = targetRangeAddress.getFirstColumn();
+											int targetRight = targetRangeAddress.getLastColumn();
+											for (int r = targetTop; r <= targetBottom; r++)
+											{
+												Row targetRow = getOrCreateRow(targetSheet, r);
+												for (int cell = targetLeft; cell <= targetRight; cell++)
+												{
+													Cell targetCell = getOrCreateCell(targetRow, cell);
+													if (sourceCell.getCellStyle().equals(CellType.STRING))
+													{
+														targetCell.setCellValue(sourceCell.getRichStringCellValue());
+													}
+													else if (sourceCell.getCellType().equals(CellType.NUMERIC))
+													{
+														targetCell.setCellValue(sourceCell.getNumericCellValue());
+													}
+												}
+											}
+										}
+									}
+								}
+								else
+								{
+									result = Fsl.addErrorMessage("missing_source_cell");
+								}
+							}
+							else
+							{
+								result = Fsl.addErrorMessage("missing_source_row");
+							}
+						}
+						else if (sourceRangeAddress.getNumberOfCells() == targetRangeAddress.getNumberOfCells()
+								&& sourceRangeAddress.getLastRow()
+								- sourceRangeAddress.getFirstRow() == targetRangeAddress.getLastRow()
+								- targetRangeAddress.getFirstRow())
+						{
+							Iterator<CellAddress> sourceAddresses = sourceRangeAddress.iterator();
+							Iterator<CellAddress> targetAddresses = targetRangeAddress.iterator();
+							while (sourceAddresses.hasNext())
+							{
+								CellAddress sourceAddress = sourceAddresses.next();
+								Row sourceRow = sourceSheet.getRow(sourceAddress.getRow());
+								if (Objects.nonNull(sourceRow))
+								{
+									Cell sourceCell = sourceRow.getCell(sourceAddress.getColumn());
+									if (Objects.nonNull(sourceCell))
+									{
+										CellAddress targetAddress = targetAddresses.next();
+										Row targetRow = getOrCreateRow(targetSheet, targetAddress.getRow());
+										Cell targetCell = getOrCreateCell(targetRow, targetAddress.getColumn());
+										copyCell(sourceCell, targetCell);
+									}
+								}
+							}
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid_different source and target range dimensions");
+						}
+						
+					}					
+				}
+			}				
+		}
+		return result;
+	}
+
+	public static boolean createAndActivateSheetByName(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = Xls.createSheet(requestNode, responseNode);
+		if (result)
+		{
+			result = Xls.activateSheet(requestNode, responseNode);
+		}
+		return result;
+	}
+
+	public static boolean createAndActivateWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = createWorkbook(requestNode, responseNode);
+		if (result)
+		{
+			result = activateWorkbook(requestNode, responseNode);
+		}
+		return result;
+	}
+
+	public static boolean createSheet(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = true;
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+		Workbook workbook = getWorkbookIfPresent(workbookNode);
+		if (Objects.nonNull(workbook))
+		{
+			Sheet sheet = createSheet(workbook, sheetNode);
+			responseNode.put(Key.SHEET.key(), sheet.getSheetName());
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("sheet_already_exists 'sheet'");
+		}
+		return result;
+	}
+
+	public static boolean createWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		JsonNode nameNode = requestNode.findPath(Key.WORKBOOK.key());
+		boolean result = Objects.nonNull(nameNode);
+		if (result)
+		{
+			if (TextNode.class.isInstance(nameNode))
+			{
+				String name = TextNode.class.cast(nameNode).asText();
+				Workbook wb = Xls.workbooks.get(name);
+				if (Objects.isNull(wb))
+				{
+					wb = createWorkbook(name);
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("workbook_already_exists");
+				}
+			}
+			else
+			{
+				Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
+			}
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("missing_argument '" + Key.WORKBOOK.key() + "'");
+		}
+		return result;
+	}
+
+	public static boolean getActiveSheetIndex(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = activeSheetPresent();
+		if (result)
+		{
+			responseNode.put(Key.SHEET.key(), Xls.activeWorkbook.getActiveSheetIndex());
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("no_active_sheet_present");
+		}
+		return result;
+	}
+
+	public static boolean getActiveSheetName(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = activeSheetPresent();
+		if (result)
+		{
+			responseNode.put("name", getActiveSheet().getSheetName());
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("active_sheet_not_present");
+		}
+		return result;
+	}
+
+	public static boolean getActiveWorkbookName(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean found = false;
+		Set<Entry<String, Workbook>> entrySet = Xls.workbooks.entrySet();
+		Iterator<Entry<String, Workbook>> iterator = entrySet.iterator();
+		while (iterator.hasNext())
+		{
+			Entry<String, Workbook> entry = iterator.next();
+			if (entry.getValue() == Xls.activeWorkbook)
+			{
+				responseNode.put("name", entry.getKey());
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+		{
+			found = Fsl.addErrorMessage("no_active_workbook_present");
+		}
+		return found;
+	}
+
+	public static boolean getCallableMethods(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		List<String> callableMethods = getCallableMethods();
+		ArrayNode methods = responseNode.arrayNode();
+		for (String method : callableMethods)
+		{
+			methods.add(method);
+		}
+		responseNode.set("methods", methods);
+		return true;
+	}
+
+	public static boolean getSheetNames(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		Workbook workbook = getWorkbookIfPresent(requestNode);
+		boolean result = Objects.nonNull(workbook);
+		if (result)
+		{
+			ArrayNode sheetNames = responseNode.arrayNode();
+			for (int i = 0; i < workbook.getNumberOfSheets(); i++)
+			{
+				sheetNames.add(workbook.getSheetName(i));
+			}
+			responseNode.set("names", sheetNames);
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("missing_argument 'workbook'");
+		}
+		return result;
+	}
+
+	public static CellRangeAddress getSourceRangeAddress(JsonNode sourceNode)
+	{
+		CellRangeAddress rangeAddress = null;
+		if (Objects.nonNull(sourceNode))
+		{
+			if (TextNode.class.isInstance(sourceNode))
+			{
+				String range = TextNode.class.cast(sourceNode).asText();
+				String[] cells = range.split(":");
+				if (cells.length == 1)
+				{
+					CellAddress address = getCellAddress(cells[0]);
+					rangeAddress = getCellRangeAddress(address, address);
+				}
+				else if (cells.length == 2)
+				{
+					CellAddress address0 = new CellAddress(cells[0]);
+					CellAddress address1 = new CellAddress(cells[1]);
+					rangeAddress = getCellRangeAddress(address0, address1);
+				}
+				else
+				{
+					Fsl.addErrorMessage("invalid_argument 'source'");
+				}
+			}
+			else if (ObjectNode.class.isInstance(sourceNode))
+			{
+				rangeAddress = getCellRangeAddress(sourceNode);
+			}
+			else
+			{
+				Fsl.addErrorMessage("invalid_argument 'source'");
+			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("missing_argument 'source'");
+		}
+		return rangeAddress;
+	}
+
+	public static CellRangeAddress getTargetRangeAddress(JsonNode targetNode)
+	{
+		CellRangeAddress rangeAddress = null;
+		if (Objects.nonNull(targetNode))
+		{
+			if (TextNode.class.isInstance(targetNode))
+			{
+				String range = TextNode.class.cast(targetNode).asText();
+				String[] cells = range.split(":");
+				if (cells.length == 1)
+				{
+					CellAddress address = getCellAddress(cells[0]);
+					rangeAddress = getCellRangeAddress(address, address);
+				}
+				else if (cells.length == 2)
+				{
+					CellAddress address0 = new CellAddress(cells[0]);
+					CellAddress address1 = new CellAddress(cells[1]);
+					rangeAddress = getCellRangeAddress(address0, address1);
+				}
+				else
+				{
+					Fsl.addErrorMessage("invalid_argument 'target'");
+				}
+			}
+			else if (ObjectNode.class.isInstance(targetNode))
+			{
+				rangeAddress = getCellRangeAddress(targetNode);
+			}
+			else
+			{
+				Fsl.addErrorMessage("invalid_argument 'target'");
+			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("missing_argument 'target'");
+		}
+		return rangeAddress;
+	}
+
+	public static boolean getWorkbookNames(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		ArrayNode workbookNames = responseNode.arrayNode();
+		Set<String> keys = workbooks.keySet();
+		keys.forEach(key -> workbookNames.add(key));
+		responseNode.set("names", workbookNames);
+		return true;
+	}
+
+	public static boolean releaseWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		return releaseWorkbook(requestNode);
+	}
+
+	public static boolean releaseWorkbooks(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		Xls.workbooks.clear();
+		boolean result = releaseWorkbook();
+		return result;
+	}
+
+	public static boolean saveAndReleaseWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = saveWorkbook(requestNode, responseNode);
+		if (result)
+		{
+			result = releaseWorkbook(requestNode, responseNode);
+		}
+		return result;
+	}
+
+	public static boolean saveWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = true;
+		Workbook workbook = getWorkbookIfPresent(requestNode);
+		if (Objects.nonNull(workbook))
+		{
+			if (Objects.nonNull(requestNode.get(Key.PATH_NAME.key())))
+			{
+				if (TextNode.class.isInstance(requestNode.get(Key.PATH_NAME.key())))
+				{
+					String path = TextNode.class.cast(requestNode.get(Key.PATH_NAME.key())).asText();
+					result = saveWorkbook(path, workbook);
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("invalid_argument '" + Key.PATH_NAME.key() + "'");
+				}
+			}
+			else
+			{
+				result = Fsl.addErrorMessage("missing_argument '" + Key.PATH_NAME.key() + "'");
+			}
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("missing_argument '" + Key.WORKBOOK.key() + "'");
+		}
+		return result;
+	}
+
+	public static boolean setCells(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = true;
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+		Sheet sheet = getSheetIfPresent(workbookNode, sheetNode);
+		result = Objects.nonNull(sheet);
+		if (result)
+		{
+			JsonNode cellNode = requestNode.findPath(Key.CELL.key());
+			result = Objects.nonNull(cellNode);
+			if (result)
+			{
+				CellAddress cellAddress = getCellAddress(cellNode);
+				if (Objects.nonNull(cellAddress))
+				{
+					if (Objects.nonNull(requestNode.get(Key.VALUES.key())))
+					{
+						if (ArrayNode.class.isInstance(requestNode.get(Key.VALUES.key())))
+						{
+							ArrayNode valuesNode = ArrayNode.class.cast(requestNode.get(Key.VALUES.key()));
+							Direction direction = Direction.DEFAULT;
+							if (valuesNode.size() == 0)
+							{
+								result = Fsl.addErrorMessage("invalid_argument '" + Key.VALUES.key() + "'");
+							}
+							else if (valuesNode.size() > 1)
+							{
+								JsonNode directionNode = requestNode.findPath(Key.DIRECTION.key());
+								if (Objects.nonNull(directionNode))
+								{
+									if (TextNode.class.isInstance(directionNode))
+									{
+										try
+										{
+											direction = Direction.valueOf(directionNode.asText().toUpperCase());
+										}
+										catch (Exception e)
+										{
+											result = Fsl.addErrorMessage("invalid_argument 'direction'");
+										}
+									}
+									else
+									{
+										result = Fsl.addErrorMessage("invalid_argument 'direction'");
+									}
+								}
+							}
+							if (direction.validRange(cellAddress, valuesNode.size()))
+							{
+								for (int i = 0; i < valuesNode.size(); i++)
+								{
+									JsonNode valueNode = valuesNode.get(i);
+									JsonNodeType nodeType = valueNode.getNodeType();
+									Cell cell = getOrCreateCell(sheet, cellAddress);
+									if (nodeType.equals(JsonNodeType.NULL))
+									{
+										// do nothing
+									}
+									if (nodeType.equals(JsonNodeType.NUMBER))
+									{
+										cell.setCellValue(valueNode.asDouble());
+									}
+									else if (nodeType.equals(JsonNodeType.STRING))
+									{
+										if (!valueNode.asText().trim().isEmpty())
+										{
+											try
+											{
+												cell.setCellFormula(valueNode.asText());
+												FormulaEvaluator evaluator = Xls.activeWorkbook.getCreationHelper()
+														.createFormulaEvaluator();
+												CellType cellType = evaluator.evaluateFormulaCell(cell);
+												System.out.println(cellType);
+											}
+											catch (FormulaParseException e)
+											{
+												setRichTextString(cell, valueNode.asText());
+											}
+										}
+									}
+									else if (nodeType.equals(JsonNodeType.BOOLEAN))
+									{
+										cell.setCellValue(valueNode.asBoolean());
+									}
+									else
+									{
+										// TODO Other types?
+										System.out.println();
+									}
+									cellAddress = direction.nextIndex(cellAddress);
+								}
+							}
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid_argument '" + Key.VALUES.key() + "'");
+						}
 					}
 					else
 					{
-						throw new IllegalArgumentException("Ungültiger Parameter an " + String.valueOf(i) + " Stelle");
+						result = Fsl.addErrorMessage("missing_argument '" + Key.VALUES.key() + "'");
 					}
-				}
-			}
-		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
-	}
-
-	/**
-	 * Set single cell value
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Object     Specifies the row as String (for CellAddress) or Integer
-	 * @param Integer    Optional: Specifies the column if first parameter is of
-	 *                   type integer
-	 * @param Object     Specifies the value to apply to cell, one of allowed types
-	 *                   in excel
-	 */
-	public static void setCellValue(Object[] parameters)
-	{
-		try
-		{
-			prepareWorkbookAndSheetIfMissing();
-			if (parameters.length == 2)
-			{
-				if (String.class.isInstance(parameters[0]))
-				{
-					CellAddress cellAddress = new CellAddress(String.class.cast(parameters[0]));
-					XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-					XSSFRow row = sheet.getRow(cellAddress.getRow());
-					XSSFCell cell = row.getCell(cellAddress.getColumn());
-					setCellValue(cell, parameters[1]);
 				}
 				else
 				{
-					throw new IllegalArgumentException("Ungültiger Parameter");
-				}
-			}
-			else if (parameters.length == 3)
-			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]))
-				{
-					int rowIndex = Integer.class.cast(parameters[0]).intValue();
-					int columnIndex = Integer.class.cast(parameters[1]).intValue();
-					XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-					XSSFRow row = sheet.getRow(rowIndex);
-					if (Objects.isNull(row))
-					{
-						row = sheet.createRow(rowIndex);
-					}
-					XSSFCell cell = row.getCell(columnIndex);
-					if (Objects.isNull(cell))
-					{
-						cell = row.createCell(columnIndex);
-					}
-					setCellValue(cell, parameters[2]);
-				}
-				else
-				{
-					throw new IllegalArgumentException("Ungültiger Parameter");
+					Fsl.addErrorMessage("invalid_argument '" + Key.CELL.key() + "'");
 				}
 			}
 			else
 			{
-				throw new IllegalArgumentException("Ungültige Anzahl Parameter (erwartet werden 2 oder 3)");
+				result = Fsl.addErrorMessage("missing_argument '" + Key.CELL.key() + "'");
+			}
+
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("missing_argument '" + Key.SHEET.key() + "'");
+		}
+		return result;
+	}
+
+	public static void setCellValue(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = true;
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+		JsonNode cellNode = requestNode.findPath(Key.CELL.key());
+		JsonNode valueNode = requestNode.findPath(Key.VALUES.key());
+		Sheet sheet = getSheetIfPresent(workbookNode, sheetNode);
+		result = Objects.nonNull(sheet);
+		if (result)
+		{
+			if (Objects.nonNull(cellNode))
+			{
+				if (Objects.nonNull(valueNode))
+				{
+					CellAddress cellAddress = getCellAddress(cellNode);
+					Cell cell = getOrCreateCell(sheet, cellAddress);
+					if (ValueNode.class.isInstance(valueNode))
+					{
+						if (TextNode.class.isInstance(valueNode))
+						{
+							setRichTextString(cell, valueNode.asText());
+						}
+						else if (NumericNode.class.isInstance(valueNode))
+						{
+							if (BigIntegerNode.class.isInstance(valueNode) || LongNode.class.isInstance(valueNode))
+							{
+								cell.setCellValue(valueNode.bigIntegerValue().longValue());
+							}
+							else if (DoubleNode.class.isInstance(valueNode) || DecimalNode.class.isInstance(valueNode)
+									|| FloatNode.class.isInstance(valueNode))
+							{
+								cell.setCellValue(valueNode.asDouble());
+							}
+							else if (IntNode.class.isInstance(valueNode) || ShortNode.class.isInstance(valueNode))
+							{
+								cell.setCellValue(valueNode.asInt());
+							}
+						}
+						else
+						{
+							Fsl.addErrorMessage("invalid_argument 'value'");
+						}
+					}
+					else
+					{
+						Fsl.addErrorMessage("invalid_argument 'value'");
+					}
+				}
+				else
+				{
+					Fsl.addErrorMessage("missing_argument 'value'");
+				}
+			}
+			else
+			{
+				Fsl.addErrorMessage("missing_argument 'cell'");
 			}
 		}
-		catch (Exception e)
+		else
 		{
-			addErrorMessage(e.getLocalizedMessage());
+			Fsl.addErrorMessage("missing_active_sheet");
 		}
 	}
 
-	public static void setPrintOptions(Object[] parameters)
+//	public static void setColumnFormulae(ObjectNode requestNode, ObjectNode responseNode)
+//	{
+//		Sheet sheet = getSheetIfPresent(requestNode);
+//		if (Objects.nonNull(sheet))
+//		{
+//			int rowIndex = 0;
+//			JsonNode rowIndexNode = requestNode.get("row_index");
+//			if (Objects.nonNull(rowIndexNode))
+//			{
+//				if (rowIndexNode.isInt())
+//				{
+//					rowIndex = rowIndexNode.asInt() - 1;
+//					if (rowIndex < 0)
+//					{
+//						Fsl.addErrorMessage("invalid_argument 'row_index'");
+//					}
+//				}
+//				else
+//				{
+//					Fsl.addErrorMessage("invalid_argument 'row_index'");
+//				}
+//			}
+//			int colIndex = 0;
+//			JsonNode colIndexNode = requestNode.get("col_index");
+//			if (Objects.nonNull(colIndexNode))
+//			{
+//				if (colIndexNode.isInt())
+//				{
+//					colIndex = colIndexNode.asInt() - 1;
+//					if (colIndex < 0)
+//					{
+//						Fsl.addErrorMessage("invalid_argument 'col_index'");
+//					}
+//				}
+//				else
+//				{
+//					Fsl.addErrorMessage("invalid_argument 'col_index'");
+//				}
+//			}
+//			JsonNode formulaeNode = requestNode.get("formulae");
+//			if (Objects.nonNull(formulaeNode))
+//			{
+//				for (int i = 0; i < formulaeNode.size(); i++)
+//				{
+//					Row row = getOrCreateRow(sheet, i + rowIndex);
+//					if (Objects.isNull(row.getCell(colIndex)))
+//					{
+//						Cell cell = row.createCell(colIndex);
+//						cell.setCellFormula(formulaeNode.get(i).asText());
+//					}
+//				}
+//			}
+//		}
+//	}
+//
+//	public static void setColumnTitles(ObjectNode requestNode, ObjectNode responseNode)
+//	{
+//		Sheet sheet = getSheetIfPresent(requestNode);
+//		if (Objects.nonNull(sheet))
+//		{
+//			int rowIndex = 0;
+//			JsonNode rowIndexNode = requestNode.get("row_index");
+//			if (Objects.nonNull(rowIndexNode))
+//			{
+//				if (rowIndexNode.isInt())
+//				{
+//					rowIndex = rowIndexNode.asInt() - 1;
+//					if (rowIndex < 0)
+//					{
+//						Fsl.addErrorMessage("invalid_argument 'row_index'");
+//					}
+//				}
+//				else
+//				{
+//					Fsl.addErrorMessage("invalid_argument 'row_index'");
+//				}
+//			}
+//			int colIndex = 0;
+//			JsonNode colIndexNode = requestNode.get("col_index");
+//			if (Objects.nonNull(colIndexNode))
+//			{
+//				if (colIndexNode.isInt())
+//				{
+//					colIndex = colIndexNode.asInt() - 1;
+//					if (colIndex < 0)
+//					{
+//						Fsl.addErrorMessage("invalid_argument 'col_index'");
+//					}
+//				}
+//				else
+//				{
+//					Fsl.addErrorMessage("invalid_argument 'col_index'");
+//				}
+//			}
+//			JsonNode titlesNode = requestNode.get("titles");
+//			if (Objects.nonNull(titlesNode))
+//			{
+//				for (int i = 0; i < titlesNode.size(); i++)
+//				{
+//					Row row = getOrCreateRow(sheet, i + rowIndex);
+//					if (Objects.isNull(row.getCell(colIndex)))
+//					{
+//						Cell cell = row.createCell(colIndex);
+//						setRichTextString(cell, titlesNode.get(i).asText());
+//					}
+//				}
+//			}
+//		}
+//	}
+
+	public static void setHeaders(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+		JsonNode leftNode = requestNode.findPath(Key.LEFT.key());
+		JsonNode centerNode = requestNode.findPath(Key.CENTER.key());
+		JsonNode rightNode = requestNode.findPath(Key.RIGHT.key());
+		Sheet sheet = getSheetIfPresent(workbookNode, sheetNode);
+		if (Objects.nonNull(sheet))
+		{
+			Header header = sheet.getHeader();
+			if (Objects.nonNull(leftNode) && (leftNode.isTextual()))
+			{
+				header.setLeft(leftNode.asText());
+
+			}
+			if (Objects.nonNull(centerNode) && (centerNode.isTextual()))
+			{
+				header.setCenter(centerNode.asText());
+
+			}
+			if (Objects.nonNull(rightNode) && (rightNode.isTextual()))
+			{
+				header.setRight(rightNode.asText());
+
+			}
+		}
+	}
+
+	public static void setFooters(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+		JsonNode leftNode = requestNode.findPath(Key.LEFT.key());
+		JsonNode centerNode = requestNode.findPath(Key.CENTER.key());
+		JsonNode rightNode = requestNode.findPath(Key.RIGHT.key());
+		Sheet sheet = getSheetIfPresent(workbookNode, sheetNode);
+		if (Objects.nonNull(sheet))
+		{
+			Footer footer = sheet.getFooter();
+			if (Objects.nonNull(leftNode) && (leftNode.isTextual()))
+			{
+				footer.setLeft(leftNode.asText());
+
+			}
+			if (Objects.nonNull(centerNode) && (centerNode.isTextual()))
+			{
+				footer.setCenter(centerNode.asText());
+
+			}
+			if (Objects.nonNull(rightNode) && (rightNode.isTextual()))
+			{
+				footer.setRight(rightNode.asText());
+
+			}
+		}
+	}
+
+	public static void setPrintOptions(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		try
 		{
-			prepareWorkbookAndSheetIfMissing();
-			if (parameters.length > 0)
+			if (ObjectNode.class.isInstance(requestNode.get("bottom_margin")))
 			{
-				XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
+			}
+			{
+				Sheet sheet = getActiveSheet();
 				sheet.getPrintSetup().setLandscape(false);
 			}
 		}
 		catch (Exception e)
 		{
-			addErrorMessage(e.getLocalizedMessage());
+			Fsl.addErrorMessage(e.getLocalizedMessage());
 		}
 	}
 
-	/**
-	 * Set row values
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Integer    Specifies the row
-	 * @param Integer    Specifies the starting column
-	 * @param Object     Specifies the value to apply to cell
-	 * 
-	 *                   or
-	 * 
-	 * @param String     Specifies the starting cell address
-	 * @param Object     Specifies the value to apply to cell
-	 */
-	public static void setRowValues(Object[] parameters)
+	protected static Sheet getActiveSheet()
 	{
-		try
+		Sheet sheet = null;
+		if (activeSheetPresent())
 		{
-			prepareWorkbookAndSheetIfMissing();
-			int rowIndex = 0;
-			int startColumnIndex = 0;
-			int firstValueIndex = 0;
-			if (String.class.isInstance(parameters[0]))
-			{
-				if (parameters.length < 2)
-				{
-					throw new IllegalArgumentException("Zuwenige Parameter");
-				}
-				CellAddress startCellAddress = new CellAddress(String.class.cast(parameters[0]));
-				rowIndex = startCellAddress.getRow();
-				startColumnIndex = startCellAddress.getColumn();
-				firstValueIndex = 1;
-			}
-			else if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]))
-			{
-				if (parameters.length < 3)
-				{
-					throw new IllegalArgumentException("Zuwenige Parameter");
-				}
-				rowIndex = Integer.class.cast(parameters[0]).intValue();
-				startColumnIndex = Integer.class.cast(parameters[1]).intValue();
-				firstValueIndex = 2;
-			}
-			else
-			{
-				throw new IllegalArgumentException("Ungültige Parameter");
-			}
-			XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-			XSSFRow row = getOrCreateRow(sheet, rowIndex);
-			for (int i = 0; i < parameters.length - firstValueIndex; i++)
-			{
-				XSSFCell cell = getOrCreateCell(row, startColumnIndex + i);
-				setCellValue(cell, parameters[firstValueIndex + i]);
-			}
+			sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
 		}
-		catch (Exception e)
+		else
 		{
-			addErrorMessage(e.getLocalizedMessage());
+			Fsl.addErrorMessage("missing_active_sheet");
 		}
+		return sheet;
 	}
 
-	/**
-	 * Set column values
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Integer    Specifies the starting row
-	 * @param Integer    Specifies the column
-	 * @param Object     Specifies the value to apply to cell
-	 * 
-	 *                   or
-	 * 
-	 * @param String     Specifies the starting cell address
-	 * @param Object     Specifies the value to apply to cell
-	 */
-	public static void setColumnValues(Object[] parameters)
+	private static boolean activateSheet(Sheet sheet)
 	{
-		try
+		boolean result = activateWorkbook(sheet.getWorkbook());
+		if (result)
 		{
-			prepareWorkbookAndSheetIfMissing();
-			int startRowIndex = 0;
-			int columnIndex = 0;
-			int firstValueIndex = 0;
-			if (String.class.isInstance(parameters[0]))
-			{
-				if (parameters.length < 2)
-				{
-					throw new IllegalArgumentException("Zuwenige Parameter");
-				}
-				CellAddress startCellAddress = new CellAddress(String.class.cast(parameters[0]));
-				startRowIndex = startCellAddress.getRow();
-				columnIndex = startCellAddress.getColumn();
-				firstValueIndex = 1;
-			}
-			else if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]))
-			{
-				if (parameters.length < 3)
-				{
-					throw new IllegalArgumentException("Zuwenige Parameter");
-				}
-				startRowIndex = Integer.class.cast(parameters[0]).intValue();
-				columnIndex = Integer.class.cast(parameters[1]).intValue();
-				firstValueIndex = 2;
-			}
-			else
-			{
-				throw new IllegalArgumentException("Ungültige Parameter");
-			}
-			XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-			for (int i = 0; i < parameters.length - firstValueIndex; i++)
-			{
-				XSSFRow row = getOrCreateRow(sheet, startRowIndex + i);
-				XSSFCell cell = getOrCreateCell(row, columnIndex);
-				setCellValue(cell, parameters[firstValueIndex + i]);
-			}
+			Xls.activeWorkbook.setActiveSheet(Xls.activeWorkbook.getSheetIndex(sheet));
 		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
+		return result;
 	}
 
-	/**
-	 * Set single cell formula
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Integer    Specifies the row
-	 * @param Integer    Specifies the column
-	 * @param Object     Specifies the formula as a String to apply to cell
-	 */
-	public static void setCellFormula(Object[] parameters)
+	private static boolean activateWorkbook(Workbook workbook)
 	{
-		try
+		boolean result = Objects.nonNull(workbook);
+		if (result)
 		{
-			if (String.class.isInstance(parameters[0]))
+			if (workbook != Xls.activeWorkbook)
 			{
-				if (parameters.length < 2)
-				{
-					throw new IllegalArgumentException("Zuwenige Parameter");
-				}
-
-				CellAddress cellAddress = new CellAddress(String.class.cast(parameters[0]));
-				XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-				int rowIndex = cellAddress.getRow();
-				int columnIndex = cellAddress.getColumn();
-				XSSFRow row = getOrCreateRow(sheet, rowIndex);
-				XSSFCell cell = getOrCreateCell(row, columnIndex);
-				cell.setCellFormula(String.class.cast(parameters[1]));
+				Xls.activeWorkbook = workbook;
 			}
-			else if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]))
-			{
-				if (parameters.length < 3)
-				{
-					throw new IllegalArgumentException("Zuwenige Parameter");
-				}
-
-				int rowIndex = Integer.class.cast(parameters[0]).intValue();
-				int columnIndex = Integer.class.cast(parameters[1]).intValue();
-				XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-				XSSFRow row = getOrCreateRow(sheet, rowIndex);
-				XSSFCell cell = getOrCreateCell(row, columnIndex);
-				cell.setCellFormula(String.class.cast(parameters[2]));
-			}
-			else
-			{
-				throw new IllegalArgumentException("Ungültige Parameter");
-			}
-
 		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
+		return result;
 	}
 
-	/**
-	 * Copy and shift formula
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Integer    Specifies the row of source cell
-	 * @param Integer    Specifies the column of source cell
-	 * @param Integer    Specifies the target start row
-	 * @param Integer    Specifies the target start column
-	 * @param Integer    Optional Specifies the target number of rows
-	 * @param Integer    Optional Specifies the target number of column
-	 * 
-	 *                   or
-	 * 
-	 * @param String     Specifies the formula cell to copy
-	 * @param String     Specifies the target start cell of range
-	 * @param String     Optional Specifies the target end cell of range
-	 */
-	public static void copyAndShiftFormulaCell(Object[] parameters)
+	private static boolean activeSheetPresent()
 	{
-		try
+		boolean present = Objects.nonNull(Xls.activeWorkbook);
+		if (present)
 		{
-			prepareWorkbookAndSheetIfMissing();
-			CellAddress sourceCellAddress = null;
-			CellAddress startTargetCellAddress = null;
-			CellAddress endTargetCellAddress = null;
-			if (parameters.length == 2)
-			{
-				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1]))
-				{
-					sourceCellAddress = new CellAddress(String.class.cast(parameters[0]));
-					startTargetCellAddress = new CellAddress(String.class.cast(parameters[1]));
+			present = Xls.activeWorkbook.getActiveSheetIndex() > -1;
+		}
+		return present;
+	}
 
-				}
-				else
-				{
-					throw new IllegalArgumentException("Ungültige Parametertypen");
-				}
-			}
-			else if (parameters.length == 3)
+	public static void applyFontStyle(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+		Sheet sheet = getSheetIfPresent(workbookNode, sheetNode);
+		if (Objects.nonNull(sheet))
+		{
+			CellStyle cellStyle = sheet.getWorkbook().createCellStyle();
+			Font font = sheet.getWorkbook().createFont();
+			if (Objects.nonNull(requestNode.get(Key.STYLE.key())))
 			{
-				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1]) || String.class.isInstance(parameters[2]))
+				if (IntNode.class.isInstance(requestNode.get(Key.STYLE.key())))
 				{
-					sourceCellAddress = new CellAddress(String.class.cast(parameters[0]));
-					startTargetCellAddress = new CellAddress(String.class.cast(parameters[1]));
-					endTargetCellAddress = new CellAddress(String.class.cast(parameters[2]));
-
-				}
-				else
-				{
-					throw new IllegalArgumentException("Ungültige Parametertypen");
-				}
-			}
-			else if (parameters.length == 4)
-			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]))
-				{
-					sourceCellAddress = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
-					startTargetCellAddress = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
-				}
-				else
-				{
-					throw new IllegalArgumentException("Ungültige Parametertypen");
-				}
-			}
-			else if (parameters.length == 6)
-			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]) && Integer.class.isInstance(parameters[4])
-						&& Integer.class.isInstance(parameters[5]))
-				{
-					sourceCellAddress = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
-					startTargetCellAddress = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
-					endTargetCellAddress = new CellAddress(Integer.class.cast(parameters[4]).intValue(), Integer.class.cast(parameters[5]).intValue());
-				}
-				else
-				{
-					throw new IllegalArgumentException("Ungültige Parametertypen");
-				}
-			}
-			else
-			{
-				throw new IllegalArgumentException("Ungültige Anzahl Parameter");
-			}
-			int startRowDifferenceIndex = startTargetCellAddress.getRow() - sourceCellAddress.getRow();
-			int startColumnDifferenceIndex = startTargetCellAddress.getColumn() - sourceCellAddress.getColumn();
-			int endRowDifferenceIndex = Objects.isNull(endTargetCellAddress) ? startRowDifferenceIndex : endTargetCellAddress.getRow() - sourceCellAddress.getRow();
-			int endColumnDifferenceIndex = Objects.isNull(endTargetCellAddress) ? startColumnDifferenceIndex : endTargetCellAddress.getColumn() - sourceCellAddress.getColumn();
-			XSSFCell sourceCell = getOrCreateCell(sourceCellAddress);
-			for (int rowIndex = startRowDifferenceIndex; rowIndex <= endRowDifferenceIndex; rowIndex++)
-			{
-				XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), sourceCell.getRowIndex() + rowIndex);
-				for (int columnIndex = startColumnDifferenceIndex; columnIndex <= endColumnDifferenceIndex; columnIndex++)
-				{
-					XSSFCell cell = getOrCreateCell(row, sourceCell.getColumnIndex() + columnIndex);
-					cell.copyCellFrom(sourceCell, new CellCopyPolicy());
-					if (cell.getCellType().equals(CellType.FORMULA))
+					int style = IntNode.class.cast(requestNode.get(Key.STYLE.key())).asInt();
+					if (style > -1 || style < 4)
 					{
-						XSSFEvaluationWorkbook evaluationWorkbook = XSSFEvaluationWorkbook.create(Xls.workbook);
-						Ptg[] ptgs = FormulaParser.parse(cell.getCellFormula(), evaluationWorkbook, FormulaType.CELL, Xls.workbook.getActiveSheetIndex());
-						for (Ptg ptg : ptgs)
+						CellRangeAddress rangeAddress = null;
+						if (Objects.nonNull(requestNode.get(Key.CELL.key())))
 						{
-							if (ptg instanceof RefPtgBase)
-							{
-								RefPtgBase ref = RefPtgBase.class.cast(ptg);
-								if (ref.isRowRelative()) ref.setRow(ref.getRow() + rowIndex);
-								if (ref.isColRelative()) ref.setColumn(ref.getColumn() + columnIndex);
-							}
-							else if (ptg instanceof AreaPtgBase)
-							{
-								AreaPtgBase ref = AreaPtgBase.class.cast(ptg);
-								if (ref.isFirstColRelative()) ref.setFirstColumn(ref.getFirstColumn() + columnIndex);
-								if (ref.isLastColRelative()) ref.setLastColumn(ref.getLastColumn() + columnIndex);
-								if (ref.isFirstRowRelative()) ref.setFirstRow(ref.getFirstRow() + rowIndex);
-								if (ref.isLastRowRelative()) ref.setLastRow(ref.getLastRow() + rowIndex);
-							}
+							CellAddress cellAddress = getCellAddress(requestNode.get(Key.CELL.key()));
+							rangeAddress = getCellRangeAddress(cellAddress);
 						}
-						String formula = FormulaRenderer.toFormulaString(evaluationWorkbook, ptgs);
-						cell.setCellFormula(formula);
+						else if (Objects.nonNull(requestNode.get(Key.RANGE.key())))
+						{
+							rangeAddress = getCellRangeAddress(requestNode.get(Key.RANGE.key()));
+						}
+						FontStyle fontStyle = FontStyle.values()[style];
+						fontStyle.setFontStyle(font);
+						cellStyle.setFont(font);
+						Iterator<CellAddress> cellAddresses = rangeAddress.iterator();
+						while (cellAddresses.hasNext())
+						{
+							CellAddress cellAddress = cellAddresses.next();
+							Cell cell = getOrCreateCell(sheet, cellAddress);
+							cell.setCellStyle(cellStyle);
+						}
+					}
+					else
+					{
+						Fsl.addErrorMessage("invalid_fontstyle (possible values for 'style' are 0-3)");
+					}
+				}
+				else
+				{
+					Fsl.addErrorMessage("invalid_argument 'style'");
+				}
+			}
+			else
+			{
+				Fsl.addErrorMessage("missing_argument 'style'");
+			}
+		}
+	}
+
+	public static boolean applyNumberFormat(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = true;
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+		Sheet sheet = getSheetIfPresent(workbookNode, sheetNode);
+		if (Objects.nonNull(sheet))
+		{
+			CellRangeAddress rangeAddress = null;
+			if (Objects.nonNull(requestNode.get(Key.RANGE.key())))
+			{
+				rangeAddress = getCellRangeAddress(requestNode.get(Key.RANGE.key()));
+			}
+			else if (Objects.nonNull(requestNode.get(Key.CELL.key())))
+			{
+				CellAddress cellAddress = getCellAddress(requestNode.get(Key.CELL.key()));
+				rangeAddress = getCellRangeAddress(cellAddress);
+			}
+			if (Objects.nonNull(rangeAddress))
+			{
+				if (Objects.nonNull(requestNode.get(Key.FORMAT.key())))
+				{
+					int index = -1;
+					if (TextNode.class.isInstance(requestNode.get(Key.FORMAT.key())))
+					{
+						String format = TextNode.class.cast(requestNode.get(Key.FORMAT.key())).asText();
+						if (Objects.nonNull(format))
+						{
+							DataFormat dataFormat = sheet.getWorkbook().createDataFormat();
+							index = dataFormat.getFormat(format);
+							formatNumber(sheet, rangeAddress, index);
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid_argument '" + Key.FORMAT.key() + "'");
+						}
+					}
+					else if (IntNode.class.isInstance(requestNode.get(Key.FORMAT.key())))
+					{
+						index = IntNode.class.cast(requestNode.get(Key.FORMAT.key())).asInt();
+						formatNumber(sheet, rangeAddress, index);
+					}
+					else
+					{
+						result = Fsl.addErrorMessage("invalid_argument '" + Key.FORMAT.key() + "'");
+					}
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("missing_argument '" + Key.FORMAT.key() + "'");
+				}
+			}
+			else
+			{
+				Fsl.addErrorMessage("missing_argument '" + Key.CELL.key() + "' or '" + Key.RANGE.key() + "'");
+			}
+		}
+		return result;
+	}
+	
+	public static boolean autoSizeColumns(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+		Sheet sheet = getSheetIfPresent(workbookNode, sheetNode);
+		boolean result = Objects.nonNull(sheet);
+		if (result)
+		{
+			CellRangeAddress rangeAddress = getCellRangeAddress(requestNode.get(Key.RANGE.key()));
+			result = Objects.nonNull(rangeAddress);
+			if (result)
+			{
+				int firstRow = rangeAddress.getFirstRow();
+				int lastRow = rangeAddress.getLastRow();
+				for (int rowIndex = firstRow; rowIndex <= lastRow; rowIndex++)
+				{
+					if (Objects.nonNull(sheet.getRow(rowIndex)))
+					{
+						int firstCol = rangeAddress.getFirstColumn();
+						int lastCol = rangeAddress.getLastColumn();
+						for (int i = firstCol; i <= lastCol; i++)
+						{
+							sheet.autoSizeColumn(i);
+						}
+						break;
 					}
 				}
 			}
-
 		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
+		return result;
 	}
-
-	/**
-	 * Apply formulas to row
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Integer    Specifies the starting row
-	 * @param Integer    Specifies the starting column
-	 * @param Integer    Specifies the ending row
-	 * @param Integer    Specifies the ending column
-	 * @param String     Specifies the formula as string to apply to cell
-	 * 
-	 *                   or
-	 * 
-	 * @param String     Specifies the starting row
-	 * @param String     Specifies the starting column
-	 * @param String     Specifies the formula as string to apply to cell
-	 */
-	public static void setRowRangeSum(Object[] parameters)
+	
+	public static boolean rotateCells(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		try
+		boolean result = IntNode.class.isInstance(requestNode.get(Key.ROTATION.key()));
+		if (result)
 		{
-			prepareWorkbookAndSheetIfMissing();
-			if (parameters.length == 2)
+			int rotation = IntNode.class.cast(requestNode.get(Key.ROTATION.key())).asInt();
+			JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+			JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+			Sheet sheet = getSheetIfPresent(workbookNode, sheetNode);
+			if (Objects.nonNull(sheet))
 			{
-				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1]) || String.class.isInstance(parameters[2]))
+				CellRangeAddress rangeAddress = getCellRangeAddress(requestNode);
+				if (Objects.nonNull(rangeAddress))
 				{
-					CellAddress startCellRange = new CellAddress(String.class.cast(parameters[0]));
-					CellAddress endCellRange = new CellAddress(String.class.cast(parameters[1]));
-					setSumCell(startCellRange, endCellRange, Target.SUM_ROW_VALUES);
-
-				}
-
-			}
-			else if (parameters.length == 4)
-			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]) && String.class.isInstance(parameters[4]))
-				{
-					CellAddress startCellRange = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
-					CellAddress endCellRange = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
-					setSumCell(startCellRange, endCellRange, Target.SUM_ROW_VALUES);
+					Iterator<CellAddress> cellAddresses = rangeAddress.iterator();
+					while (cellAddresses.hasNext())
+					{
+						CellAddress cellAddress = cellAddresses.next();
+						Row row = sheet.getRow(cellAddress.getRow());
+						if (Objects.nonNull(row))
+						{
+							Cell cell = row.getCell(cellAddress.getColumn());
+							if (Objects.nonNull(cell))
+							{
+								CellStyle cellStyle = sheet.getWorkbook().createCellStyle();
+								cellStyle.setRotation((short)rotation);
+								cell.setCellStyle(cellStyle);
+							}
+						}
+					}
 				}
 				else
 				{
-					throw new IllegalArgumentException("Ungültige Parametertypen");
+					Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
 				}
 			}
 			else
 			{
-				throw new IllegalArgumentException("Ungültige Anzahl Parameter");
+				Fsl.addErrorMessage("missing_argument '" + Key.SHEET.key() + "'");
 			}
-
 		}
-		catch (Exception e)
+		else
 		{
-			addErrorMessage(e.getLocalizedMessage());
+			Fsl.addErrorMessage("missing_argument '" + Key.ROTATION.key() + "'");
 		}
+		return result;
+	}
+	
+	public static boolean alignHorizontally(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
+		Sheet sheet = getSheetIfPresent(workbookNode, sheetNode);
+		boolean result = Objects.nonNull(sheet);
+		if (result)
+		{
+			CellRangeAddress rangeAddress = getCellRangeAddress(requestNode);
+			if (Objects.nonNull(requestNode.get(Key.ALIGNMENT.key())))
+			{
+				if (TextNode.class.isInstance(requestNode.get(Key.ALIGNMENT.key())))
+				{
+					String align = TextNode.class.cast(requestNode.get(Key.ALIGNMENT.key())).asText();
+					Key key = Key.valueOf(align.toUpperCase());
+					if (Objects.nonNull(key))
+					{
+						Iterator<CellAddress> cellAddresses = rangeAddress.iterator();
+						while (cellAddresses.hasNext())
+						{
+							CellAddress cellAddress = cellAddresses.next();
+							if (Row.class.isInstance(sheet.getRow(cellAddress.getRow())))
+							{
+								Row row = Row.class.cast(sheet.getRow(cellAddress.getRow()));
+								if (Cell.class.isInstance(row.getCell(cellAddress.getColumn())))
+								{
+									Cell cell = Cell.class.cast(row.getCell(cellAddress.getColumn()));
+									CellUtil.setAlignment(cell, HorizontalAlignment.valueOf(align.toUpperCase()));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return result;
 	}
 
-	/**
-	 * Apply number style to given cell range
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Integer    Specifies the starting row
-	 * @param Integer    Specifies the starting column
-	 * @param Integer    Specifies the ending row
-	 * @param Integer    Specifies the ending column
-	 * @param String     Specifies the style to apply to cell
-	 * 
-	 *                   or
-	 * 
-	 * @param String     Specifies the starting row
-	 * @param String     Specifies the starting column
-	 * @param String     Specifies the style to apply to cell
-	 */
-	public static void applyNumberStyleToCellRange(Object[] parameters)
+	private static Sheet createSheet(Workbook workbook, JsonNode sheetNode)
 	{
-		try
+		Sheet sheet = null;
+		if (Objects.nonNull(workbook))
 		{
-			prepareWorkbookAndSheetIfMissing();
-			if (parameters.length == 3)
+			if (Objects.nonNull(sheetNode))
 			{
-				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1]) || String.class.isInstance(parameters[2]))
+				if (TextNode.class.isInstance(sheetNode))
 				{
-					CellAddress startCellRange = new CellAddress(String.class.cast(parameters[0]));
-					CellAddress endCellRange = new CellAddress(String.class.cast(parameters[1]));
-					String style = String.class.cast(parameters[2]);
-					applyNumberStyleToCellRange(startCellRange, endCellRange, style);
-
+					sheet = workbook.createSheet(sheetNode.asText());
 				}
-
-			}
-			else if (parameters.length == 5)
-			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]) && String.class.isInstance(parameters[4]))
+				else 
 				{
-					CellAddress startCellRange = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
-					CellAddress endCellRange = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
-					String style = String.class.cast(parameters[4]);
-					applyNumberStyleToCellRange(startCellRange, endCellRange, style);
-				}
-				else
-				{
-					throw new IllegalArgumentException("Ungültige Parametertypen");
+					Fsl.addErrorMessage("invalid_argument 'sheet'");
 				}
 			}
 			else
 			{
-				throw new IllegalArgumentException("Ungültige Anzahl Parameter");
+				sheet = workbook.createSheet();
 			}
-
 		}
-		catch (Exception e)
+		return sheet;
+	}
+
+	private static void formatNumber(Sheet sheet, CellRangeAddress rangeAddress, int index)
+	{
+		CellStyle cellStyle = sheet.getWorkbook().createCellStyle();
+		cellStyle.setDataFormat((short) index);
+		Iterator<CellAddress> cellAddresses = rangeAddress.iterator();
+		while (cellAddresses.hasNext())
 		{
-			addErrorMessage(e.getLocalizedMessage());
+			CellAddress cellAddress = cellAddresses.next();
+			Cell cell = getOrCreateCell(sheet, cellAddress);
+			cell.setCellStyle(cellStyle);
 		}
 	}
 
-	/**
-	 * Apply font style to given cell range
-	 * 
-	 * @param parameters Object[] parameters
-	 * 
-	 * @param Integer    Specifies the starting row
-	 * @param Integer    Specifies the starting column
-	 * @param Integer    Specifies the ending row
-	 * @param Integer    Specifies the ending column
-	 * @param Integer    Specifies the style to apply to font (0=normal, 1=Bold,
-	 *                   2=Italic, 3=Both
-	 * 
-	 *                   or
-	 * 
-	 * @param String     Specifies the starting row
-	 * @param String     Specifies the starting column
-	 * @param String     Specifies the style to apply to cell
-	 */
-	public static void applyFontStyleToCellRange(Object[] parameters)
+	private static Workbook createWorkbook(String name)
 	{
-		try
+		Workbook workbook = null;
+		if (!name.trim().isEmpty())
 		{
-			prepareWorkbookAndSheetIfMissing();
-			if (parameters.length == 5)
+			if (name.endsWith(".xls"))
 			{
-				if (Integer.class.isInstance(parameters[0]) && Integer.class.isInstance(parameters[1]) && Integer.class.isInstance(parameters[2]) && Integer.class.isInstance(parameters[3]) && Integer.class.isInstance(parameters[4]))
-				{
-					CellAddress startCellRange = new CellAddress(Integer.class.cast(parameters[0]).intValue(), Integer.class.cast(parameters[1]).intValue());
-					CellAddress endCellRange = new CellAddress(Integer.class.cast(parameters[2]).intValue(), Integer.class.cast(parameters[3]).intValue());
-					int style = Integer.class.cast(parameters[4]).intValue();
-					applyFontStyleToCellRange(startCellRange, endCellRange, style);
-				}
-				else
-				{
-					throw new IllegalArgumentException("Ungültige Parametertypen");
-				}
-			}
-			if (parameters.length == 3)
-			{
-				if (String.class.isInstance(parameters[0]) && String.class.isInstance(parameters[1]) || String.class.isInstance(parameters[2]))
-				{
-					CellAddress startCellRange = new CellAddress(String.class.cast(parameters[0]));
-					CellAddress endCellRange = new CellAddress(String.class.cast(parameters[1]));
-					int style = Integer.class.cast(parameters[2]).intValue();
-					applyFontStyleToCellRange(startCellRange, endCellRange, style);
-
-				}
-
+				workbook = new HSSFWorkbook();
 			}
 			else
 			{
-				throw new IllegalArgumentException("Ungültige Anzahl Parameter");
+				workbook = new XSSFWorkbook();
 			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
+		}
+		return workbook;
+	}
+	
+	private static void setRichTextString(Cell cell, String value)
+	{
+		if (XSSFCell.class.isInstance(cell))
+		{
+			cell.setCellValue(new XSSFRichTextString(value));
+		}
+		else
+		{
+			cell.setCellValue(new HSSFRichTextString(value));
+		}
+	}
+	
+	private static List<String> getCallableMethods()
+	{
+		List<String> callableMethods = new ArrayList<String>();
+		Method[] methods = Xls.class.getDeclaredMethods();
+		for (Method method : methods)
+		{
+			if (Modifier.isPublic(method.getModifiers()))
+			{
+				Parameter[] parameters = method.getParameters();
+				if (parameters.length == 2)
+				{
+					boolean equals = true;
+					for (Parameter parameter : parameters)
+					{
+						if (!parameter.getType().equals(ObjectNode.class))
+						{
+							equals = false;
+						}
+					}
+					if (equals)
+					{
+						callableMethods.add(Xls.class.getSimpleName() + "." + method.getName());
+					}
+				}
+			}
+		}
+		return callableMethods;
+	}
 
+	private static CellAddress getCellAddress(int row, int col)
+	{
+		CellAddress cellAddress = null;
+		try
+		{
+			cellAddress = new CellAddress(row, col);
+		}
+		catch (IllegalArgumentException e)
+		{
+			Fsl.addErrorMessage("invalid_argument '" + " + Key.CELL.key() + " + "'");
+		}
+		return cellAddress;
+	}
+	
+	private static CellAddress createCellAddress(String address)
+	{
+		CellAddress cellAddress = null;
+		try
+		{
+			cellAddress = new CellAddress(address);
+			if (!isWithinSheetRange(cellAddress))
+			{
+				throw new Exception();
+			}
 		}
 		catch (Exception e)
 		{
-			addErrorMessage(e.getLocalizedMessage());
+			cellAddress = null;
+		}
+		return cellAddress;
+	}
+	
+	private static CellAddress createCellAddress(int row, int col)
+	{
+		CellAddress cellAddress = null;
+		try
+		{
+			cellAddress = new CellAddress(row, col);
+			if (!isWithinSheetRange(cellAddress))
+			{
+				throw new Exception();
+			}
+		}
+		catch (Exception e)
+		{
+			cellAddress = null;
+		}
+		return cellAddress;
+	}
+	
+	private static CellRangeAddress getCellRangeAddress(ObjectNode requestNode)
+	{
+		CellRangeAddress cellRangeAddress = null;
+		JsonNode rangeNode = requestNode.findPath(Key.RANGE.key());
+		if (Objects.nonNull(rangeNode))
+		{
+			CellAddress topLeftAddress = null;
+			CellAddress bottomRightAddress = null;
+			if (TextNode.class.isInstance(requestNode.get(Key.RANGE.key())))
+			{
+				String rangeAddress = TextNode.class.cast(requestNode.get(Key.RANGE.key())).asText();
+				if (rangeAddress.contains(":"))
+				{
+					String[] addresses = rangeAddress.split(":");
+					topLeftAddress = createCellAddress(addresses[0]);
+					bottomRightAddress = createCellAddress(addresses[1]);
+				}
+				else
+				{
+					topLeftAddress = createCellAddress(rangeAddress);
+					bottomRightAddress = createCellAddress(rangeAddress);
+				}
+			}
+			else if (ObjectNode.class.isInstance(rangeNode))
+			{
+				JsonNode topLeftNode = rangeNode.findPath(Key.TOP_LEFT.key());
+				if (TextNode.class.isInstance(topLeftNode))
+				{
+					String topLeft = TextNode.class.cast(topLeftNode).asText();
+					topLeftAddress = createCellAddress(topLeft);
+				}
+				else if (ObjectNode.class.isInstance(topLeftNode))
+				{
+					JsonNode topNode = topLeftNode.findPath(Key.TOP.key());
+					if (IntNode.class.isInstance(topNode))
+					{
+						int top = topNode.asInt();
+						JsonNode leftNode = topLeftNode.findPath(Key.LEFT.key());
+						if (IntNode.class.isInstance(leftNode))
+						{
+							int left = leftNode.asInt();
+							topLeftAddress = createCellAddress(top, left);
+						}
+						else
+						{
+							Fsl.addErrorMessage("invalid_argument '" + Key.LEFT.key() + "'");
+						}
+					}
+					else
+					{
+						Fsl.addErrorMessage("invalid_argument '" + Key.TOP.key() + "'");
+					}
+				}
+				JsonNode bottomRightNode = rangeNode.findPath(Key.BOTTOM_RIGHT.key());
+				if (TextNode.class.isInstance(bottomRightNode))
+				{
+					String bottomRight = TextNode.class.cast(bottomRightNode).asText();
+					bottomRightAddress = createCellAddress(bottomRight);
+				}
+				else if (ObjectNode.class.isInstance(bottomRightNode))
+				{
+					JsonNode bottomNode = topLeftNode.findPath(Key.BOTTOM.key());
+					if (IntNode.class.isInstance(bottomNode))
+					{
+						int bottom = bottomNode.asInt();
+						JsonNode rightNode = bottomRightNode.findPath(Key.RIGHT.key());
+						if (IntNode.class.isInstance(rightNode))
+						{
+							int right = rightNode.asInt();
+							bottomRightAddress = createCellAddress(bottom, right);
+						}
+						else
+						{
+							Fsl.addErrorMessage("invalid_argument '" + Key.RIGHT.key() + "'");
+						}
+					}
+					else
+					{
+						Fsl.addErrorMessage("invalid_argument '" + Key.BOTTOM.key() + "'");
+					}
+				}
+			}
+			else
+			{
+				Fsl.addErrorMessage("invalid_argument '" + Key.RANGE.key() + "'");
+			}
+			if (Objects.nonNull(topLeftAddress) && Objects.nonNull(bottomRightAddress))
+			{
+				cellRangeAddress = getCellRangeAddress(topLeftAddress, bottomRightAddress);
+			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
+		}
+		return cellRangeAddress;
+	}
+
+	private static CellAddress getCellAddress(JsonNode cellNode)
+	{
+		CellAddress cellAddress = null;
+		if (Objects.nonNull(cellNode))
+		{
+			if (TextNode.class.isInstance(cellNode))
+			{
+				cellAddress = getCellAddress(TextNode.class.cast(cellNode));
+			}
+			else if (ObjectNode.class.isInstance(cellNode))
+			{
+				cellAddress = getCellAddress(ObjectNode.class.cast(cellNode));
+			}
+			else
+			{
+				Fsl.addErrorMessage("invalid_argument '" + Key.CELL.key() + "'");
+			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("missing_argument '" + Key.CELL.key() + "'");
+		}
+		return cellAddress;
+	}
+
+	private static CellAddress getCellAddress(String address)
+	{
+		CellAddress cellAddress = null;
+		if (Objects.nonNull(address))
+		{
+			try
+			{
+				cellAddress = new CellAddress(address);
+				if (!isWithinSheetRange(cellAddress))
+				{
+					cellAddress = null;
+				}
+			}
+			catch (IllegalArgumentException e)
+			{
+				Fsl.addErrorMessage("invalid_argument '" + " + Key.CELL.key() + " + "'");
+			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("missing_argument '" + " + Key.CELL.key() + " + "'");
+		}
+		return cellAddress;
+	}
+
+	private static CellAddress getCellAddress(TextNode cellNode)
+	{
+		CellAddress cellAddress = null;
+		if (Objects.nonNull(cellNode))
+		{
+			String cell = cellNode.asText();
+			cellAddress = getCellAddress(cell);
+		}
+		else
+		{
+			Fsl.addErrorMessage("missing_argument '" + " + Key.CELL.key() + " + "'");
+		}
+		return cellAddress;
+	}
+
+	private static CellRangeAddress getCellRangeAddress(CellAddress address)
+	{
+		return getCellRangeAddress(address, address);
+	}
+
+	private static CellRangeAddress getCellRangeAddress(CellAddress firstAddress, CellAddress lastAddress)
+	{
+		int row1 = firstAddress.getRow();
+		int col1 = firstAddress.getColumn();
+		int row2 = lastAddress.getRow();
+		int col2 = lastAddress.getColumn();
+		return getCellRangeAddress(row1, row2, col1, col2);
+	}
+
+	private static CellRangeAddress getCellRangeAddress(int topRow, int bottomRow, int leftCol, int rightCol)
+	{
+		return new CellRangeAddress(Math.min(topRow, bottomRow), Math.max(topRow, bottomRow),
+				Math.min(leftCol, rightCol), Math.max(leftCol, rightCol));
+	}
+
+	private static CellRangeAddress getCellRangeAddress(JsonNode rangeNode)
+	{
+		CellRangeAddress rangeAddress = null;
+		if (TextNode.class.isInstance(rangeNode))
+		{
+			rangeAddress = getCellRangeAddress(TextNode.class.cast(rangeNode));
+		}
+		if (ObjectNode.class.isInstance(rangeNode))
+		{
+			rangeAddress = getCellRangeAddress(ObjectNode.class.cast(rangeNode));
+		}
+		return rangeAddress;
+	}
+	
+	private static CellRangeAddress getCellRangeAddress(TextNode rangeNode)
+	{
+		CellRangeAddress rangeAddress = null;
+		if (Objects.nonNull(rangeNode))
+		{
+			try
+			{
+				String[] cells = rangeNode.asText().split(":");
+				switch (cells.length)
+				{
+					case 1:
+					{
+						CellAddress address = new CellAddress(cells[0]);
+						rangeAddress = getCellRangeAddress(address, address);
+						break;
+					}
+					case 2:
+					{
+						CellAddress firstAddress = new CellAddress(cells[0]);
+						CellAddress lastAddress = new CellAddress(cells[1]);
+						rangeAddress = getCellRangeAddress(firstAddress, lastAddress);
+						break;
+					}
+					default:
+					{
+						Fsl.addErrorMessage("invalid_argument '" + Key.RANGE.key() + "'");
+					}
+				}
+			}
+			catch (Exception e)
+			{
+				Fsl.addErrorMessage("invalid_argument '" + Key.RANGE.key() + "'");
+			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("invalid_argument '" + Key.RANGE.key() + "'");
+		}
+		return rangeAddress;
+	}
+
+	private static Cell getOrCreateCell(Sheet sheet, CellAddress cellAddress)
+	{
+		if (isWithinSheetRange(cellAddress))
+		{
+			Row row = getOrCreateRow(sheet, cellAddress);
+		}
+		return getOrCreateCell(sheet, cellAddress);
+	}
+
+	private static Cell getOrCreateCell(Sheet sheet, String address)
+	{
+		Cell cell = null;
+		CellAddress cellAddress = new CellAddress(address);
+		if (isWithinSheetRange(cellAddress))
+		{
+			Row row = getOrCreateRow(sheet, cellAddress.getRow());
+			cell = row.createCell(cellAddress.getColumn());
+		}
+		else
+		{
+			Fsl.addErrorMessage("invalid_cell_address");
+		}
+		return cell;
+	}
+
+	private static Cell getOrCreateCell(Row row, int columnIndex)
+	{
+		if (Objects.nonNull(row))
+		{
+			
+		}
+		return getOrCreateCell(row, columnIndex, false);
+	}
+
+	private static Cell getOrCreateCell(Row row, int columnIndex, boolean bold)
+	{
+		Cell cell = row.getCell(columnIndex);
+		if (Objects.isNull(cell))
+		{
+			cell = row.createCell(columnIndex);
+		}
+		Font font = Xls.activeWorkbook.createFont();
+		font.setBold(bold);
+		CellStyle style = Xls.activeWorkbook.createCellStyle();
+		style.setFont(font);
+		return cell;
+	}
+
+	private static Row getOrCreateRow(Sheet sheet, CellAddress cellAddress)
+	{
+		Row row = null;
+		if (Objects.nonNull(sheet))
+		{
+			if (isWithinSheetRange(cellAddress))
+			{
+				row = sheet.getRow(cellAddress.getRow());
+				if (Objects.isNull(row))
+				{
+					row = sheet.createRow(cellAddress.getRow());
+				}
+			}
+		}
+		return row;
+	}
+
+	private static Row getOrCreateRow(Sheet sheet, int rowIndex)
+	{
+		Row row = null;
+		if (Objects.nonNull(sheet))
+		{
+			if (isWithinSheetRange(new CellAddress(rowIndex, 0)))
+			{
+				row = sheet.getRow(rowIndex);
+				if (Objects.isNull(row))
+				{
+					row = sheet.createRow(rowIndex);
+				}
+			}
+		}
+		return row;
+	}
+
+	private static Workbook getWorkbookIfPresent(JsonNode workbookNode)
+	{
+		Workbook workbook = null;
+		if (Objects.nonNull(workbookNode))
+		{
+			if (TextNode.class.isInstance(workbookNode))
+			{
+				workbook = Xls.workbooks.get(workbookNode.asText());
+			}
+			else
+			{
+				Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
+			}
+		}
+		else
+		{
+			if (Objects.nonNull(Xls.activeWorkbook))
+			{
+				workbook = Xls.activeWorkbook;
+			}
+			else
+			{
+				Fsl.addErrorMessage("missing_argument '" + Key.WORKBOOK.key() + "'");
+			}
+		}
+		return workbook;
+	}
+
+	private static Sheet getSheetIfPresent(JsonNode workbookNode, JsonNode sheetNode)
+	{
+		Sheet sheet = null;
+		Workbook workbook = getWorkbookIfPresent(workbookNode);
+		if (Objects.nonNull(workbook))
+		{
+			if (TextNode.class.isInstance(sheetNode))
+			{
+				sheet = workbook.getSheet(sheetNode.asText());
+			}
+			else if (IntNode.class.isInstance(sheetNode))
+			{
+				sheet = workbook.getSheetAt(sheetNode.asInt());
+			}
+			else
+			{
+				Fsl.addErrorMessage("invalid_argument '" + Key.SHEET.key() + "'");
+			}
+		}
+		return sheet;
+	}
+	
+	private static Sheet findSheet(Workbook workbook, JsonNode sheetNode)
+	{
+		Sheet sheet = null;
+		if (Objects.nonNull(workbook))
+		{
+			if (Objects.nonNull(sheetNode))
+			{
+				if (TextNode.class.isInstance(sheetNode))
+				{
+					sheet = workbook.getSheet(sheetNode.asText());
+				}
+				else if (IntNode.class.isInstance(sheetNode))
+				{
+					sheet = workbook.getSheetAt(sheetNode.asInt());
+				}
+				else
+				{
+					Fsl.addErrorMessage("invalid_argument '" + Key.SHEET.key() + "'");
+				}
+			}
+			else
+			{
+				Fsl.addErrorMessage("missing_argument '" + Key.SHEET.key() + "'");
+			}
+		}
+		return sheet;
+	}
+	
+	private static CellAddress getCellAddress(ObjectNode cellNode)
+	{
+		CellAddress cellAddress = null;
+		if (Objects.nonNull(cellNode))
+		{
+			JsonNode rowNode = cellNode.get(Key.ROW.key());
+			if (Objects.nonNull(rowNode))
+			{
+				if (IntNode.class.isInstance(rowNode))
+				{
+					int row = rowNode.asInt();
+						JsonNode colNode = cellNode.get(Key.COL.key());
+						if (Objects.nonNull(colNode))
+						{
+							if (IntNode.class.isInstance(colNode))
+							{
+								int col = colNode.asInt();
+								cellAddress = getCellAddress(row, col);
+							}
+							else
+							{
+								Fsl.addErrorMessage("invalid_argument '" + Key.COL.key() + "'");
+							}
+						}
+						else
+						{
+							Fsl.addErrorMessage("missing_argument '" + Key.COL.key() + "'");
+						}
+					}
+					else
+					{
+						Fsl.addErrorMessage("invalid_argument '" + Key.ROW.key() + "'");
+					}
+			}
+			else
+			{
+				Fsl.addErrorMessage("missing_argument '" + Key.ROW.key() + "'");
+			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("missing_argument '" + Key.CELL.key() + "'");
+		}
+		return cellAddress;
+	}
+
+	private static boolean isWithinSheetRange(CellAddress cellAddress)
+	{
+		return cellAddress.getRow() > -1
+				&& cellAddress.getRow() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxRows()
+				&& cellAddress.getColumn() > -1
+				&& cellAddress.getColumn() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxColumns();
+	}
+
+	private static boolean isWithinSheetRange(CellRangeAddress cellRangeAddress)
+	{
+		CellAddress firstAddress = new CellAddress(cellRangeAddress.getFirstRow(), cellRangeAddress.getFirstColumn());
+		CellAddress lastAddress = new CellAddress(cellRangeAddress.getLastRow(), cellRangeAddress.getLastColumn());
+		return isWithinSheetRange(firstAddress) && isWithinSheetRange(lastAddress);
+	}
+
+	private static boolean releaseWorkbook()
+	{
+		boolean result = Objects.nonNull(Xls.activeWorkbook);
+		if (result)
+		{
+			String name = null;
+			Set<Entry<String, Workbook>> workbooks = Xls.workbooks.entrySet();
+			Iterator<Entry<String, Workbook>> iterator = workbooks.iterator();
+			while (iterator.hasNext())
+			{
+				Entry<String, Workbook> workbook = iterator.next();
+				if (workbook == Xls.activeWorkbook)
+				{
+					name = workbook.getKey();
+					break;
+				}
+			}
+			result = Objects.nonNull(name);
+			if (result)
+			{
+				Xls.workbooks.remove(name);
+				Xls.activeWorkbook = null;
+			}
+		}
+		return result;
+	}
+
+	private static boolean releaseWorkbook(ObjectNode requestNode)
+	{
+		boolean result = Objects.nonNull(requestNode.get(Key.WORKBOOK.key()));
+		if (result)
+		{
+			if (TextNode.class.isInstance(requestNode.get(Key.WORKBOOK.key())))
+			{
+				Workbook workbook = Xls.workbooks.remove(TextNode.class.cast(requestNode.get(Key.WORKBOOK.key())));
+				if (Objects.nonNull(workbook))
+				{
+					if (workbook == Xls.activeWorkbook)
+					{
+						Xls.activeWorkbook = null;
+					}
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("missing_argument 'workbook'");
+				}
+			}
+		}
+		else
+		{
+			result = releaseWorkbook();
+		}
+		return result;
+	}
+
+	private static void releaseWorkbooks()
+	{
+		Xls.workbooks.clear();
+		Xls.activeWorkbook = null;
+	}
+
+	private static SpreadsheetVersion getVersion()
+	{
+		SpreadsheetVersion version = null;
+		if (workbooks.size() > 0)
+		{
+			version = workbooks.values().iterator().next().getSpreadsheetVersion();
+		}
+		return version;
+	}
+	
+	private static FormulaParsingWorkbook getFormulaParsingWorkbook(Sheet sheet)
+	{
+		FormulaParsingWorkbook workbookWrapper = null;
+		if (XSSFSheet.class.isInstance(sheet))
+		{
+			workbookWrapper = XSSFEvaluationWorkbook.create(XSSFSheet.class.cast(sheet).getWorkbook());
+		}
+		else
+		{
+			workbookWrapper = HSSFEvaluationWorkbook.create(HSSFSheet.class.cast(sheet).getWorkbook());
+		}
+		return workbookWrapper;
+	}
+
+	private static FormulaRenderingWorkbook getFormulaRenderingWorkbook(Sheet sheet)
+	{
+		FormulaRenderingWorkbook workbookWrapper = null;
+		if (XSSFSheet.class.isInstance(sheet))
+		{
+			workbookWrapper = XSSFEvaluationWorkbook.create(XSSFSheet.class.cast(sheet).getWorkbook());
+		}
+		else
+		{
+			workbookWrapper = HSSFEvaluationWorkbook.create(HSSFSheet.class.cast(sheet).getWorkbook());
+		}
+		return workbookWrapper;
+	}
+	
+	private static JsonNode findNode(ObjectNode requestNode, String name)
+	{
+		return requestNode.findParent(name);
+	}
+
+	protected static void copyCell(Cell sourceCell, Cell targetCell)
+	{
+		CellType cellType = sourceCell.getCellType();
+		switch (cellType)
+		{
+			case BLANK:
+				break;
+			case _NONE:
+				break;
+			case FORMULA:
+			{
+				String formula = sourceCell.getCellFormula();
+				CellAddress sourceCellAddress = new CellAddress(sourceCell);
+				CellAddress targetCellAddress = new CellAddress(targetCell);
+				int rowDiff = targetCellAddress.getRow() - sourceCellAddress.getRow();
+				int colDiff = targetCellAddress.getColumn() - sourceCellAddress.getColumn();
+				formula = copyFormula(sourceCell.getRow().getSheet(), formula, rowDiff, colDiff);
+				targetCell.setCellFormula(formula);
+				break;
+			}
+			default:
+			{
+				CellUtil.copyCell(sourceCell, targetCell, null, null);
+				break;
+			}
 		}
 	}
 
-	public static void save(Object[] parameters)
+	protected static String copyFormula(Sheet sheet, String formula, int rowDiff, int colDiff)
 	{
+		FormulaParsingWorkbook workbookWrapper = getFormulaParsingWorkbook(sheet);
+		Ptg[] ptgs = FormulaParser.parse(formula, workbookWrapper, FormulaType.CELL, sheet.getWorkbook().getSheetIndex(sheet));
+		for (int i = 0; i < ptgs.length; i++)
+		{
+			if (ptgs[i] instanceof RefPtgBase)
+			{ // base class for cell references
+				RefPtgBase ref = (RefPtgBase) ptgs[i];
+				if (ref.isRowRelative())
+				{
+					ref.setRow(ref.getRow() + rowDiff);
+				}
+				if (ref.isColRelative())
+				{
+					ref.setColumn(ref.getColumn() + colDiff);
+				}
+			}
+			else if (ptgs[i] instanceof AreaPtgBase)
+			{ // base class for range references
+				AreaPtgBase ref = (AreaPtgBase) ptgs[i];
+				if (ref.isFirstColRelative())
+				{
+					ref.setFirstColumn(ref.getFirstColumn() + colDiff);
+				}
+				if (ref.isLastColRelative())
+				{
+					ref.setLastColumn(ref.getLastColumn() + colDiff);
+				}
+				if (ref.isFirstRowRelative())
+				{
+					ref.setFirstRow(ref.getFirstRow() + rowDiff);
+				}
+				if (ref.isLastRowRelative())
+				{
+					ref.setLastRow(ref.getLastRow() + rowDiff);
+				}
+			}
+		}
+
+		formula = FormulaRenderer.toFormulaString(getFormulaRenderingWorkbook(sheet), ptgs);
+		return formula;
+	}
+
+	private static boolean saveFile(File file, Workbook workbook)
+	{
+		boolean result = true;
 		OutputStream os = null;
 		try
 		{
-			prepareWorkbookAndSheetIfMissing();
-			if (parameters.length < 1)
-			{
-				throw new IllegalArgumentException("Kein Dateipfad angegeben");
-			}
-			if (String.class.isInstance(parameters[0]))
-			{
-				path = Paths.get(String.class.cast(parameters[0]));
-				if (!path.toFile().getParentFile().isDirectory())
-				{
-					throw new IllegalArgumentException("Das Dateiverzeichnis ist ungültig");
-				}
-			}
-			File file = new File(parameters[0].toString());
 			os = new FileOutputStream(file);
 			workbook.write(os);
-			workbook.close();
-			workbook = null;
 		}
 		catch (Exception e)
 		{
-			addErrorMessage(e.getLocalizedMessage());
+			result = Fsl.addErrorMessage(e.getLocalizedMessage());
 		}
 		finally
 		{
-			if (!Objects.isNull(os))
+			if (Objects.nonNull(os))
 			{
 				try
 				{
@@ -1030,525 +2049,230 @@ public class Xls extends Executor<Xls>
 				{
 				}
 			}
-			if (!Objects.isNull(workbook))
-			{
-				try
-				{
-					workbook.close();
-				}
-				catch (Exception e)
-				{
-				}
-			}
 		}
+		return result;
 	}
 
-	public static void createDebtorReport(Object[] arguments)
+	private static boolean saveWorkbook(String path, Workbook workbook)
 	{
-		JsonNode json = null;
-		ObjectMapper mapper = new ObjectMapper();
-		try
+		boolean result = true;
+		if (Objects.nonNull(workbook))
 		{
-			int rowIndex = 0;
-			int startRow = 0;
-			int endRow = 0;
-			json = mapper.readTree(arguments[0].toString());
-			prepareWorkbookAndSheetIfMissing();
-
-			XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-			sheet.getPrintSetup().setLandscape(true);
-			try
+			if (Objects.nonNull(path))
 			{
-				String title = json.get("sheet").get("header").get("title").asText();
-				sheet.getHeader().setLeft(title);
+				result = saveFile(new File(path), workbook);
 			}
-			catch (Exception e)
+			else
 			{
+				result = Fsl.addErrorMessage("missing_argument 'path_name'");
 			}
-			try
-			{
-				String period = json.get("sheet").get("header").get("period").asText();
-				sheet.getHeader().setCenter(period);
-			}
-			catch (Exception e)
-			{
-			}
-			try
-			{
-				String from = json.get("sheet").get("header").get("from").asText();
-				String to = json.get("sheet").get("header").get("to").asText();
-				sheet.getHeader().setRight(from + " - " + to);
-			}
-			catch (Exception e)
-			{
-			}
-			try
-			{
-				sheet.getFooter().setCenter("Seite &P von &N");
-			}
-			catch (Exception e)
-			{
-			}
-
-			XSSFRow row = getOrCreateRow(rowIndex++);
-			Iterator<Entry<String, JsonNode>> columns = json.get("column").fields();
-			while (columns.hasNext())
-			{
-				Entry<String, JsonNode> column = columns.next();
-				getOrCreateCell(row, Integer.valueOf(column.getKey()), column.getValue().asText(), true);
-			}
-
-			JsonNode details = json.get("details");
-			Iterator<Entry<String, JsonNode>> types = details.fields();
-			while (types.hasNext())
-			{
-				Entry<String, JsonNode> type = types.next();
-				Iterator<Entry<String, JsonNode>> receipts = type.getValue().fields();
-				startRow = rowIndex;
-				String typeName = "";
-				while (receipts.hasNext())
-				{
-					row = getOrCreateRow(rowIndex++);
-					Entry<String, JsonNode> receipt = receipts.next();
-					Iterator<Entry<String, JsonNode>> receiptColumns = receipt.getValue().fields();
-					while (receiptColumns.hasNext())
-					{
-						Entry<String, JsonNode> receiptColumn = receiptColumns.next();
-						int columnIndex = Integer.valueOf(receiptColumn.getKey());
-						switch (columnIndex)
-						{
-						case 0:
-						{
-							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asText());
-							typeName = receiptColumn.getValue().asText();
-							break;
-						}
-						case 1:
-						{
-							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asText());
-							break;
-						}
-						case 2:
-						{
-							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asText());
-							break;
-						}
-						case 3:
-						{
-							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
-							break;
-						}
-						case 4:
-						{
-							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asText());
-							break;
-						}
-						case 5:
-						{
-							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
-							break;
-						}
-						case 6:
-						{
-							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
-							break;
-						}
-						case 7:
-						{
-							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
-							break;
-						}
-						case 8:
-						{
-							getOrCreateCell(new CellAddress(row.getRowNum(), columnIndex), receiptColumn.getValue().asDouble(), "0.00");
-							break;
-						}
-						default:
-						{
-//						throw new IllegalArgumentException("Ungültige Spaltennummer (" + String.valueOf(columnIndex) + ")");
-							break;
-						}
-						}
-					}
-					endRow = row.getRowNum();
-				}
-				row = getOrCreateRow(rowIndex++);
-				getOrCreateCell(new CellAddress(row.getRowNum(), 0), "Total " + typeName, true);
-				getOrCreateCell(new CellAddress(row.getRowNum(), 3), "SUM", new CellRangeAddress(startRow, endRow, 3, 3), "0.00", true);
-				getOrCreateCell(new CellAddress(row.getRowNum(), 5), "SUM", new CellRangeAddress(startRow, endRow, 5, 5), "0.00", true);
-				getOrCreateCell(new CellAddress(row.getRowNum(), 6), "SUM", new CellRangeAddress(startRow, endRow, 6, 6), "0.00", true);
-				getOrCreateCell(new CellAddress(row.getRowNum(), 7), "SUM", new CellRangeAddress(startRow, endRow, 7, 7), "0.00", true);
-				getOrCreateCell(new CellAddress(row.getRowNum(), 8), "SUM", new CellRangeAddress(startRow, endRow, 8, 8), "0.00", true);
-			}
-
-			for (int i = 0; i < 9; i++)
-			{
-				sheet.autoSizeColumn(i);
-			}
-			String reference = new CellRangeAddress(0, rowIndex, 0, 8).formatAsString();
-			workbook.setPrintArea(workbook.getActiveSheetIndex(), reference);
-			File file = new File(System.getProperty("user.home") + File.separator + "myWorkbook.xlsx");
-			save(new Object[] { file.getAbsolutePath() });
-		}
-		catch (Exception e)
-		{
-			addErrorMessage(e.getLocalizedMessage());
-		}
-	}
-
-	protected static void setCellStyle(XSSFCell cell, String styleFormat)
-	{
-		CellStyle style = workbook.createCellStyle();
-		DataFormat format = workbook.createDataFormat();
-		style.setDataFormat(format.getFormat(styleFormat));
-		cell.setCellStyle(style);
-	}
-
-	protected static void setSumCell(CellAddress startCellRange, CellAddress endCellRange, Target target)
-	{
-		prepareWorkbookAndSheetIfMissing();
-		XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-		if (target.equals(Target.SUM_COLUMN_VALUES))
-		{
-			for (int i = startCellRange.getColumn(); i < endCellRange.getColumn(); i++)
-			{
-				CellAddress startCellRow = new CellAddress(startCellRange.getRow(), i);
-				CellAddress endCellRow = new CellAddress(endCellRange.getRow(), i);
-				int targetCellRowIndex = endCellRange.getRow() + 1;
-				String formula = "SUM(" + startCellRow + ":" + endCellRow + ")";
-				XSSFRow row = sheet.getRow(targetCellRowIndex);
-				if (Objects.isNull(row))
-				{
-					row = sheet.createRow(targetCellRowIndex);
-				}
-				XSSFCell cell = row.getCell(i);
-				if (Objects.isNull(cell))
-				{
-					cell = row.createCell(i);
-				}
-				cell.setCellFormula(formula);
-				cell.setCellType(CellType.FORMULA);
-			}
-		}
-		else if (target.equals(Target.SUM_ROW_VALUES))
-		{
-			for (int i = startCellRange.getRow(); i < endCellRange.getRow(); i++)
-			{
-				CellAddress startCellColumn = new CellAddress(startCellRange.getRow(), i);
-				CellAddress endCellColumn = new CellAddress(endCellRange.getRow(), i);
-				int targetCellColumnIndex = endCellRange.getColumn() + 1;
-				String formula = "SUM(" + startCellColumn + ":" + endCellColumn + ")";
-				XSSFRow row = sheet.getRow(targetCellColumnIndex);
-				if (Objects.isNull(row))
-				{
-					row = sheet.createRow(targetCellColumnIndex);
-				}
-				XSSFCell cell = row.getCell(i);
-				if (Objects.isNull(cell))
-				{
-					cell = row.createCell(i);
-				}
-				cell.setCellFormula(formula);
-				cell.setCellType(CellType.FORMULA);
-			}
-		}
-	}
-
-	protected static void applyNumberStyleToCellRange(CellAddress startCellRange, CellAddress endCellRange, String style)
-	{
-		prepareWorkbookAndSheetIfMissing();
-		CellRangeAddress cellRange = new CellRangeAddress(startCellRange.getRow(), startCellRange.getColumn(), endCellRange.getRow(), endCellRange.getColumn());
-		XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-		XSSFCellStyle cellStyle = workbook.createCellStyle();
-		DataFormat dataFormat = workbook.createDataFormat();
-		cellStyle.setDataFormat(dataFormat.getFormat(style));
-		Iterator<CellAddress> cellAddresses = cellRange.iterator();
-		while (cellAddresses.hasNext())
-		{
-			CellAddress cellAddress = cellAddresses.next();
-			XSSFRow row = sheet.getRow(cellAddress.getRow());
-			if (Objects.isNull(row))
-			{
-				row = sheet.createRow(0);
-			}
-			XSSFCell cell = row.getCell(cellAddress.getColumn());
-			if (Objects.isNull(cell))
-			{
-				cell = row.createCell(cellAddress.getColumn());
-			}
-			cell.setCellStyle(cellStyle);
-		}
-
-	}
-
-	protected static void applyFontStyleToCellRange(CellAddress startCellRange, CellAddress endCellRange, int style) throws IllegalArgumentException
-	{
-		prepareWorkbookAndSheetIfMissing();
-		CellRangeAddress cellRange = new CellRangeAddress(startCellRange.getRow(), startCellRange.getColumn(), endCellRange.getRow(), endCellRange.getColumn());
-		XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-		XSSFCellStyle cellStyle = workbook.createCellStyle();
-		XSSFFont font = workbook.createFont();
-		if (style < 0 || style > 3)
-		{
-			throw new IllegalArgumentException("Ungültiger Fontstyle (gültig sind 0, 1, 2, 3)");
-		}
-		FontStyle fontStyle = FontStyle.values()[style];
-		fontStyle.setFontStyle(font);
-		cellStyle.setFont(font);
-		Iterator<CellAddress> cellAddresses = cellRange.iterator();
-		while (cellAddresses.hasNext())
-		{
-			CellAddress cellAddress = cellAddresses.next();
-			XSSFRow row = sheet.getRow(cellAddress.getRow());
-			if (Objects.isNull(row))
-			{
-				row = sheet.createRow(0);
-			}
-			XSSFCell cell = row.getCell(cellAddress.getColumn());
-			if (Objects.isNull(cell))
-			{
-				cell = row.createCell(cellAddress.getColumn());
-			}
-			cell.setCellStyle(cellStyle);
-		}
-
-	}
-
-	protected static void setCellValue(XSSFCell cell, Object parameter) throws IllegalArgumentException
-	{
-		if (Number.class.isAssignableFrom(parameter.getClass()))
-		{
-			String stringValue = parameter.toString();
-			Double value = Double.valueOf(stringValue);
-			cell.setCellValue(value.doubleValue());
-			cell.setCellType(CellType.NUMERIC);
-		}
-		else if (parameter.getClass().equals(Date.class))
-		{
-			Date value = Date.class.cast(parameter);
-			cell.setCellValue(value);
-			cell.setCellType(CellType.NUMERIC);
-		}
-		else if (Calendar.class.isAssignableFrom(parameter.getClass()))
-		{
-			Calendar value = Calendar.class.cast(parameter);
-			cell.setCellValue(value);
-			cell.setCellType(CellType.NUMERIC);
-		}
-		else if (parameter.getClass().equals(String.class))
-		{
-			String value = String.class.cast(parameter);
-			cell.setCellValue(value);
-			cell.setCellType(CellType.STRING);
 		}
 		else
 		{
-			throw new IllegalArgumentException("Falscher Parameter (erlaubt sind String, Datum, Number)");
+			result = Fsl.addErrorMessage("missing_argument 'workbook'");
 		}
+		return result;
 	}
 
-	protected static void prepareWorkbookIfMissing()
+	private static void setCellStyle(Cell cell, String styleFormat)
 	{
-		if (Objects.isNull(workbook))
-		{
-			workbook = new XSSFWorkbook();
-		}
-	}
-
-	protected static void prepareWorkbookAndSheetIfMissing()
-	{
-		if (Objects.isNull(workbook))
-		{
-			workbook = new XSSFWorkbook();
-		}
-		if (workbook.getNumberOfSheets() == 0)
-		{
-			XSSFSheet sheet = workbook.createSheet("Arbeitsblatt 1");
-			workbook.setActiveSheet(workbook.getSheetIndex(sheet));
-		}
-	}
-
-	protected static XSSFRow getOrCreateRow(int rowIndex)
-	{
-		XSSFSheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());
-		XSSFRow row = sheet.getRow(rowIndex);
-		if (Objects.isNull(row))
-		{
-			row = sheet.createRow(rowIndex);
-		}
-		return row;
-	}
-
-	protected static XSSFRow getOrCreateRow(XSSFSheet sheet, int rowIndex)
-	{
-		XSSFRow row = sheet.getRow(rowIndex);
-		if (Objects.isNull(row))
-		{
-			row = sheet.createRow(rowIndex);
-		}
-		return row;
-	}
-
-	protected static XSSFRow getOrCreateRow(CellAddress cellAddress)
-	{
-		return getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), cellAddress.getRow());
-	}
-
-	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex)
-	{
-		return getOrCreateCell(row, columnIndex, false);
-	}
-
-	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, boolean bold)
-	{
-		XSSFCell cell = row.getCell(columnIndex);
-		if (Objects.isNull(cell))
-		{
-			cell = row.createCell(columnIndex);
-		}
-		Font font = workbook.createFont();
-		font.setBold(bold);
-		CellStyle style = workbook.createCellStyle();
-		style.setFont(font);
-		return cell;
-	}
-
-	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, String value)
-	{
-		return getOrCreateCell(row, columnIndex, value, false);
-	}
-
-	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, String value, boolean bold)
-	{
-		XSSFCell cell = row.getCell(columnIndex);
-		if (Objects.isNull(cell))
-		{
-			cell = row.createCell(columnIndex);
-		}
-		CellStyle style = workbook.createCellStyle();
-		Font font = workbook.createFont();
-		font.setBold(bold);
-		style.setFont(font);
-		cell.setCellStyle(style);
-		cell.setCellType(CellType.STRING);
-		cell.setCellValue(new XSSFRichTextString(value));
-		return cell;
-	}
-
-	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, Double value, String styleFormat)
-	{
-		return getOrCreateCell(row, columnIndex, value, styleFormat, false);
-	}
-
-	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, Double value, String styleFormat, boolean bold)
-	{
-		XSSFCell cell = row.getCell(columnIndex);
-		if (Objects.isNull(cell))
-		{
-			cell = row.createCell(columnIndex);
-		}
-		CellStyle style = workbook.createCellStyle();
-		DataFormat format = workbook.createDataFormat();
-		Font font = workbook.createFont();
-		font.setBold(bold);
-		style.setFont(font);
+		CellStyle style = Xls.activeWorkbook.createCellStyle();
+		DataFormat format = Xls.activeWorkbook.createDataFormat();
 		style.setDataFormat(format.getFormat(styleFormat));
-		style.setAlignment(HorizontalAlignment.RIGHT);
-		cell.setCellType(CellType.NUMERIC);
-		cell.setCellValue(value);
 		cell.setCellStyle(style);
-		return cell;
 	}
 
-	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, String formula, CellRangeAddress range, String styleFormat)
+	private static Sheet setSheet(String name)
 	{
-		return getOrCreateCell(row, columnIndex, formula, range, styleFormat, false);
-	}
-
-	protected static XSSFCell getOrCreateCell(XSSFRow row, int columnIndex, String formula, CellRangeAddress range, String styleFormat, boolean bold)
-	{
-		XSSFCell cell = row.getCell(columnIndex);
-		if (Objects.isNull(cell))
+		Sheet sheet = null;
+		if (Objects.nonNull(name))
 		{
-			cell = row.createCell(columnIndex);
-		}
-		CellStyle style = workbook.createCellStyle();
-		DataFormat format = workbook.createDataFormat();
-		Font font = workbook.createFont();
-		font.setBold(bold);
-		style.setAlignment(HorizontalAlignment.RIGHT);
-		style.setFont(font);
-		style.setDataFormat(format.getFormat(styleFormat));
-		cell.setCellFormula(formula + "(" + range.formatAsString() + ")");
-		cell.setCellStyle(style);
-		return cell;
-	}
-
-	protected static XSSFCell getOrCreateCell(CellAddress cellAddress)
-	{
-		return getOrCreateCell(cellAddress, false);
-	}
-
-	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, boolean bold)
-	{
-		XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), cellAddress.getRow());
-		return getOrCreateCell(row, cellAddress.getColumn(), bold);
-	}
-
-	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, String value)
-	{
-		return getOrCreateCell(cellAddress, value, false);
-	}
-
-	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, String value, boolean bold)
-	{
-		XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), cellAddress.getRow());
-		return getOrCreateCell(row, cellAddress.getColumn(), value, bold);
-	}
-
-	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, String formula, CellRangeAddress range, String styleFormat)
-	{
-		return getOrCreateCell(cellAddress, formula, range, styleFormat, false);
-	}
-
-	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, String formula, CellRangeAddress range, String styleFormat, boolean bold)
-	{
-		XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), cellAddress.getRow());
-		return getOrCreateCell(row, cellAddress.getColumn(), formula, range, styleFormat, bold);
-	}
-
-	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, Double value, String styleFormat)
-	{
-		return getOrCreateCell(cellAddress, value, styleFormat, false);
-	}
-
-	protected static XSSFCell getOrCreateCell(CellAddress cellAddress, Double value, String styleFormat, boolean bold)
-	{
-		XSSFRow row = getOrCreateRow(Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()), cellAddress.getRow());
-		return getOrCreateCell(row, cellAddress.getColumn(), value, styleFormat, bold);
-	}
-
-	protected static boolean isSupportedFormula(XSSFCell cell)
-	{
-		if (cell.getCellType().equals(CellType.FORMULA))
-		{
-			String formula = cell.getCellFormula();
-			String[] parts = formula.split("(");
-			for (String supportedFormulaName : FunctionEval.getSupportedFunctionNames())
+			if (Objects.nonNull(Xls.activeWorkbook))
 			{
-				System.out.println(supportedFormulaName);
-				if (parts[0].equals(supportedFormulaName))
+				sheet = Xls.activeWorkbook.getSheet(name);
+				if (Objects.isNull(sheet))
 				{
-					return true;
+					Fsl.addErrorMessage("missing_sheet 'name'");
 				}
 			}
+			else
+			{
+				Fsl.addErrorMessage("missing_workbook");
+			}
 		}
-		return false;
+		else
+		{
+			Fsl.addErrorMessage("missing_parameter 'name'");
+		}
+		return sheet;
 	}
 
-	protected enum Target
+	private static boolean validateRangeAddress(SpreadsheetVersion spreadsheetVersion,
+			CellRangeAddress cellRangeAddress)
 	{
-		SUM_ROW_VALUES, SUM_COLUMN_VALUES;
+		boolean result = true;
+		if (Objects.nonNull(cellRangeAddress))
+		{
+			try
+			{
+				cellRangeAddress.validate(spreadsheetVersion);
+			}
+			catch (IllegalArgumentException e)
+			{
+				result = Fsl.addErrorMessage("invalid range");
+			}
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("missing range");
+		}
+		return result;
+	}
+	
+	private static CellRangeAddress getCellRangeAddress(CellRange<Cell> cellRange)
+	{
+		int top = cellRange.getTopLeftCell().getRowIndex();
+		int left = cellRange.getTopLeftCell().getColumnIndex();
+		int bottom = top + cellRange.getHeight();
+		int right = left + cellRange.getWidth();
+		return new CellRangeAddress(top, bottom, left, right);
+	}
+
+	public enum Key
+	{
+		// @formatter:off
+		ADDRESS("address"),
+		ALIGNMENT("alignment"),
+		BOTTOM_RIGHT("bottom_right"),
+		BOTTOM("bottom"),
+		CELL("cell"),
+		CENTER("center"),
+		COL("col"),
+		DIRECTION("direction"),
+		FORMAT("format"),
+		INDEX("index"),
+		ITEMS("items"),
+		LEFT("left"),
+		PATH_NAME("path_name"),
+		RANGE("range"),
+		RIGHT("right"),
+		ROTATION("rotation"),
+		ROW("row"),
+		SHEET("sheet"),
+		SOURCE("source"),
+		START("start"),
+		STYLE("style"),
+		TARGET("target"),
+		TOP("top"),
+		TOP_LEFT("top_left"),
+		VALUES("values"),
+		WORKBOOK("workbook");
+		// @formatter:on
+
+		private Key(String key)
+		{
+			this.key = key;
+		}
+
+		private String key;
+
+		public String key()
+		{
+			return key;
+		}
+	}
+
+	protected enum Direction
+	{
+		DOWN("down"), LEFT("left"), RIGHT("right"), UP("up"), DEFAULT("right");
+
+		private Direction(String value)
+		{
+			this.value = value;
+		}
+
+		private String value;
+
+		public String direction()
+		{
+			return this.value;
+		}
+
+		public CellAddress nextIndex(CellAddress cellAddress)
+		{
+			switch (this)
+			{
+				case LEFT:
+					return new CellAddress(cellAddress.getRow(), cellAddress.getColumn() - 1);
+				case RIGHT:
+					return new CellAddress(cellAddress.getRow(), cellAddress.getColumn() + 1);
+				case UP:
+					return new CellAddress(cellAddress.getRow() - 1, cellAddress.getColumn());
+				case DOWN:
+					return new CellAddress(cellAddress.getRow() + 1, cellAddress.getColumn());
+				case DEFAULT:
+					return new CellAddress(cellAddress.getRow(), cellAddress.getColumn() + 1);
+				default:
+					return new CellAddress(cellAddress.getRow(), cellAddress.getColumn() + 1);
+			}
+		}
+
+		public boolean validRange(CellAddress cellAddress, int numberOfCells)
+		{
+			switch (this)
+			{
+				case LEFT:
+				{
+					boolean valid = cellAddress.getColumn() - numberOfCells + 1 < 0 ? false : true;
+					if (!valid)
+					{
+						Fsl.addErrorMessage("minimal_horizontal_cell_position exceeds sheet's extent negatively");
+					}
+					return valid;
+				}
+				case RIGHT:
+				{
+					boolean valid = cellAddress.getColumn() + numberOfCells - 1 > Xls.activeWorkbook
+							.getSpreadsheetVersion().getLastColumnIndex() ? false : true;
+					if (!valid)
+					{
+						Fsl.addErrorMessage("maximal_horizontal_cell_position exceeds sheet's extent positively");
+					}
+					return valid;
+				}
+				case UP:
+				{
+					boolean valid = cellAddress.getRow() - numberOfCells + 1 < 0 ? false : true;
+					if (!valid)
+					{
+						Fsl.addErrorMessage("minimal_vertical_cell_position exceeds sheet's extent negatively");
+					}
+					return valid;
+				}
+				case DOWN:
+				{
+					boolean valid = cellAddress.getRow() + numberOfCells - 1 > Xls.activeWorkbook
+							.getSpreadsheetVersion().getLastRowIndex() ? false : true;
+					if (!valid)
+					{
+						Fsl.addErrorMessage("maximal_vertical_cell_position exceeds sheet's extent positively");
+					}
+					return valid;
+				}
+				case DEFAULT:
+				{
+					boolean valid = cellAddress.getColumn() + numberOfCells - 1 > Xls.activeWorkbook
+							.getSpreadsheetVersion().getLastColumnIndex() ? false : true;
+					if (!valid)
+					{
+						Fsl.addErrorMessage("maximal_horizontal_cell_position exceeds sheet's extent positively");
+					}
+					return valid;
+				}
+				default:
+					return false;
+			}
+		}
 	}
 
 	protected enum FontStyle
@@ -1559,62 +2283,49 @@ public class Xls extends Executor<Xls>
 		{
 			switch (this)
 			{
-			case NORMAL:
-			{
-				font.setBold(false);
-				font.setItalic(false);
-			}
-			case BOLD:
-			{
-				font.setBold(true);
-				font.setItalic(false);
-			}
-			case ITALIC:
-			{
-				font.setBold(false);
-				font.setItalic(true);
-			}
-			case BOLD_ITALIC:
-			{
-				font.setBold(true);
-				font.setItalic(true);
-			}
+				case NORMAL:
+				{
+					font.setBold(false);
+					font.setItalic(false);
+					break;
+				}
+				case BOLD:
+				{
+					font.setBold(true);
+					font.setItalic(false);
+					break;
+				}
+				case ITALIC:
+				{
+					font.setBold(false);
+					font.setItalic(true);
+					break;
+				}
+				case BOLD_ITALIC:
+				{
+					font.setBold(true);
+					font.setItalic(true);
+					break;
+				}
 			}
 		}
 	}
 
-	protected enum VerticalPosition
+	private enum BuiltinDataFormats
 	{
-		HEADER("Kopf"), FOOTER("Fuss");
 
-		private String verticalPosition;
-
-		private VerticalPosition(String verticalPosition)
-		{
-			this.verticalPosition = verticalPosition;
-		}
-
-		public String verticalPosition()
-		{
-			return this.verticalPosition;
-		}
 	}
 
-	protected enum HorizontalPosition
+	protected boolean isFunctionSupported(String function)
 	{
-		LEFT("Links"), CENTER("Mitte"), RIGHT("Rechts");
-
-		private String horizontalPosition;
-
-		private HorizontalPosition(String position)
+		int pos = function.indexOf("(");
+		if (pos > -1)
 		{
-			this.horizontalPosition = position;
+			String name = function.substring(0, pos - 1);
+			FunctionNameEval functionEval = new FunctionNameEval(name);
+			System.out.println(functionEval);
 		}
-
-		public String horizontalPosition()
-		{
-			return this.horizontalPosition;
-		}
+		return true;
 	}
 
 }

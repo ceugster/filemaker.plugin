@@ -123,7 +123,7 @@ public class DisplayHelper implements TestRule
 	{
 		if (display != null && displayOwner)
 		{
-			if (display.isDisposed())
+			if (!display.isDisposed())
 			{
 				display.dispose();
 			}

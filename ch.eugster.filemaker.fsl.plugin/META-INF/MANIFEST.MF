@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: FileMaker Plugin Bundle
 Bundle-SymbolicName: ch.eugster.filemaker.fsl.plugin;singleton:=true
-Bundle-Version: 1.0.12.qualifier
+Bundle-Version: 1.1.1.qualifier
 Bundle-Vendor: Christian Eugster
 Automatic-Module-Name: ch.eugster.camt
 Bundle-ActivationPolicy: lazy
@@ -27,11 +27,6 @@ Bundle-ClassPath: lib/commons-lang3-3.12.0.jar,
  lib/jaxb-runtime-3.0.2.jar,
  lib/stax2-api-4.2.1.jar,
  lib/woodstox-core-6.2.7.jar,
- lib/org.eclipse.ui_3.201.100.v20220826-1037.jar,
- lib/org.eclipse.core.runtime_3.24.100.v20220211-2001.jar,
- lib/org.eclipse.jface_3.25.0.v20220218-1636.jar,
- lib/org.eclipse.swt_3.119.0.v20220223-1102.jar,
- lib/org.eclipse.swt.cocoa.macosx.x86_64_3.119.0.v20220223-1102.jar,
  lib/jasypt-1.9.3.jar,
  lib/poi-5.2.2.jar,
  lib/poi-ooxml-5.2.2.jar,
@@ -54,5 +49,35 @@ Bundle-ClassPath: lib/commons-lang3-3.12.0.jar,
  lib/pw-iso20022-SRU2021-9.2.8.jar,
  lib/pw-swift-core-SRU2021-9.2.18.jar,
  .
-Import-Package: com.fasterxml.jackson.databind,
- org.eclipse.swt.widgets
+Main-Class: ch.eugster.filemaker.fsl.plugin.Fsl
+Require-Bundle: com.fasterxml.jackson.core.jackson-annotations;bundle-version="2.13.2",
+ com.fasterxml.jackson.core.jackson-core;bundle-version="2.13.2",
+ com.fasterxml.jackson.core.jackson-databind;bundle-version="2.13.2",
+ com.fasterxml.jackson.dataformat.jackson-dataformat-xml;bundle-version="2.13.2",
+ com.fasterxml.woodstox.woodstox-core;bundle-version="6.2.7",
+ com.google.gson;bundle-version="2.8.9",
+ com.google.guava;bundle-version="31.1.0",
+ com.sun.activation.javax.activation;bundle-version="1.2.0",
+ com.sun.xml.bind.jaxb-impl;bundle-version="2.3.6",
+ javax.activation-api;bundle-version="1.2.0",
+ jaxb-api;bundle-version="2.3.1",
+ org.apache.commons.commons-codec;bundle-version="1.15.0",
+ org.apache.commons.commons-collections4;bundle-version="4.4.0",
+ org.apache.commons.commons-compress;bundle-version="1.21.0",
+ org.apache.commons.commons-io;bundle-version="2.11.0",
+ org.apache.commons.lang3;bundle-version="3.12.0",
+ org.apache.commons.logging;bundle-version="1.2.0",
+ org.apache.commons.math3;bundle-version="3.6.1",
+ org.apache.logging.log4j.api;bundle-version="2.18.0",
+ org.apache.logging.log4j.core;bundle-version="2.18.0",
+ org.apache.pdfbox;bundle-version="2.0.24",
+ org.apache.pdfbox.fontbox;bundle-version="2.0.24",
+ org.eclipse.core.runtime;bundle-version="3.24.100",
+ org.eclipse.jface;bundle-version="3.25.0",
+ org.eclipse.swt;bundle-version="3.119.0",
+ org.eclipse.ui;bundle-version="3.201.100",
+ org.glassfish.jaxb.runtime;bundle-version="3.0.2",
+ org.reflections;bundle-version="0.10.2",
+ org.slf4j.api;bundle-version="1.7.30",
+ slf4j.api;bundle-version="1.7.36",
+ stax2-api;bundle-version="4.2.1"

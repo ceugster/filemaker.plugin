@@ -21,15 +21,6 @@ public class Parameters
 	@JsonProperty("message")
 	private String message;
 
-	@JsonProperty("database")
-	private Database database;
-
-	@JsonProperty("source")
-	private Source source;
-
-	@JsonProperty("target")
-	private Target target;
-
 	@JsonProperty("form")
 	private Form form;
 
@@ -107,36 +98,6 @@ public class Parameters
 		this.message = message;
 	}
 
-	public Database getDatabase()
-	{
-		return database;
-	}
-
-	public void setDatabase(Database database)
-	{
-		this.database = database;
-	}
-
-	public Source getSource()
-	{
-		return source;
-	}
-
-	public void setSource(Source source)
-	{
-		this.source = source;
-	}
-
-	public Target getTarget()
-	{
-		return target;
-	}
-
-	public void setTarget(Target target)
-	{
-		this.target = target;
-	}
-
 	public void setForm(Form form)
 	{
 		this.form = form;
@@ -172,29 +133,6 @@ public class Parameters
 		{
 			this.setCurrency(other.getCurrency());
 		}
-		Database database = other.getDatabase();
-		if (Objects.nonNull(database))
-		{
-			if (Objects.isNull(this.getDatabase()))
-			{
-				this.setDatabase(database);
-			}
-			else
-			{
-				if (Objects.nonNull(database.getUrl()))
-				{
-					this.getDatabase().setUrl(database.getUrl());
-				}
-				if (Objects.nonNull(database.getUsername()))
-				{
-					this.getDatabase().setUsername(database.getUsername());
-				}
-				if (Objects.nonNull(database.getPassword()))
-				{
-					this.getDatabase().setPassword(database.getPassword());
-				}
-			}
-		}
 		Form form = other.getForm();
 		if (Objects.nonNull(form))
 		{
@@ -229,72 +167,6 @@ public class Parameters
 		if (Objects.nonNull(other.getReference()))
 		{
 			this.setReference(other.getReference());
-		}
-		Source source = other.getSource();
-		if (Objects.nonNull(source))
-		{
-			if (Objects.isNull(this.getSource()))
-			{
-				this.setSource(source);
-			}
-			else
-			{
-				if (Objects.nonNull(source.getContainerCol()))
-				{
-					this.getSource().setContainerCol(source.getContainerCol());
-				}
-				if (Objects.nonNull(source.getPath()))
-				{
-					this.getSource().setPath(source.getPath());
-				}
-				if (Objects.nonNull(source.getTable()))
-				{
-					this.getSource().setTable(source.getTable());
-				}
-				if (Objects.nonNull(source.getWhereCol()))
-				{
-					this.getSource().setWhereCol(source.getWhereCol());
-				}
-				if (Objects.nonNull(source.getWhereVal()))
-				{
-					this.getSource().setWhereVal(source.getWhereVal());
-				}
-			}
-		}
-		Target target = other.getTarget();
-		if (Objects.nonNull(target))
-		{
-			if (Objects.isNull(this.getTarget()))
-			{
-				this.setTarget(target);
-			}
-			else
-			{
-				if (Objects.nonNull(target.getContainerCol()))
-				{
-					this.getTarget().setContainerCol(target.getContainerCol());
-				}
-				if (Objects.nonNull(target.getNameCol()))
-				{
-					this.getTarget().setNameCol(target.getNameCol());
-				}
-				if (Objects.nonNull(target.getPath()))
-				{
-					this.getTarget().setPath(target.getPath());
-				}
-				if (Objects.nonNull(target.getTable()))
-				{
-					this.getTarget().setTable(target.getTable());
-				}
-				if (Objects.nonNull(target.getWhereCol()))
-				{
-					this.getTarget().setWhereCol(target.getWhereCol());
-				}
-				if (Objects.nonNull(target.getWhereVal()))
-				{
-					this.getTarget().setWhereVal(target.getWhereVal());
-				}
-			}
 		}
 		Creditor creditor = other.getCreditor();
 		if (Objects.nonNull(creditor))

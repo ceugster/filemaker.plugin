@@ -3,94 +3,123 @@ package ch.eugster.filemaker.fsl.plugin.converter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Objects;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
+import ch.eugster.filemaker.fsl.plugin.Fsl;
 
 public class Converter extends Executor<Converter>
 {
 	/**
 	 * Converts xml String to Json String
 	 * 
-	 * @param parameters
+	 * @param requestNode
+	 * @param responseNode
 	 * 
-	 * @param parameters[0] xml String
+	 * @returns json or pathname
 	 */
-	public static void convertXmlToJson(Object[] parameters)
+	public static void convertXmlToJson(JsonNode requestNode, ObjectNode responseNode)
 	{
-		try
+		String xmlContent = null;
+		JsonNode xml = requestNode.get(Key.XML_CONTENT.key());
+		if (Objects.nonNull(xml) && xml.isTextual()) 
 		{
-			String json = null;
-			String source = null;
-			XmlMapper xmlMapper = new XmlMapper();
-			if (parameters.length < 1)
-			{
-				throw new IllegalArgumentException("Parameter fehlt");
-			}
-			if (!parameters[0].getClass().equals(String.class))
-			{
-				throw new IllegalArgumentException("Ungültiger Parameter (muss vom Typ String sein)");
-			}
-			try
-			{
-				ObjectMapper objectMapper = new ObjectMapper();
-				JsonNode sourceNode = objectMapper.readTree(parameters[0].toString());
-				source = sourceNode.get(Parameter.SOURCE_XML.key()).asText();
-				json = xmlMapper.readTree(source).toString();
-			}
-			catch (Exception e)
+			xmlContent = xml.asText();
+		}
+		else
+		{
+			xml = requestNode.get(Key.XML_SOURCE_FILE.key());
+			if (Objects.nonNull(xml) && xml.isTextual()) 
 			{
 				try
 				{
-					Path path = Paths.get(source);
-					if (path.toFile().canRead())
-					{
-						List<String> lines = Files.readAllLines(path);
-						if (!Objects.isNull(lines) && lines.size() > 0)
-						{
-							StringBuilder builder = new StringBuilder();
-							for (String line : lines)
-							{
-								builder.append(line);
-							}
-							source = builder.toString();
-							json = xmlMapper.readTree(source).toString();
-						}
-					}
+					Path path = Paths.get(xml.asText());
+					StringBuilder builder = new StringBuilder();
+					List<String> lines = Files.readAllLines(path);
+					lines.forEach(line -> builder.append(line));
+					xmlContent = builder.toString();
 				}
-				catch (Exception e2)
+				catch (Exception e)
 				{
-					source = parameters[0].toString();
-					json = xmlMapper.readTree(source).toString();
+					Fsl.addErrorMessage("unknown_source_file '" + Key.XML_SOURCE_FILE.key() + "'");
 				}
 			}
-			if (Objects.isNull(json))
-			{
-				throw new IllegalArgumentException("Ungültiger Parameter");
-			}
-			putValue(Parameter.TARGET_JSON.key(), json);
 		}
-		catch (Exception e)
+		if (Objects.nonNull(xmlContent)) 
 		{
-			addErrorMessage(e);
+			try
+			{
+				XmlMapper mapper = new XmlMapper();
+				JsonNode jsonContent = mapper.readTree(xmlContent);
+				JsonNode json = requestNode.get(Key.JSON_TARGET_FILE.key());
+				if (Objects.isNull(json)) 
+				{
+					responseNode.put(Executor.RESULT, jsonContent.toString());
+				}
+				else if (json.isTextual())
+				{
+					String pathname = json.asText();
+					Path path = Paths.get(json.asText());
+//					if (Files.isWritable(path))
+//					{
+						Files.write(path, jsonContent.toString().getBytes(), StandardOpenOption.CREATE);
+						responseNode.put(Executor.RESULT, pathname);
+//					}
+//					else
+//					{
+//						Fsl.addErrorMessage("json_target_file_not_writeable '" + Parameter.JSON_TARGET_FILE.key() + "'");
+//					}
+				}
+				else
+				{
+					Fsl.addErrorMessage("wrong_variable_type '" + Key.XML_TARGET_FILE.key() + "'");
+				}
+			}
+			catch (Exception e)
+			{
+				Fsl.addErrorMessage(e.getLocalizedMessage());
+			}
+		}
+		else
+		{
+			Fsl.addErrorMessage("invalid_xml_content");
 		}
 	}
 
-	public enum Parameter
+	public static void convertWordToPdf(Object[] parameters)
+	{
+//		InputStream source = new File(String.valueOf(parameters[0])); 
+//		OutputStream target = new File(String.valueOf(parameters[1]));
+//		IConverter converter = LocalConverter.builder().build();
+//		if (converter
+//				.convert(source).as(DocumentType.MS_WORD)
+//		        .to(target).as(DocumentType.PDF)
+//		        .execute())
+//		{
+//			
+//		}
+	}
+
+	public enum Key
 	{
 		// @formatter:off
-		SOURCE_XML("source_xml"),
-		TARGET_JSON("target_json");
+		XML_SOURCE_FILE("xml_source_file"),
+		XML_TARGET_FILE("xml_target_file"),
+		XML_CONTENT("xml_content"),
+		JSON_SOURCE_FILE("json_source_file"),
+		JSON_TARGET_FILE("json_target_file"),
+		JSON_CONTENT("json_content");
 		// @formatter:on
 
 		private String key;
 
-		private Parameter(String key)
+		private Key(String key)
 		{
 			this.key = key;
 		}

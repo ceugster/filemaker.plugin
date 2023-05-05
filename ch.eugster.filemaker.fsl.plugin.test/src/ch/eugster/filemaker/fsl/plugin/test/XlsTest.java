@@ -1,22 +1,30 @@
 package ch.eugster.filemaker.fsl.plugin.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Objects;
 
+import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.formula.eval.FunctionEval;
-import org.apache.poi.ss.usermodel.CellCopyPolicy;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.util.CellAddress;
+import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -28,641 +36,1312 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 
+import ch.eugster.filemaker.fsl.plugin.Executor;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
 import ch.eugster.filemaker.fsl.plugin.xls.Xls;
 
 public class XlsTest extends Xls
 {
-	private ObjectMapper mapper = new ObjectMapper();
+	private static ObjectMapper MAPPER = new ObjectMapper();
 
-	private static final String WORKBOOK_1 = "./workbook1.xlsx";
-
-	private static final String SHEET_0 = "Arbeitsblatt 1";
+	private static final String WORKBOOK_1 = "workbook1";
 
 	@BeforeAll
 	public static void beforeAll()
 	{
-		File directory = new File(".");
-		File[] workbooks = directory.listFiles(new FilenameFilter()
-		{
-			@Override
-			public boolean accept(File dir, String name)
-			{
-				return name.startsWith("workbook");
-			}
-		});
-		for (File workbook : workbooks)
-		{
-			workbook.delete();
-		}
+//		File directory = new File("targets");
+//		File[] targets = directory.listFiles();
+//		for (File target : targets)
+//		{
+//			target.delete();
+//		}
 	}
 
 	@BeforeEach
 	public void beforeEach()
 	{
-		clearWorkbook();
+		releaseAllWorkbooks();
 	}
 
 	@AfterAll
 	public static void afterAll()
 	{
+		releaseWorkbooks(MAPPER.createObjectNode(), MAPPER.createObjectNode());
 	}
 
 	@AfterEach
 	public void afterEach()
 	{
-		clearWorkbook();
+		releaseWorkbook(MAPPER.createObjectNode(), MAPPER.createObjectNode());
+	}
+
+	@Test
+	public void testCallableMethods() throws Exception
+	{
+		String response = Fsl.execute("Xls.getCallableMethods", "{}");
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		ArrayNode methods = ArrayNode.class.cast(responseNode.get("methods"));
+		for (int i = 0; i < methods.size(); i++)
+		{
+			System.out.println(methods.get(i).asText());
+		}
 	}
 
 	@Test
 	public void testCreateWorkbook() throws Exception
 	{
-		String result = Fsl.execute("Xls.createWorkbook", new Object[] { WORKBOOK_1 });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		assertEquals(XSSFWorkbook.class, Xls.workbook.getClass());
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+
+		String result = Fsl.execute("Xls.createWorkbook", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(result);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(WORKBOOK_1, responseNode.get(Key.WORKBOOK.key()).asText());
+		assertNotNull(Xls.workbooks.get(WORKBOOK_1));
 	}
 
 	@Test
-	public void testCreateAlreadyExistingWorkbook() throws Exception
+	public void testCreateWorkbookWithoutName() throws Exception
 	{
-		Xls.workbook = new XSSFWorkbook();
-		String result = Fsl.execute("Xls.createWorkbook", new Object[] { WORKBOOK_1 });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Die Arbeitsmappe ist bereits vorhanden", resultNode.get("errors").get(0).asText());
+		ObjectNode requestNode = MAPPER.createObjectNode();
+
+		String response = Fsl.execute("Xls.createWorkbook", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals("missing_argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
-	public void testCreateWorkbookWithoutPath() throws Exception
+	public void testCreateWorkbookWhenAlreadyExisting() throws Exception
 	{
-		String result = Fsl.execute("Xls.createWorkbook", new Object[0]);
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Kein Dateipfad angegeben", resultNode.get("errors").get(0).asText());
+		Xls.workbooks.put(WORKBOOK_1, new XSSFWorkbook());
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+
+		String response = Fsl.execute("Xls.createWorkbook", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Executor.ERRORS).size());
+		assertEquals("workbook_already_exists", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
-	public void testCreateWorkbookInvalidPath() throws Exception
+	public void testCreateAndActivateWorkbookWithoutName() throws Exception
 	{
-		String result = Fsl.execute("Xls.createWorkbook", new Object[] { "Völlig /< * ? : \falscher Pfad" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Das Dateiverzeichnis ist ungültig", resultNode.get("errors").get(0).asText());
+		ObjectNode requestNode = MAPPER.createObjectNode();
+
+		String response = Fsl.execute("Xls.createAndActivateWorkbook", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(3, responseNode.get(Executor.ERRORS).size());
+		assertEquals("missing_argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
-	public void testCreateWorkbookMissingParentDirectory() throws Exception
+	public void testCreateAndActivateWorkbookAlreadyExistingWorkbook() throws Exception
 	{
-		String result = Fsl.execute("Xls.createWorkbook", new Object[] { System.getProperty("user.home") + "/blabla/wb.xlsx" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Das Dateiverzeichnis ist ungültig", resultNode.get("errors").get(0).asText());
+		Xls.workbooks.put(WORKBOOK_1, new XSSFWorkbook());
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+
+		String response = Fsl.execute("Xls.createAndActivateWorkbook", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Executor.ERRORS).size());
+		assertEquals("workbook_already_exists", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
 	public void testCreateSheet() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Xls.createSheet", new Object[] { SHEET_0 });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		assertEquals(SHEET_0, Xls.workbook.getSheet(SHEET_0).getSheetName());
+		prepareWorkbookIfMissing();
+
+		String response = Fsl.execute("Xls.createSheet", "{}");
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(SHEET0, responseNode.get(Key.SHEET.key()).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
 	@Test
 	public void testCreateSheetAlreadyExisting() throws JsonMappingException, JsonProcessingException
 	{
-		Xls.workbook = new XSSFWorkbook();
-		Xls.workbook.createSheet(SHEET_0);
-		String result = Fsl.execute("Xls.createSheet", new Object[] { SHEET_0 });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("The workbook already contains a sheet named '" + SHEET_0 + "'", resultNode.get("errors").get(0).asText());
+		prepareWorkbookAndSheetIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.SHEET.key(), "Sheet0");
+
+		String response = Fsl.execute("Xls.createSheet", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals("sheet_already_exists 'sheet'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
-	public void testSetActiveSheet() throws JsonMappingException, JsonProcessingException
+	public void testActivateSheetByIndex() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Xls.setActiveSheet", new Object[] { Integer.valueOf(0) });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		assertEquals(SHEET_0, Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getSheetName());
-		result = Fsl.execute("Xls.setActiveSheet", new Object[] { SHEET_0 });
-		resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		assertEquals(SHEET_0, Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getSheetName());
+		prepareWorkbookAndSheetIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.SHEET.key(), 0);
+
+		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(SHEET0, responseNode.get(Key.SHEET.key()).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
 	@Test
-	public void testSetNotExistingSheetActive() throws JsonMappingException, JsonProcessingException
+	public void testActivateSheetByName() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Xls.setActiveSheet", new Object[] { Integer.valueOf(0) });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		result = Fsl.execute("Xls.setActiveSheet", new Object[] { SHEET_0 });
-		resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
+		prepareWorkbookAndSheetIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.SHEET.key(), SHEET0);
+
+		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(SHEET0, responseNode.get(Key.SHEET.key()).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+	
+	@Test
+	public void testActivateSheetWithoutParameter() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+
+		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals("missing_sheet", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
-	public void testSetActiveSheetWithoutWorkbook() throws JsonMappingException, JsonProcessingException
+	public void testActivateNotExistingSheet() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Xls.setActiveSheet", new Object[] { Integer.valueOf(0) });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		result = Fsl.execute("Xls.setActiveSheet", new Object[] { SHEET_0 });
-		resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
+		prepareWorkbookIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.SHEET.key(), SHEET0);
+
+		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals("missing_sheet", responseNode.get(Executor.ERRORS).get(0).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.SHEET.key(), 0);
+
+		response = Fsl.execute("Xls.activateSheet", requestNode.toString());
+
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals("missing_sheet", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
-	public void testSetHeadingsHorizontal() throws JsonMappingException, JsonProcessingException
+	public void testActivateSheetWithoutWorkbook() throws JsonMappingException, JsonProcessingException
 	{
-		int startColumnIndex = 3;
-		Object[] parameters = new Object[] { 0, startColumnIndex, "Column1", "Column2", "Column3", "Column4", "Column5" };
-		Xls.setHeadingsHorizontal(parameters);
-		assertEquals(0, Xls.workbook.getSheetAt(0).getFirstRowNum());
-		for (int i = 0; i < parameters.length - startColumnIndex; i++)
+		releaseWorkbook(MAPPER.createObjectNode(), MAPPER.createObjectNode());
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put("name", SHEET0);
+
+		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals("missing_argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put("index", 0);
+
+		response = Fsl.execute("Xls.activateSheet", requestNode.toString());
+
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals("missing_argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
+	}
+
+	@Test
+	public void testSetCellsRight() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		CellAddress cellAddress = new CellAddress("B2");
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
+		requestNode.set(Key.CELL.key(), startNode);
+		TextNode directionNode = requestNode.textNode(Direction.RIGHT.direction());
+		requestNode.set("direction", directionNode);
+
+		ArrayNode valuesNode = requestNode.arrayNode();
+		valuesNode.add("Title");
+		valuesNode.add(1);
+		valuesNode.add(2);
+		valuesNode.add(3);
+		valuesNode.add(4);
+		valuesNode.add("SUM(C2:F2)");
+		requestNode.set("values", valuesNode);
+		requestNode.put("path", "targets/test.xlsx");
+
+		String response = Fsl.execute("Xls.setCells", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
+				.getNumericCellValue(), 0);
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testSetCellsRightOneCell() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		CellAddress cellAddress = new CellAddress("B2");
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		TextNode firstNode = requestNode.textNode(cellAddress.formatAsString());
+		requestNode.set(Key.CELL.key(), firstNode);
+
+		ArrayNode valuesNode = requestNode.arrayNode();
+		valuesNode.add("Title");
+		requestNode.set("values", valuesNode);
+		requestNode.put("path", "targets/CellsRightOneCell.xlsx");
+
+		String response = Fsl.execute("Xls.setCells", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals("Title", Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1)
+				.getCell(1).getStringCellValue());
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testSetCellsLeft() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		CellAddress cellAddress = new CellAddress("G3");
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
+		requestNode.set(Key.CELL.key(), startNode);
+		TextNode directionNode = requestNode.textNode("left");
+		requestNode.set("direction", directionNode);
+
+		ArrayNode valuesNode = requestNode.arrayNode();
+		valuesNode.add("Title");
+		valuesNode.add(1);
+		valuesNode.add(2);
+		valuesNode.add(3);
+		valuesNode.add(4);
+		valuesNode.add("SUM(C3:F3)");
+		requestNode.set("values", valuesNode);
+		requestNode.put("path", "targets/test.xlsx");
+
+		String response = Fsl.execute("Xls.setCells", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1)
+				.getNumericCellValue(), 0);
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testSetCellsUp() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		CellAddress cellAddress = new CellAddress("I30");
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
+		requestNode.set(Key.CELL.key(), startNode);
+		TextNode directionNode = requestNode.textNode(Direction.UP.direction());
+		requestNode.set("direction", directionNode);
+
+		ArrayNode valuesNode = requestNode.arrayNode();
+		valuesNode.add("Title");
+		valuesNode.add(1);
+		valuesNode.add(2);
+		valuesNode.add(3);
+		valuesNode.add(4);
+		valuesNode.add("SUM(I26:I29)");
+		requestNode.set("values", valuesNode);
+		requestNode.put("path", "targets/test.xlsx");
+
+		String response = Fsl.execute("Xls.setCells", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(24).getCell(8)
+				.getNumericCellValue(), 0);
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testSetCellsDown() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		CellAddress cellAddress = new CellAddress("K3");
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
+		requestNode.set(Key.CELL.key(), startNode);
+		TextNode directionNode = requestNode.textNode(Direction.DOWN.direction());
+		requestNode.set("direction", directionNode);
+
+		ArrayNode valuesNode = requestNode.arrayNode();
+		valuesNode.add("Title");
+		valuesNode.add(1);
+		valuesNode.add(2);
+		valuesNode.add(3);
+		valuesNode.add(4);
+		valuesNode.add("SUM(K4:K7)");
+		requestNode.set("values", valuesNode);
+		requestNode.put("path", "targets/test.xlsx");
+
+		String response = Fsl.execute("Xls.setCells", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
+				.getNumericCellValue(), 0);
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testSetCellsWithAddressValues() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		CellAddress cellAddress = new CellAddress("K3");
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode cellNode = requestNode.objectNode();
+		cellNode.put(Key.ROW.key(), cellAddress.getRow());
+		cellNode.put(Key.COL.key(), cellAddress.getColumn());
+		requestNode.set(Key.CELL.key(), cellNode);
+		TextNode directionNode = requestNode.textNode(Direction.DOWN.direction());
+		requestNode.set("direction", directionNode);
+
+		ArrayNode valuesNode = requestNode.arrayNode();
+		valuesNode.add("Title");
+		valuesNode.add(1);
+		valuesNode.add(2);
+		valuesNode.add(3);
+		valuesNode.add(4);
+		valuesNode.add("SUM(K4:K7)");
+		requestNode.set("values", valuesNode);
+		requestNode.put("path", "targets/test.xlsx");
+
+		String response = Fsl.execute("Xls.setCells", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
+				.getNumericCellValue(), 0);
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testSetCellsWithoutDirection() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		CellAddress cellAddress = new CellAddress("B2");
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
+		requestNode.set(Key.CELL.key(), startNode);
+
+		ArrayNode valuesNode = requestNode.arrayNode();
+		valuesNode.add("Title");
+		valuesNode.add(1);
+		valuesNode.add(2);
+		valuesNode.add(3);
+		valuesNode.add(4);
+		valuesNode.add("SUM(C2:F2)");
+		requestNode.set("values", valuesNode);
+		requestNode.put("path", "targets/test.xlsx");
+
+		String response = Fsl.execute("Xls.setCells", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
+				.getNumericCellValue(), 0);
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testCopyFormula()
+	{
+		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		Row row = sheet.createRow(2);
+		Cell cell = row.createCell(2);
+		cell.setCellValue(1D);
+		cell = row.createCell(3);
+		cell.setCellValue(2D);
+		cell = row.createCell(4);
+		cell.setCellFormula("C3/D3");
+
+		row = sheet.createRow(3);
+		cell = row.createCell(2);
+		cell.setCellValue(3D);
+		cell = row.createCell(3);
+		cell.setCellValue(4D);
+		cell = row.createCell(4);
+		cell.setCellFormula("$C4/D$4");
+
+		row = sheet.createRow(4);
+		cell = row.createCell(2);
+		cell.setCellValue(5D);
+		cell = row.createCell(3);
+		cell.setCellValue(6D);
+		cell = row.createCell(4);
+		cell.setCellFormula("SUM(C3:D5)");
+
+		row = sheet.createRow(5);
+		cell = row.createCell(2);
+		cell.setCellValue(7D);
+		cell = row.createCell(3);
+		cell.setCellValue(8D);
+		cell = row.createCell(4);
+		cell.setCellFormula("SUM(C$3/$D6)");
+
+		row = sheet.createRow(6);
+		cell = row.createCell(2);
+		cell.setCellValue(9D);
+		cell = row.createCell(3);
+		cell.setCellValue(10D);
+		cell = row.createCell(4);
+		cell.setCellFormula("C3+SUM(C3:D7)");
+
+		row = sheet.createRow(7);
+		cell = row.createCell(2);
+		cell.setCellValue(11D);
+		cell = row.createCell(3);
+		cell.setCellValue(12D);
+		cell = row.createCell(4);
+		cell.setCellFormula("C$3+SUM($C3:D$8)");
+
+		for (Row r : sheet)
 		{
-			assertEquals("Column" + String.valueOf(i + 1), Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(0).getCell(startColumnIndex + i).getRichStringCellValue().getString());
+			for (Cell c : r)
+			{
+				if (c.getCellType() == CellType.FORMULA)
+				{
+					CellAddress source = c.getAddress();
+					String formula = c.getCellFormula();
+					System.out.print(source + "=" + formula);
+					int rowdiff = 3;
+					int coldiff = -2;
+					CellAddress target = new CellAddress(source.getRow() + rowdiff, source.getColumn() + coldiff);
+					String newformula = copyFormula(sheet, formula, coldiff, rowdiff);
+					System.out.println("->" + target + "=" + newformula);
+				}
+			}
 		}
-		parameters = new Object[] { "D1", "Column1", "Column2", "Column3", "Column4", "Column5" };
-		Xls.setHeadingsHorizontal(parameters);
-		assertEquals(0, Xls.workbook.getSheetAt(0).getFirstRowNum());
-		for (int i = 0; i < parameters.length - startColumnIndex; i++)
-		{
-			assertEquals("Column" + String.valueOf(i + 1), Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(0).getCell(startColumnIndex + i).getRichStringCellValue().getString());
-		}
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put("path", "./targets/test.xlsx");
+		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 	}
 
 	@Test
-	public void testCreateWorkbookUsingFsl() throws JsonMappingException, JsonProcessingException
+	public void testCopySingleFormulaCellToSingleCell() throws IOException
 	{
-		String result = Fsl.execute("Xls.createWorkbook", new Object[] { WORKBOOK_1 });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
+		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = getActiveSheet();
+		Row row0 = sheet.createRow(0);
+		Cell cell = row0.createCell(0);
+		cell.setCellValue(23.5);
+		Row row1 = sheet.createRow(1);
+		cell = row1.createCell(0);
+		cell.setCellValue(76.5);
+		Row row2 = sheet.createRow(2);
+		cell = row2.createCell(0);
+		cell.setCellFormula("SUM(A1:A2)");
+		cell = row0.createCell(1);
+		cell.setCellValue(12.5);
+		cell = row1.createCell(1);
+		cell.setCellValue(12.5);
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		TextNode sourceNode = requestNode.textNode("A3");
+		requestNode.set("source", sourceNode);
+
+		TextNode targetNode = requestNode.textNode("B3");
+		requestNode.set("target", targetNode);
+
+		String response = Fsl.execute("Xls.copy", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
+		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
+
+		requestNode.put("path", "./targets/test.xlsx");
+		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
 	@Test
-	public void testCreateAlreadyExistingWorkbookUsingFsl() throws Exception
+	public void testCopySingleFormulaCellToMultipleCells() throws IOException
 	{
-		Xls.workbook = new XSSFWorkbook();
-		String result = Fsl.execute("Xls.createWorkbook", new Object[] { WORKBOOK_1 });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Die Arbeitsmappe ist bereits vorhanden", resultNode.get("errors").get(0).asText());
+		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = getActiveSheet();
+		Row row0 = sheet.createRow(0);
+		Cell cell = row0.createCell(0);
+		cell.setCellValue(23.5);
+		Row row1 = sheet.createRow(1);
+		cell = row1.createCell(0);
+		cell.setCellValue(76.5);
+		Row row2 = sheet.createRow(2);
+		cell = row2.createCell(0);
+		cell.setCellFormula("SUM(A1:A2)");
+		cell = row0.createCell(1);
+		cell.setCellValue(12.5);
+		cell = row1.createCell(1);
+		cell.setCellValue(12.5);
+		cell = row0.createCell(2);
+		cell.setCellFormula("A3");
+		cell = row1.createCell(2);
+		cell.setCellFormula("B3");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		TextNode sourceNode = requestNode.textNode("A3");
+		requestNode.set("source", sourceNode);
+
+		TextNode targetNode = requestNode.textNode("B3:C3");
+		requestNode.set("target", targetNode);
+
+		String response = Fsl.execute("Xls.copy", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
+
+		requestNode.put("path", "./targets/test.xlsx");
+		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
 	@Test
-	public void testCreateWorkbookWithoutPathUsingFsl() throws Exception
+	public void testCopySingleFormulaCellToMultipleCellsWithAddresses() throws IOException
 	{
-		String result = Fsl.execute("Xls.createWorkbook", new Object[0]);
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Kein Dateipfad angegeben", resultNode.get("errors").get(0).asText());
+		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = getActiveSheet();
+		Row row0 = sheet.createRow(0);
+		Cell cell = row0.createCell(0);
+		cell.setCellValue(23.5);
+		Row row1 = sheet.createRow(1);
+		cell = row1.createCell(0);
+		cell.setCellValue(76.5);
+		Row row2 = sheet.createRow(2);
+		cell = row2.createCell(0);
+		cell.setCellFormula("SUM(A1:A2)");
+		cell = row0.createCell(1);
+		cell.setCellValue(12.5);
+		cell = row1.createCell(1);
+		cell.setCellValue(12.5);
+		cell = row0.createCell(2);
+		cell.setCellFormula("A3");
+		cell = row1.createCell(2);
+		cell.setCellFormula("B3");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode sourceNode = requestNode.objectNode();
+		sourceNode.put(Key.TOP_LEFT.key(), "A3");
+		sourceNode.put(Key.BOTTOM_RIGHT.key(), "A3");
+		requestNode.set("source", sourceNode);
+
+		ObjectNode targetNode = requestNode.objectNode();
+		targetNode.put(Key.TOP_LEFT.key(), "B3");
+		targetNode.put(Key.BOTTOM_RIGHT.key(), "C3");
+		requestNode.set("target", targetNode);
+
+		String response = Fsl.execute("Xls.copy", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
+
+		requestNode.put("path", "./targets/test.xlsx");
+		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
 	@Test
-	public void testCreateWorkbookInvalidPathUsingFsl() throws Exception
+	public void testCopySingleFormulaCellToMultipleCellsWithInts() throws IOException
 	{
-		String result = Fsl.execute("Xls.createWorkbook", new Object[] { "Völlig /< * ? : \falscher Pfad" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Das Dateiverzeichnis ist ungültig", resultNode.get("errors").get(0).asText());
-	}
+		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = getActiveSheet();
+		Row row0 = sheet.createRow(0);
+		Cell cell = row0.createCell(0);
+		cell.setCellValue(23.5);
+		Row row1 = sheet.createRow(1);
+		cell = row1.createCell(0);
+		cell.setCellValue(76.5);
+		Row row2 = sheet.createRow(2);
+		cell = row2.createCell(0);
+		cell.setCellFormula("SUM(A1:A2)");
+		cell = row0.createCell(1);
+		cell.setCellValue(12.5);
+		cell = row1.createCell(1);
+		cell.setCellValue(12.5);
+		cell = row0.createCell(2);
+		cell.setCellFormula("A3");
+		cell = row1.createCell(2);
+		cell.setCellFormula("B3");
 
-	@Test
-	public void testCreateWorkbookMissingParentDirectoryUsingFsl() throws Exception
-	{
-		String result = Fsl.execute("Xls.createWorkbook", new Object[] { System.getProperty("user.home") + "/blabla/wb.xlsx" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Das Dateiverzeichnis ist ungültig", resultNode.get("errors").get(0).asText());
-	}
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode sourceNode = requestNode.objectNode();
+		sourceNode.put(Key.TOP.key(), 2);
+		sourceNode.put(Key.LEFT.key(), 0);
+		sourceNode.put(Key.BOTTOM.key(), 2);
+		sourceNode.put(Key.RIGHT.key(), 0);
+		requestNode.set("source", sourceNode);
 
-	@Test
-	public void testCreateSheetUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		String result = Fsl.execute("Xls.createSheet", new Object[] { SHEET_0 });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-	}
+		ObjectNode targetNode = requestNode.objectNode();
+		targetNode.put(Key.TOP.key(), 2);
+		targetNode.put(Key.LEFT.key(), 1);
+		targetNode.put(Key.BOTTOM.key(), 2);
+		targetNode.put(Key.RIGHT.key(), 2);
+		requestNode.set("target", targetNode);
 
-	@Test
-	public void testSetActiveSheetUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		String result = Fsl.execute("Xls.setActiveSheet", new Object[] { SHEET_0 });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-	}
+		String response = Fsl.execute("Xls.copy", requestNode.toString());
 
-	@Test
-	public void testUseNonExistingSheetUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		String result = Fsl.execute("Xls.setActiveSheet", new Object[] { Integer.valueOf(0) });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		result = Fsl.execute("Xls.setActiveSheet", new Object[] { SHEET_0 });
-		resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-	}
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-	@Test
-	public void testSetHeadingsHorizontalUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		int startColumnIndex = 3;
-		Object[] parameters = new Object[] { 0, startColumnIndex, "Column1", "Column2", "Column3", "Column4", "Column5" };
-		String result = Fsl.execute("Xls.setHeadingsHorizontal", parameters);
-		JsonNode resultNode = mapper.readTree(result);
-		resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		assertEquals(0, Xls.workbook.getSheetAt(0).getFirstRowNum());
-		for (int i = 0; i < parameters.length - startColumnIndex; i++)
-		{
-			assertEquals("Column" + String.valueOf(i + 1), Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(0).getCell(startColumnIndex + i).getRichStringCellValue().getString());
-		}
-		parameters = new Object[] { "D1", "Column1", "Column2", "Column3", "Column4", "Column5" };
-		result = Fsl.execute("Xls.setHeadingsHorizontal", parameters);
-		resultNode = mapper.readTree(result);
-		resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		assertEquals(0, Xls.workbook.getSheetAt(0).getFirstRowNum());
-		for (int i = 0; i < parameters.length - startColumnIndex; i++)
-		{
-			assertEquals("Column" + String.valueOf(i + 1), Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(0).getCell(startColumnIndex + i).getRichStringCellValue().getString());
-		}
-	}
-
-	@Test
-	public void testSetCellValueUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		String result = Fsl.execute("Xls.setCellValue", new Object[] { 1, 0, 23D });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		assertEquals(23D, Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(1).getCell(0).getNumericCellValue(), 0.1);
-		result = Fsl.execute("Xls.setCellValue", new Object[] { "A2", 23D });
-		resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		assertEquals(23D, Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(1).getCell(0).getNumericCellValue(), 0.1);
-	}
-
-	@Test
-	public void testSetCellValueWithInvalidRowUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		String result = Fsl.execute("Xls.setCellValue", new Object[] { -120, 120, 23D });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Invalid row number (-120) outside allowable range (0..1048575)", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetCellValueWithInvalidCellRowUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		String result = Fsl.execute("Xls.setCellValue", new Object[] { "QZ", 23D });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("For input string: \"\"", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetCellValueWithInvalidColumnUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		String result = Fsl.execute("Xls.setCellValue", new Object[] { 120, -120, 23D });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Cell index must be >= 0", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetCellValueWithInvalidCellColumnUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		String result = Fsl.execute("Xls.setCellValue", new Object[] { "Q-2", 23D });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Cannot invoke \"org.apache.poi.xssf.usermodel.XSSFRow.getCell(int)\" because \"row\" is null", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetRowValuesUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		Calendar calendar = GregorianCalendar.getInstance();
-		calendar.set(Calendar.DAY_OF_MONTH, 1);
-		calendar.set(Calendar.MONTH, 1);
-		calendar.set(Calendar.YEAR, 2022);
-		calendar.set(Calendar.HOUR, 0);
-		calendar.set(Calendar.MINUTE, 0);
-		calendar.set(Calendar.SECOND, 0);
-		calendar.set(Calendar.MILLISECOND, 0);
-		Object[] parameters = new Object[2];
-		parameters[0] = new Object[] { 1, 0, 23D, calendar, "Test" };
-		parameters[1] = new Object[] { "A2", 23D, calendar, "Test" };
-		for (Object parameter : parameters)
-		{
-			String result = Fsl.execute("Xls.setRowValues", Object[].class.cast(parameter));
-			JsonNode resultNode = mapper.readTree(result);
-			assertEquals("OK", resultNode.get("result").asText());
-			assertEquals(23D, Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(1).getCell(0).getNumericCellValue(), 0.1);
-			assertEquals(calendar.getTime(), Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(1).getCell(1).getDateCellValue());
-			assertEquals("Test", Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(1).getCell(2).getRichStringCellValue().getString());
-		}
-	}
-
-	@Test
-	public void testSetRowValuesInvalidRowUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		Calendar calendar = GregorianCalendar.getInstance();
-		calendar.set(Calendar.DAY_OF_MONTH, 1);
-		calendar.set(Calendar.MONTH, 1);
-		calendar.set(Calendar.YEAR, 2022);
-		calendar.set(Calendar.HOUR, 0);
-		calendar.set(Calendar.MINUTE, 0);
-		calendar.set(Calendar.SECOND, 0);
-		calendar.set(Calendar.MILLISECOND, 0);
-		String result = Fsl.execute("Xls.setRowValues", new Object[] { -1, 0, 23D, calendar, "Test" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Invalid row number (-1) outside allowable range (0..1048575)", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetRowValuesInvalidCellRowUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		Calendar calendar = GregorianCalendar.getInstance();
-		calendar.set(Calendar.DAY_OF_MONTH, 1);
-		calendar.set(Calendar.MONTH, 1);
-		calendar.set(Calendar.YEAR, 2022);
-		calendar.set(Calendar.HOUR, 0);
-		calendar.set(Calendar.MINUTE, 0);
-		calendar.set(Calendar.SECOND, 0);
-		calendar.set(Calendar.MILLISECOND, 0);
-		String result = Fsl.execute("Xls.setRowValues", new Object[] { "A 2", 23D, calendar, "Test" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Cell index must be >= 0", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetRowValuesInvalidValueTypeUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		Calendar calendar = GregorianCalendar.getInstance();
-		calendar.set(Calendar.DAY_OF_MONTH, 1);
-		calendar.set(Calendar.MONTH, 1);
-		calendar.set(Calendar.YEAR, 2022);
-		calendar.set(Calendar.HOUR, 0);
-		calendar.set(Calendar.MINUTE, 0);
-		calendar.set(Calendar.SECOND, 0);
-		calendar.set(Calendar.MILLISECOND, 0);
-		String result = Fsl.execute("Xls.setRowValues", new Object[] { "A2", new Object(), calendar, "Test" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Falscher Parameter (erlaubt sind String, Datum, Number)", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetColumnValuesUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		Calendar calendar = GregorianCalendar.getInstance();
-		calendar.set(Calendar.DAY_OF_MONTH, 1);
-		calendar.set(Calendar.MONTH, 1);
-		calendar.set(Calendar.YEAR, 2022);
-		calendar.set(Calendar.HOUR, 0);
-		calendar.set(Calendar.MINUTE, 0);
-		calendar.set(Calendar.SECOND, 0);
-		calendar.set(Calendar.MILLISECOND, 0);
-		Object[] parameters = new Object[2];
-		parameters[0] = new Object[] { 1, 0, 23D, calendar, "Test" };
-		parameters[1] = new Object[] { "A2", 23D, calendar, "Test" };
-		for (Object parameter : parameters)
-		{
-			String result = Fsl.execute("Xls.setRowValues", Object[].class.cast(parameter));
-			JsonNode resultNode = mapper.readTree(result);
-			assertEquals("OK", resultNode.get("result").asText());
-			assertEquals(23D, Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(1).getCell(0).getNumericCellValue(), 0.1);
-			assertEquals(calendar.getTime(), Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(1).getCell(1).getDateCellValue());
-			assertEquals("Test", Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex()).getRow(1).getCell(2).getRichStringCellValue().getString());
-		}
-	}
-
-	@Test
-	public void testSetColumnValuesInvalidRowUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		Calendar calendar = GregorianCalendar.getInstance();
-		calendar.set(Calendar.DAY_OF_MONTH, 1);
-		calendar.set(Calendar.MONTH, 1);
-		calendar.set(Calendar.YEAR, 2022);
-		calendar.set(Calendar.HOUR, 0);
-		calendar.set(Calendar.MINUTE, 0);
-		calendar.set(Calendar.SECOND, 0);
-		calendar.set(Calendar.MILLISECOND, 0);
-		String result = Fsl.execute("Xls.setRowValues", new Object[] { -1, 0, 23D, calendar, "Test" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Invalid row number (-1) outside allowable range (0..1048575)", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetColumnValuesInvalidCellRowUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		Calendar calendar = GregorianCalendar.getInstance();
-		calendar.set(Calendar.DAY_OF_MONTH, 1);
-		calendar.set(Calendar.MONTH, 1);
-		calendar.set(Calendar.YEAR, 2022);
-		calendar.set(Calendar.HOUR, 0);
-		calendar.set(Calendar.MINUTE, 0);
-		calendar.set(Calendar.SECOND, 0);
-		calendar.set(Calendar.MILLISECOND, 0);
-		String result = Fsl.execute("Xls.setRowValues", new Object[] { "A 2", 23D, calendar, "Test" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Cell index must be >= 0", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetColumnValuesInvalidValueTypeUsingFsl() throws JsonMappingException, JsonProcessingException
-	{
-		Calendar calendar = GregorianCalendar.getInstance();
-		calendar.set(Calendar.DAY_OF_MONTH, 1);
-		calendar.set(Calendar.MONTH, 1);
-		calendar.set(Calendar.YEAR, 2022);
-		calendar.set(Calendar.HOUR, 0);
-		calendar.set(Calendar.MINUTE, 0);
-		calendar.set(Calendar.SECOND, 0);
-		calendar.set(Calendar.MILLISECOND, 0);
-		String result = Fsl.execute("Xls.setRowValues", new Object[] { "A2", new Object(), calendar, "Test" });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("Fehler", resultNode.get("result").asText());
-		assertEquals("Falscher Parameter (erlaubt sind String, Datum, Number)", resultNode.get("errors").get(0).asText());
-	}
-
-	@Test
-	public void testSetCellFunctionUsingFsl() throws IOException
-	{
-		Xls.workbook = new XSSFWorkbook();
-		XSSFSheet sheet = Xls.workbook.createSheet(SHEET_0);
-		for (int i = 0; i < 10; i++)
-		{
-			XSSFRow row = getOrCreateRow(sheet, i);
-			XSSFCell cell = getOrCreateCell(row, 0);
-			cell.setCellValue(i);
-			cell = getOrCreateCell(row, 1);
-			cell.setCellValue(i + 3);
-		}
-		Object[] parameters = new Object[2];
-		parameters[0] = new Object[] { 10, 0, "SUM(A1:A10)" };
-		parameters[1] = new Object[] { "A11", "SUM(A1:A10)" };
-		for (Object parameter : parameters)
-		{
-			String result = Fsl.execute("Xls.setCellFormula", Object[].class.cast(parameter));
-			JsonNode resultNode = mapper.readTree(result);
-			assertEquals("OK", resultNode.get("result").asText());
-			FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-			XSSFRow row = sheet.getRow(10);
-			XSSFCell cell = row.getCell(0);
-			evaluator.evaluateFormulaCell(cell);
-			assertEquals(45.0, cell.getNumericCellValue(), 0.1);
-			XSSFCell copiedCell = getOrCreateCell(row, cell.getColumnIndex() + 1);
-			copiedCell.copyCellFrom(cell, new CellCopyPolicy());
-			copiedCell.setAsActiveCell();
-		}
-	}
-
-	@Test
-	public void testCopyAndShiftCellFunctionUsingFsl() throws IOException
-	{
-		testSetCellFunctionUsingFsl();
-		Object[] parameters = new Object[] { 10, 0, 10, 1 };
-		int[] columns = new int[] { 0, 1 };
-		Double[] expectations = new Double[] { 45.0, 75.0 };
-		checkCopyAndShifts(parameters, columns, expectations, 1);
-	}
-
-	@Test
-	public void testCopyAndShiftCellFunctionRangeUsingFsl() throws IOException
-	{
-		testSetCellFunctionUsingFsl();
-		Object[] parameters = new Object[] { 10, 0, 10, 1, 10, 2 };
-		int[] columns = new int[] { 0, 1, 2 };
-		Double[] expectations = new Double[] { 45.0, 75.0, 0.0 };
-		checkCopyAndShifts(parameters, columns, expectations, 2);
-	}
-
-	@Test
-	public void testCopyAndShiftCellFunctionWithCellAddressUsingFsl() throws IOException
-	{
-		testSetCellFunctionUsingFsl();
-		Object[] parameters = new Object[] { "A11", "B11" };
-		int[] columns = new int[] { 0, 1 };
-		Double[] expectations = new Double[] { 45.0, 75.0 };
-		checkCopyAndShifts(parameters, columns, expectations, 3);
-	}
-
-	@Test
-	public void testCopyAndShiftCellFunctionWithCellAddressRangeUsingFsl() throws IOException
-	{
-		testSetCellFunctionUsingFsl();
-		Object[] parameters = new Object[] { "A11", "B11", "C11" };
-		int[] columns = new int[] { 0, 1, 2 };
-		Double[] expectations = new Double[] { 45.0, 75.0, 0.0 };
-		checkCopyAndShifts(parameters, columns, expectations, 4);
-	}
-
-	private void checkCopyAndShifts(Object[] parameters, int[] columns, Double[] expectations, int number) throws IOException
-	{
-		XSSFSheet sheet = Xls.workbook.getSheetAt(Xls.workbook.getActiveSheetIndex());
-		String result = Fsl.execute("Xls.copyAndShiftFormulaCell", parameters);
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-		XSSFRow row = sheet.getRow(10);
-		for (int i = 0; i < columns.length; i++)
-		{
-			XSSFCell cell = row.getCell(columns[i]);
-			evaluator.evaluateFormulaCell(cell);
-			assertEquals(expectations[i], cell.getNumericCellValue(), 0.1);
-
-		}
-		OutputStream os = new FileOutputStream(new File("workbook" + String.valueOf(number) + ".xlsx"));
-		Xls.workbook.write(os);
-		os.close();
+		requestNode.put("path", "./targets/test.xlsx");
+		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
 	@Test
 	public void testSupportedFormulaNames()
 	{
-		for (String supportedFormulaName : FunctionEval.getSupportedFunctionNames())
+		for (String supportedFormulaName : FunctionEval.getNotSupportedFunctionNames())
 		{
 			System.out.println(supportedFormulaName);
 		}
 	}
 
 	@Test
+	public void testFunctionSupported()
+	{
+		String function = "SUM(A1:B2)";
+		int pos = function.indexOf("(");
+		if (pos > -1)
+		{
+			String name = function.substring(0, pos);
+			for (String supportedFormulaName : FunctionEval.getSupportedFunctionNames())
+			{
+				if (supportedFormulaName.equals(name))
+				{
+					assertTrue(true);
+					return;
+				}
+			}
+		}
+		assertFalse(true);
+	}
+
+	@Test
 	public void testSave() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Xls.save", WORKBOOK_1);
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		assertTrue(new File(WORKBOOK_1).exists());
+		prepareWorkbookIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+		requestNode.put(Key.PATH_NAME.key(), "./targets/test.xlsx");
+		String result = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+		JsonNode resultNode = MAPPER.readTree(result);
+		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
+		assertTrue(new File("./targets/test.xlsx").exists());
 	}
 
 	@Test
 	public void testSetHeaderFooter() throws JsonMappingException, JsonProcessingException
 	{
-		String result = Fsl.execute("Xls.setHeaders", "Header links", "Header mitte", "Header rechts");
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
-		result = Fsl.execute("Xls.setFooters", "Footer links", "Footer mitte", "Footerrechts");
-		resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
+		prepareWorkbookAndSheetIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.LEFT.key(), "Header links");
+		requestNode.put(Key.CENTER.key(), "Header Mitte");
+		requestNode.put(Key.RIGHT.key(), "Header rechts");
+
+		String response = Fsl.execute("Xls.setHeaders", requestNode.toString());
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals("Header links",
+				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getHeader().getLeft());
+		assertEquals("Header Mitte",
+				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getHeader().getCenter());
+		assertEquals("Header rechts",
+				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getHeader().getRight());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.LEFT.key(), "Footer links");
+		requestNode.put(Key.CENTER.key(), "Footer Mitte");
+		requestNode.put(Key.RIGHT.key(), "Footer rechts");
+
+		response = Fsl.execute("Xls.setFooters", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals("Footer links",
+				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getFooter().getLeft());
+		assertEquals("Footer Mitte",
+				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getFooter().getCenter());
+		assertEquals("Footer rechts",
+				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getFooter().getRight());
+
 		testSave();
 	}
 
 	@Test
-	public void testCreateDebtorReport() throws JsonMappingException, JsonProcessingException
+	public void testApplyFontStylesToCell() throws EncryptedDocumentException, IOException
 	{
-		String json = "{\"column\":{\"0\":\"Rechnungsart\",\"1\":\"Nummer\",\"2\":\"Datum\",\"3\":\"Betrag\",\"4\":\"MWST-Basis\",\"5\":\"R (2.5%)\",\"6\":\"N (7.7%)\",\"7\":\"S (3.7%)\",\"8\":\"Bezahlt\"},\"details\":{\"buchung\":{\"100\":{\"0\":\"Buchung\",\"1\":\"R-0000100\",\"2\":\"09.09.2022\",\"3\":1380,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1380},\"140\":{\"0\":\"Buchung\",\"1\":\"R-0000140\",\"2\":\"02.09.2022\",\"3\":1570,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1570},\"141\":{\"0\":\"Buchung\",\"1\":\"R-0000141\",\"2\":\"05.09.2022\",\"3\":809,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":809},\"142\":{\"0\":\"Buchung\",\"1\":\"R-0000142\",\"2\":\"05.09.2022\",\"3\":809,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":809},\"145\":{\"0\":\"Buchung\",\"1\":\"R-0000145\",\"2\":\"16.09.2022\",\"3\":1840,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1840},\"147\":{\"0\":\"Buchung\",\"1\":\"R-0000147\",\"2\":\"06.09.2022\",\"3\":680,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":680},\"149\":{\"0\":\"Buchung\",\"1\":\"R-0000149\",\"2\":\"07.09.2022\",\"3\":809,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":809},\"166\":{\"0\":\"Buchung\",\"1\":\"R-0000166\",\"2\":\"08.09.2022\",\"3\":1180,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1180},\"167\":{\"0\":\"Buchung\",\"1\":\"R-0000167\",\"2\":\"12.09.2022\",\"3\":1958,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1958},\"195\":{\"0\":\"Buchung\",\"1\":\"R-0000195\",\"2\":\"12.09.2022\",\"3\":1129,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1129},\"196\":{\"0\":\"Buchung\",\"1\":\"R-0000196\",\"2\":\"12.09.2022\",\"3\":809,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":809},\"197\":{\"0\":\"Buchung\",\"1\":\"R-0000197\",\"2\":\"12.09.2022\",\"3\":809,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":809},\"211\":{\"0\":\"Buchung\",\"1\":\"R-0000211\",\"2\":\"13.09.2022\",\"3\":1580,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1580},\"241\":{\"0\":\"Buchung\",\"1\":\"R-0000241\",\"2\":\"15.09.2022\",\"3\":1100,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1100},\"242\":{\"0\":\"Buchung\",\"1\":\"R-0000242\",\"2\":\"16.09.2022\",\"3\":1280,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1280},\"250\":{\"0\":\"Buchung\",\"1\":\"R-0000250\",\"2\":\"19.09.2022\",\"3\":1180,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1180},\"253\":{\"0\":\"Buchung\",\"1\":\"R-0000253\",\"2\":\"19.09.2022\",\"3\":480,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":480},\"254\":{\"0\":\"Buchung\",\"1\":\"R-0000254\",\"2\":\"19.09.2022\",\"3\":1290,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1290},\"260\":{\"0\":\"Buchung\",\"1\":\"R-0000260\",\"2\":\"20.09.2022\",\"3\":1158,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1158},\"261\":{\"0\":\"Buchung\",\"1\":\"R-0000261\",\"2\":\"20.09.2022\",\"3\":1100,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1100},\"262\":{\"0\":\"Buchung\",\"1\":\"R-0000262\",\"2\":\"20.09.2022\",\"3\":640,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":640},\"272\":{\"0\":\"Buchung\",\"1\":\"R-0000272\",\"2\":\"21.09.2022\",\"3\":170,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":170},\"2743\":{\"0\":\"Buchung\",\"1\":\"R-0002743\",\"2\":\"05.09.2022\",\"3\":1838,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1838},\"280\":{\"0\":\"Buchung\",\"1\":\"R-0000280\",\"2\":\"21.09.2022\",\"3\":240,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":240},\"281\":{\"0\":\"Buchung\",\"1\":\"R-0000281\",\"2\":\"22.09.2022\",\"3\":680,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":680},\"282\":{\"0\":\"Buchung\",\"1\":\"R-0000282\",\"2\":\"22.09.2022\",\"3\":580,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":580},\"286\":{\"0\":\"Buchung\",\"1\":\"R-0000286\",\"2\":\"22.09.2022\",\"3\":1380,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1380},\"287\":{\"0\":\"Buchung\",\"1\":\"R-0000287\",\"2\":\"23.09.2022\",\"3\":1900,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1900},\"288\":{\"0\":\"Buchung\",\"1\":\"R-0000288\",\"2\":\"23.09.2022\",\"3\":340,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":340},\"292\":{\"0\":\"Buchung\",\"1\":\"R-0000292\",\"2\":\"27.09.2022\",\"3\":1958,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1958},\"2924\":{\"0\":\"Buchung\",\"1\":\"R-0002924\",\"2\":\"06.09.2022\",\"3\":1059,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1059},\"295\":{\"0\":\"Buchung\",\"1\":\"R-0000295\",\"2\":\"19.09.2022\",\"3\":3000,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":3000},\"297\":{\"0\":\"Buchung\",\"1\":\"R-0000297\",\"2\":\"26.09.2022\",\"3\":1380,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1380},\"298\":{\"0\":\"Buchung\",\"1\":\"R-0000298\",\"2\":\"26.09.2022\",\"3\":1305,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1305},\"299\":{\"0\":\"Buchung\",\"1\":\"R-0000299\",\"2\":\"26.09.2022\",\"3\":1305,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1305},\"300\":{\"0\":\"Buchung\",\"1\":\"R-0000300\",\"2\":\"26.09.2022\",\"3\":1055,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1055},\"301\":{\"0\":\"Buchung\",\"1\":\"R-0000301\",\"2\":\"26.09.2022\",\"3\":1500,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1500},\"307\":{\"0\":\"Buchung\",\"1\":\"R-0000307\",\"2\":\"26.09.2022\",\"3\":1280,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1280},\"309\":{\"0\":\"Buchung\",\"1\":\"R-0000309\",\"2\":\"26.09.2022\",\"3\":1380,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1380},\"310\":{\"0\":\"Buchung\",\"1\":\"R-0000310\",\"2\":\"26.09.2022\",\"3\":2760,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":2760},\"311\":{\"0\":\"Buchung\",\"1\":\"R-0000311\",\"2\":\"26.09.2022\",\"3\":480,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":480},\"324\":{\"0\":\"Buchung\",\"1\":\"R-0000324\",\"2\":\"29.09.2022\",\"3\":480,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":480},\"342\":{\"0\":\"Buchung\",\"1\":\"R-0000342\",\"2\":\"30.09.2022\",\"3\":1100,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1100}},\"car\":{\"162\":{\"0\":\"Car\",\"1\":\"R-0000162\",\"2\":\"08.09.2022\",\"3\":1155,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"82.6\",\"7\":\"0\",\"8\":1155},\"171\":{\"0\":\"Car\",\"1\":\"R-0000171\",\"2\":\"09.09.2022\",\"3\":800,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":800},\"172\":{\"0\":\"Car\",\"1\":\"R-0000172\",\"2\":\"09.09.2022\",\"3\":1175,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":1225},\"174\":{\"0\":\"Car\",\"1\":\"R-0000174\",\"2\":\"09.09.2022\",\"3\":1242.5,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"88.85\",\"7\":\"0\",\"8\":1242.5},\"178\":{\"0\":\"Car\",\"1\":\"R-0000178\",\"2\":\"12.09.2022\",\"3\":3455,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":3455},\"179\":{\"0\":\"Car\",\"1\":\"R-0000179\",\"2\":\"12.09.2022\",\"3\":432,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":432},\"181\":{\"0\":\"Car\",\"1\":\"R-0000181\",\"2\":\"12.09.2022\",\"3\":2300,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":2300},\"183\":{\"0\":\"Car\",\"1\":\"R-0000183\",\"2\":\"12.09.2022\",\"3\":1278,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"91.35\",\"7\":\"0\",\"8\":1278},\"184\":{\"0\":\"Car\",\"1\":\"R-0000184\",\"2\":\"12.09.2022\",\"3\":1080,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"77.2\",\"7\":\"0\",\"8\":1080},\"185\":{\"0\":\"Car\",\"1\":\"R-0000185\",\"2\":\"12.09.2022\",\"3\":1180,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"84.35\",\"7\":\"0\",\"8\":1180},\"186\":{\"0\":\"Car\",\"1\":\"R-0000186\",\"2\":\"12.09.2022\",\"3\":1678,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"119.95\",\"7\":\"0\",\"8\":1678},\"187\":{\"0\":\"Car\",\"1\":\"R-0000187\",\"2\":\"12.09.2022\",\"3\":130,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":130},\"193\":{\"0\":\"Car\",\"1\":\"R-0000193\",\"2\":\"12.09.2022\",\"3\":2346.4,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":2346.4},\"239\":{\"0\":\"Car\",\"1\":\"R-0000239\",\"2\":\"15.09.2022\",\"3\":712,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":712},\"240\":{\"0\":\"Car\",\"1\":\"R-0000240\",\"2\":\"19.09.2022\",\"3\":1080,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"77.2\",\"7\":\"0\",\"8\":1080},\"255\":{\"0\":\"Car\",\"1\":\"R-0000255\",\"2\":\"19.09.2022\",\"3\":1407.5,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"100.65\",\"7\":\"0\",\"8\":1407.5},\"257\":{\"0\":\"Car\",\"1\":\"R-0000257\",\"2\":\"19.09.2022\",\"3\":2485,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"177.65\",\"7\":\"0\",\"8\":2685},\"258\":{\"0\":\"Car\",\"1\":\"R-0000258\",\"2\":\"19.09.2022\",\"3\":1285,\"4\":\"Bruttobetrag\",\"5\":\"0\",\"6\":\"91.85\",\"7\":\"0\",\"8\":1285},\"340\":{\"0\":\"Car\",\"1\":\"R-0000340\",\"2\":\"30.09.2022\",\"3\":0,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":0}},\"lager\":{\"153\":{\"0\":\"Lager\",\"1\":\"R-0000153\",\"2\":\"21.09.2022\",\"3\":387.7,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"27.7\",\"7\":\"0\",\"8\":387.7},\"201\":{\"0\":\"Lager\",\"1\":\"R-0000201\",\"2\":\"21.09.2022\",\"3\":775.45,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"55.45\",\"7\":\"0\",\"8\":775.45},\"203\":{\"0\":\"Lager\",\"1\":\"R-0000203\",\"2\":\"21.09.2022\",\"3\":161.55,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"11.55\",\"7\":\"0\",\"8\":161.55},\"204\":{\"0\":\"Lager\",\"1\":\"R-0000204\",\"2\":\"21.09.2022\",\"3\":161.55,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"11.55\",\"7\":\"0\",\"8\":161.55},\"206\":{\"0\":\"Lager\",\"1\":\"R-0000206\",\"2\":\"21.09.2022\",\"3\":161.55,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"11.55\",\"7\":\"0\",\"8\":161.55},\"212\":{\"0\":\"Lager\",\"1\":\"R-0000212\",\"2\":\"21.09.2022\",\"3\":161.55,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"11.55\",\"7\":\"0\",\"8\":161.55},\"214\":{\"0\":\"Lager\",\"1\":\"R-0000214\",\"2\":\"21.09.2022\",\"3\":193.85,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"13.85\",\"7\":\"0\",\"8\":193.85},\"219\":{\"0\":\"Lager\",\"1\":\"R-0000219\",\"2\":\"21.09.2022\",\"3\":310.2,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"22.2\",\"7\":\"0\",\"8\":310.2},\"220\":{\"0\":\"Lager\",\"1\":\"R-0000220\",\"2\":\"21.09.2022\",\"3\":232.65,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"16.65\",\"7\":\"0\",\"8\":232.65},\"229\":{\"0\":\"Lager\",\"1\":\"R-0000229\",\"2\":\"21.09.2022\",\"3\":161.55,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"11.55\",\"7\":\"0\",\"8\":161.55},\"232\":{\"0\":\"Lager\",\"1\":\"R-0000232\",\"2\":\"21.09.2022\",\"3\":581.6,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"41.6\",\"7\":\"0\",\"8\":581.6},\"233\":{\"0\":\"Lager\",\"1\":\"R-0000233\",\"2\":\"21.09.2022\",\"3\":310.2,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"22.2\",\"7\":\"0\",\"8\":310.2},\"234\":{\"0\":\"Lager\",\"1\":\"R-0000234\",\"2\":\"21.09.2022\",\"3\":161.55,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"11.55\",\"7\":\"0\",\"8\":1350},\"236\":{\"0\":\"Lager\",\"1\":\"R-0000236\",\"2\":\"21.09.2022\",\"3\":0,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"0\",\"7\":\"0\",\"8\":0}},\"transport\":{\"154\":{\"0\":\"Transport\",\"1\":\"R-0000154\",\"2\":\"09.09.2022\",\"3\":1453.95,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"103.95\",\"7\":\"0\",\"8\":1453.95},\"173\":{\"0\":\"Transport\",\"1\":\"R-0000173\",\"2\":\"09.09.2022\",\"3\":218.65,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"15.65\",\"7\":\"0\",\"8\":218.65},\"263\":{\"0\":\"Transport\",\"1\":\"R-0000263\",\"2\":\"20.09.2022\",\"3\":157.25,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"11.25\",\"7\":\"0\",\"8\":157.25},\"285\":{\"0\":\"Transport\",\"1\":\"R-0000285\",\"2\":\"22.09.2022\",\"3\":2130.3,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"152.3\",\"7\":\"0\",\"8\":2130.3},\"293\":{\"0\":\"Transport\",\"1\":\"R-0000293\",\"2\":\"23.09.2022\",\"3\":2219.15,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"158.65\",\"7\":\"0\",\"8\":2219.15},\"320\":{\"0\":\"Transport\",\"1\":\"R-0000320\",\"2\":\"28.09.2022\",\"3\":437.25,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"31.25\",\"7\":\"0\",\"8\":437.25},\"321\":{\"0\":\"Transport\",\"1\":\"R-0000321\",\"2\":\"28.09.2022\",\"3\":141.1,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"10.1\",\"7\":\"0\",\"8\":141.1},\"329\":{\"0\":\"Transport\",\"1\":\"R-0000329\",\"2\":\"30.09.2022\",\"3\":109.3,\"4\":\"Nettobetrag\",\"5\":\"0\",\"6\":\"7.8\",\"7\":\"0\",\"8\":109.3}}},\"path\":\"/Users/christian/myWorkbook.xlsx\",\"sheet\":{\"header\":{\"from\":\"01.09.2022\",\"period\":\"Monat\",\"titel\":\"Bezahlte Rechnungen\",\"title\":\"Bezahlte Rechnungen\",\"to\":\"30.09.2022\"}}}";
-		String result = Fsl.execute("Xls.createDebtorReport", new Object[] { json });
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals("OK", resultNode.get("result").asText());
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.STYLE.key(), 0);
+		requestNode.put(Key.CELL.key(), "A1");
+		String response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		Font font = Xls.activeWorkbook.getFontAt(Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(0).getCellStyle().getFontIndex());
+		assertEquals(false, font.getBold());
+		assertEquals(false, font.getItalic());
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.STYLE.key(), 1);
+		requestNode.put(Key.CELL.key(), "B2");
+		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		font = Xls.activeWorkbook.getFontAt(Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(1).getCellStyle().getFontIndex());
+		assertEquals(true, font.getBold());
+		assertEquals(false, font.getItalic());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.STYLE.key(), 2);
+		requestNode.put(Key.CELL.key(), "C3");
+		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		font = Xls.activeWorkbook.getFontAt(Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2).getCellStyle().getFontIndex());
+		assertEquals(false, font.getBold());
+		assertEquals(true, font.getItalic());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.STYLE.key(), 3);
+		requestNode.put(Key.CELL.key(), "D4");
+		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		font = Xls.activeWorkbook.getFontAt(Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(3).getCellStyle().getFontIndex());
+		assertEquals(true, font.getBold());
+		assertEquals(true, font.getItalic());
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), "applyFontStyles.xlsx");
+		requestNode.put(Key.PATH_NAME.key(), "./targets/applyFontStyles.xlsx");
+		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 
-//	@Test
-//	public void testDocumentWithHeadersAndValues() throws IOException
-//	{
-//
-//		String result = Fsl.execute("Xls.createWorkbook", new Object[] { WORKBOOK_1 });
-//		JsonNode resultNode = mapper.readTree(result);
-//		assertEquals("OK", resultNode.get("result").asText());
-//		result = Fsl.execute("Xls.createSheet", new Object[] { SHEET_0 });
-//		resultNode = mapper.readTree(result);
-//		assertEquals("OK", resultNode.get("result").asText());
-//		result = Fsl.execute("Xls.setHeadings", new Object[] { 0, "StringHeader", "NumericHeader", "SumHeader" });
-//		resultNode = mapper.readTree(result);
-//		assertEquals("OK", resultNode.get("result").asText());
-//		result = Fsl.execute("Xls.setRowValues", new Object[] { 1, 0, 1, "First row", 1064D });
-//		resultNode = mapper.readTree(result);
-//		assertEquals("OK", resultNode.get("result").asText());
-//		result = Fsl.execute("Xls.setColumnSum", new Object[] { 2, 2, 1, 1, 1 });
-//		resultNode = mapper.readTree(result);
-//		assertEquals("OK", resultNode.get("result").asText());
-//		result = Fsl.execute("Xls.setRowStyleNumber", new Object[] { 1, 1, 2, "0.00" });
-//		resultNode = mapper.readTree(result);
-//		assertEquals("OK", resultNode.get("result").asText());
-//		result = Fsl.execute("Xls.setColumnStyleBold", new Object[] { 2, 2, 1 });
-//		resultNode = mapper.readTree(result);
-//		assertEquals("OK", resultNode.get("result").asText());
-//		result = Fsl.execute("Xls.save", new Object[] { WORKBOOK_1 });
-//		resultNode = mapper.readTree(result);
-//		assertEquals("OK", resultNode.get("result").asText());
-//		if (Desktop.isDesktopSupported())
-//		{
-//			Desktop desktop = Desktop.getDesktop();
-//			desktop.edit(new File(WORKBOOK_1));
-//		}
-//	}
-
-	private static void clearWorkbook()
+	@Test
+	public void testApplyFontStylesToRange() throws EncryptedDocumentException, IOException
 	{
-		Xls.workbook = null;
+		openAndActivateWorkbook("./resources/xls/applyFontStylesRange.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.STYLE.key(), 0);
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		
+		Font font = Xls.activeWorkbook.getFontAt(Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(0).getCellStyle().getFontIndex());
+		assertEquals(false, font.getBold());
+		assertEquals(false, font.getItalic());
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.STYLE.key(), 1);
+		requestNode.put(Key.RANGE.key(), "A2:D2");
+		
+		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		font = Xls.activeWorkbook.getFontAt(Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(0).getCellStyle().getFontIndex());
+		assertEquals(true, font.getBold());
+		assertEquals(false, font.getItalic());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.STYLE.key(), 2);
+		requestNode.put(Key.RANGE.key(), "A3:D3");
+		
+		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		font = Xls.activeWorkbook.getFontAt(Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(0).getCellStyle().getFontIndex());
+		assertEquals(false, font.getBold());
+		assertEquals(true, font.getItalic());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.STYLE.key(), 3);
+		requestNode.put(Key.RANGE.key(), "A4:D4");
+		
+		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		font = Xls.activeWorkbook.getFontAt(Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(0).getCellStyle().getFontIndex());
+		assertEquals(true, font.getBold());
+		assertEquals(true, font.getItalic());
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), "applyFontStylesRange.xlsx");
+		requestNode.put(Key.PATH_NAME.key(), "./targets/applyFontStylesRange.xlsx");
+		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
+	
+	@Test
+	public void testApplyNumberFormats() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyNumberFormats.xlsx");
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.FORMAT.key(), 2);
+		requestNode.put(Key.RANGE.key(), "A1:J1");
+
+		String response = Fsl.execute("Xls.applyNumberFormat", requestNode.toString());
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		
+		DataFormatter df = new DataFormatter();
+		Cell cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(0);
+		assertEquals("123.46", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(1);
+		assertEquals("0.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(2);
+		assertEquals("0.01", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(3);
+		assertEquals("100.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(4);
+		assertEquals("1234567.89", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(5);
+		assertEquals("-123.46", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(6);
+		assertEquals("-0.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(7);
+		assertEquals("-0.01", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(8);
+		assertEquals("-100.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(9);
+		assertEquals("-1234567.89", df.formatCellValue(cell));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.FORMAT.key(), "0.00");
+		requestNode.put(Key.RANGE.key(), "A2:J2");
+		
+		response = Fsl.execute("Xls.applyNumberFormat", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(0);
+		assertEquals("123.46", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(1);
+		assertEquals("0.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(2);
+		assertEquals("0.01", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(3);
+		assertEquals("100.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(4);
+		assertEquals("1234567.89", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(5);
+		assertEquals("-123.46", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6);
+		assertEquals("-0.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(7);
+		assertEquals("-0.01", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(8);
+		assertEquals("-100.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(9);
+		assertEquals("-1234567.89", df.formatCellValue(cell));
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.FORMAT.key(), 4);
+		requestNode.put(Key.RANGE.key(), "A3:J3");
+
+		response = Fsl.execute("Xls.applyNumberFormat", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(0);
+		assertEquals("123.46", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		assertEquals("0.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		assertEquals("0.01", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(3);
+		assertEquals("100.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(4);
+		assertEquals("1,234,567.89", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(5);
+		assertEquals("-123.46", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(6);
+		assertEquals("-0.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(7);
+		assertEquals("-0.01", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(8);
+		assertEquals("-100.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(9);
+		assertEquals("-1,234,567.89", df.formatCellValue(cell));
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.FORMAT.key(), "#,##0.00");
+		requestNode.put(Key.RANGE.key(), "A4:J4");
+
+		response = Fsl.execute("Xls.applyNumberFormat", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(0);
+		assertEquals("123.46", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(1);
+		assertEquals("0.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(2);
+		assertEquals("0.01", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(3);
+		assertEquals("100.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(4);
+		assertEquals("1,234,567.89", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(5);
+		assertEquals("-123.46", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(6);
+		assertEquals("-0.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(7);
+		assertEquals("-0.01", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(8);
+		assertEquals("-100.00", df.formatCellValue(cell));
+		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(3).getCell(9);
+		assertEquals("-1,234,567.89", df.formatCellValue(cell));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), "applyNumberFormats.xlsx");
+		requestNode.put(Key.PATH_NAME.key(), "./targets/applyNumberFormats.xlsx");
+		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+	}
+	
+	@Test
+	public void testAutoSizeColumn() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing("autoSizeColumn.xlsx", SHEET0);
+		Sheet sheet = getActiveSheet();
+		Row row = sheet.createRow(0);
+		Cell cell = row.createCell(0);
+		cell.setCellValue(new XSSFRichTextString("Das ist eine Testzelle"));
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A1");
+		
+		String response = Fsl.execute("Xls.autoSizeColumns", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), "autoSizeColumn.xlsx");
+		requestNode.put(Key.PATH_NAME.key(), "./targets/autoSizeColumn.xlsx");
+		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+	}
+
+	@Test
+	public void testRotation() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing("rotate.xlsx", SHEET0);
+		Sheet sheet = getActiveSheet();
+		Row row = sheet.createRow(0);
+		Cell cell = row.createCell(0);
+		cell.setCellValue(new XSSFRichTextString("Das ist eine Testzelle"));
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.ROTATION.key(), 90);
+		requestNode.put(Key.CELL.key(), "A1");
+		
+		String response = Fsl.execute("Xls.rotateCells", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), "rotate.xlsx");
+		requestNode.put(Key.PATH_NAME.key(), "./targets/rotate.xlsx");
+		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+	}
+	
+	@Test
+	public void testHorizontalAlignment() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing("horizontalAlign.xlsx", SHEET0);
+		Sheet sheet = getActiveSheet();
+		Row row = sheet.createRow(0);
+		Cell cell = row.createCell(0);
+		cell.setCellValue(new XSSFRichTextString("X"));
+		cell = row.createCell(1);
+		cell.setCellValue(new XSSFRichTextString("Y"));
+		cell = row.createCell(2);
+		cell.setCellValue(new XSSFRichTextString("Z"));
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.ALIGNMENT.key(), Key.LEFT.key());
+		requestNode.put(Key.CELL.key(), "A1");
+		
+		String response = Fsl.execute("Xls.alignHorizontally", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.ALIGNMENT.key(), Key.CENTER.key());
+		requestNode.put(Key.CELL.key(), "B1");
+		
+		response = Fsl.execute("Xls.alignHorizontally", requestNode.toString());
+		
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.ALIGNMENT.key(), Key.RIGHT.key());
+		requestNode.put(Key.CELL.key(), "C1");
+		
+		response = Fsl.execute("Xls.alignHorizontally", requestNode.toString());
+		
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), "horizontalAlign.xlsx");
+		requestNode.put(Key.PATH_NAME.key(), "./targets/horizontalAlign.xlsx");
+		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+	}
+	
+	@Test
+	public void testBookkeeperReport() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), "BookKeeperReport.xlsx");
+		String response = Fsl.execute("Xls.createAndActivateWorkbook", requestNode.toString());
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.SHEET.key(), SHEET0);
+		response = Fsl.execute("Xls.createAndActivateSheetByName", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.LEFT.key(), "Buchhaltungsreport");
+		requestNode.put(Key.CENTER.key(), "Ebneter Transporte");
+		requestNode.put(Key.RIGHT.key(), SimpleDateFormat.getDateInstance().format(new Date()));
+		response = Fsl.execute("Xls.setHeaders", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A1");
+		ArrayNode valuesNode = requestNode.arrayNode();
+		valuesNode.add("Typ");
+		valuesNode.add("Rechnung");
+		valuesNode.add("Datum");
+		valuesNode.add("Betrag");
+		valuesNode.add("MwSt");
+		valuesNode.add("Bezahlt");
+		valuesNode.add("Datum");
+		valuesNode.add("Offen");
+		requestNode.set("values", valuesNode);
+		requestNode.put(Key.DIRECTION.key(), Key.RIGHT.key());
+		response = Fsl.execute("Xls.setCells", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "A1:H1");
+		requestNode.put(Key.STYLE.key(), FontStyle.BOLD.ordinal());
+		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A2");
+		valuesNode = requestNode.arrayNode();
+		valuesNode.add("Transport");
+		valuesNode.add("R-00030");
+		valuesNode.add("23.04.2022");
+		valuesNode.add(2345.25);
+		valuesNode.add(345.25);
+		valuesNode.add(2345.25);
+		valuesNode.add("31.04.2022");
+		valuesNode.add("D2-F2");
+		requestNode.set("values", valuesNode);
+		response = Fsl.execute("Xls.setCells", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A3");
+		valuesNode = requestNode.arrayNode();
+		valuesNode.add("Car");
+		valuesNode.add("R-00032");
+		valuesNode.add("24.04.2022");
+		valuesNode.add(590.75);
+		valuesNode.add(40);
+		valuesNode.add(500);
+		valuesNode.add("31.04.2022");
+		valuesNode.add("D3-F3");
+		requestNode.set("values", valuesNode);
+		response = Fsl.execute("Xls.setCells", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A4");
+		valuesNode = requestNode.arrayNode();
+		valuesNode.add("Total");
+		valuesNode.add((JsonNode) null);
+		valuesNode.add("");
+		valuesNode.add("SUM(D2:D3)");
+		valuesNode.add("SUM(E2:E3)");
+		valuesNode.add("SUM(F2:F3)");
+		valuesNode.add((JsonNode) null);
+		valuesNode.add("SUM(H2:H3)");
+		requestNode.set("values", valuesNode);
+		response = Fsl.execute("Xls.setCells", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "D2:F4");
+		requestNode.put(Key.FORMAT.key(), 4);
+		response = Fsl.execute("Xls.applyNumberFormat", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "H2:H4");
+		requestNode.put(Key.FORMAT.key(), 4);
+		response = Fsl.execute("Xls.applyNumberFormat", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "A4:H4");
+		requestNode.put(Key.STYLE.key(), FontStyle.BOLD.ordinal());
+		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "A1:H4");
+		response = Fsl.execute("Xls.autoSizeColumns", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), "BookKeeperReport.xlsx");
+		requestNode.put(Key.PATH_NAME.key(), "./targets/BookKeeperReport.xlsx");
+		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+	}
+
+	private static void openAndActivateWorkbook(String path) throws EncryptedDocumentException, IOException
+	{
+		File file = new File(path);
+		Workbook workbook = XSSFWorkbook.class.cast(WorkbookFactory.create(file));
+		Xls.workbooks.put(file.getName(), workbook);
+		Xls.activeWorkbook = workbook;
+	}
+
+	private static void prepareWorkbookIfMissing()
+	{
+		if (Objects.isNull(Xls.activeWorkbook))
+		{
+			Xls.activeWorkbook = new XSSFWorkbook();
+			Xls.workbooks.put(WORKBOOK_1, Xls.activeWorkbook);
+		}
+	}
+
+	private static void prepareWorkbookIfMissing(String workbook)
+	{
+		if (Objects.isNull(Xls.activeWorkbook))
+		{
+			Xls.activeWorkbook = new XSSFWorkbook();
+			Xls.workbooks.put(workbook, Xls.activeWorkbook);
+		}
+	}
+
+	private static void prepareWorkbookAndSheetIfMissing()
+	{
+		prepareWorkbookIfMissing();
+		if (Xls.activeWorkbook.getSheetIndex("Sheet0") == -1)
+		{
+			Sheet sheet = Xls.activeWorkbook.createSheet("Sheet0");
+			Xls.activeWorkbook.setActiveSheet(Xls.activeWorkbook.getSheetIndex(sheet));
+		}
+	}
+
+	private static void prepareWorkbookAndSheetIfMissing(String workbookname, String sheetname)
+	{
+		prepareWorkbookIfMissing(workbookname);
+		if (Xls.activeWorkbook.getSheetIndex(sheetname) == -1)
+		{
+			Sheet sheet = Xls.activeWorkbook.createSheet(sheetname);
+			Xls.activeWorkbook.setActiveSheet(Xls.activeWorkbook.getSheetIndex(sheet));
+		}
+	}
+
+	private static void releaseAllWorkbooks()
+	{
+		Xls.workbooks.clear();
+		Xls.activeWorkbook = null;
+	}
+
 }

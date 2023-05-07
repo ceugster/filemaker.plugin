@@ -8,6 +8,9 @@ import java.util.Set;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ConfigurationBuilder;
+import org.slf4j.ILoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +30,8 @@ public class Fsl<E extends Executor<?>>
 	private static Reflections REFLECTIONS = new Reflections(
 			new ConfigurationBuilder().forPackage("ch.eugster.filemaker.fsl.plugin").addScanners(Scanners.SubTypes));
 
+	private static Logger logger = LoggerFactory.getLogger(Fsl.class);
+	
 	public static String execute(String command, String parameters)
 	{
 		Fsl.RESPONSE_NODE = MAPPER.createObjectNode();
@@ -55,7 +60,7 @@ public class Fsl<E extends Executor<?>>
 									}
 									catch (Exception e)
 									{
-										addErrorMessage("invalid_module '" + commands[0] + "' missing empty constructor");
+										addErrorMessage("invalid_module '" + commands[0] + "'");
 									}
 								}
 							}
@@ -63,7 +68,7 @@ public class Fsl<E extends Executor<?>>
 						}
 						if (Objects.isNull(executor))
 						{
-							addErrorMessage("invalid_module '" + commands[0] + "'");
+							addErrorMessage("missing_module '" + commands[0] + "'");
 						}
 						else
 						{

@@ -3,7 +3,6 @@ package ch.eugster.filemaker.fsl.plugin;
 import ch.eugster.filemaker.fsl.plugin.camt.Camt;
 import ch.eugster.filemaker.fsl.plugin.converter.Converter;
 import ch.eugster.filemaker.fsl.plugin.swissqrbill.QRBill;
-import ch.eugster.filemaker.fsl.plugin.ui.Ui;
 import ch.eugster.filemaker.fsl.plugin.xls.Xls;
 
 public enum ExecutorSelector
@@ -12,7 +11,7 @@ public enum ExecutorSelector
 	CAMT(Camt.class.getSimpleName(), new Camt()),
 	CONVERT(Converter.class.getSimpleName(), new Converter()),
 	QRBILL(QRBill.class.getSimpleName(), new QRBill()), 
-	UI(Ui.class.getSimpleName(), new Ui()), 
+//	UI(Ui.class.getSimpleName(), new Ui()), 
 	XLS(Xls.class.getSimpleName(), new Xls());
 	// @formatter:on
 

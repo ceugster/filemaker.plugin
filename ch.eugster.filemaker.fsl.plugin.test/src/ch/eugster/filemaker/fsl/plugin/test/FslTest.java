@@ -60,6 +60,6 @@ public class FslTest
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.ERROR, resultNode.get(Executor.STATUS).asText());
 		assertEquals(1, resultNode.get(Executor.ERRORS).size());
-		assertEquals("invalid_module 'Schmock'", resultNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("missing_module 'Schmock'", resultNode.get(Executor.ERRORS).get(0).asText());
 	}
 }

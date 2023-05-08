@@ -33,12 +33,12 @@ Mandatory Parameters: Name: "sheet" Values: sheetname (String) or sheetindex (In
 Mandatory Parameters: Name: "workbook" Values: workbook name
 
 ### "Xls.activeSheetPresent"
-No Parameters, returns "present" with value 1 if active sheet is present, else 0
+Empty Parameter, returns "present" with value 1 if active sheet is present, else 0
 
 ### "Xls.activeWorkbookPresent"
-No Parameters, returns "present" with value 1 if active workbook is present, else 0
+Empty Parameter, returns "present" with value 1 if active workbook is present, else 0
 
-"Xls.copy"
+### "Xls.copy"
 
 "Xls.createAndActivateSheetByName"
 

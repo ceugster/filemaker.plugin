@@ -111,7 +111,13 @@ saves named workbook
 Mandatory Parameters: Name "workbook" Value: name of the workbook to save
 
 ### "Xls.setCells"
+set cells
 
+Mandatory Parameters: "cell" as address ("A1" or "A1:B2") or integers (top row, left column, bottom row, right column) meaning the start cell
+
+"values" a list of values or formulas
+
+Optional Parameters: "direction" values "right" (default), "up", "down", "left"
 
 "Xls.setCellValue"
 

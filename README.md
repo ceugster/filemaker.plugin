@@ -25,16 +25,9 @@ Xls provides commands to create an xls file
 List of commands:
 
 ### "Xls.activateSheet" 
+Optional Parameters: Name: workbook Value: name of workbook
 
-Parameters
-
-Optional:
-
-Name: workbook Value: name of workbook
-
-Mandatory:
-
-Name: "sheet" Values: sheetname (String) or sheetindex (Integer)
+Mandatory Parameters: Name: "sheet" Values: sheetname (String) or sheetindex (Integer)
 
 "Xls.activateWorkbook"
 

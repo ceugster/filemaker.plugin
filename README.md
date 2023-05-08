@@ -119,11 +119,15 @@ Mandatory Parameters: "cell" as address ("A1" or "A1:B2") or integers (top row, 
 
 Optional Parameters: "direction" values "right" (default), "up", "down", "left"
 
-"Xls.setCellValue"
+### "Xls.setHeaders"
+set headers text to the left, center and right of the sheet
 
-"Xls.setHeaders"
+Optional Parameters: "left" with text value, "center" with text value, "right" with text value
 
-"Xls.setFooters"
+### "Xls.setFooters"
+set footers text to the left, center and right of the sheet
+
+Optional Parameters: "left" with text value, "center" with text value, "right" with text value
 
 "Xls.setPrintOptions"
 

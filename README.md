@@ -137,9 +137,19 @@ set font style
 Mandatory Parameters: "0" normal, "1" bold, "2" italic, "3" bold and italic 
 
 ### "Xls.applyNumberFormat"
+set number format
 
-"Xls.autoSizeColumns"
+### "Xls.autoSizeColumns"
+autosizes columns
 
-"Xls.rotateCells"
+Mandatory Parameters: "range" range of cells or "cell"
 
-"Xls.alignHorizontally"
+### "Xls.rotateCells"
+rotates cells
+
+Mandatory Parameters: "range" or "cell", "rotation" in degrees
+
+### "Xls.alignHorizontally"
+align to left, center or right
+
+Mandatory Parameters: "left", "center", "right"

@@ -32,7 +32,8 @@ Mandatory Parameters: Name: "sheet" Values: sheetname (String) or sheetindex (In
 ### "Xls.activateWorkbook"
 Mandatory Parameters: Name: "workbook" Values: workbook name
 
-"Xls.activeSheetPresent"
+### "Xls.activeSheetPresent"
+No Parameters, returns 1 if active sheet is present
 
 "Xls.activeWorkbookPresent"
 

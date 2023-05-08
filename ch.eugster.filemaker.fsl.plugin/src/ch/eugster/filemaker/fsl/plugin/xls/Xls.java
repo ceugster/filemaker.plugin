@@ -334,7 +334,7 @@ public class Xls extends Executor<Xls>
 		{
 			if (TextNode.class.isInstance(nameNode))
 			{
-				String name = TextNode.class.cast(nameNode).asText();
+				String name = nameNode.asText();
 				Workbook wb = Xls.workbooks.get(name);
 				if (Objects.isNull(wb))
 				{
@@ -1301,7 +1301,9 @@ public class Xls extends Executor<Xls>
 			}
 			else
 			{
+				Fsl.addErrorMessage("Before: new XSSFWorkbook()");
 				Xls.workbooks.put(name, new XSSFWorkbook());
+				Fsl.addErrorMessage("After: new XSSFWorkbook()");
 			}
 		}
 		else

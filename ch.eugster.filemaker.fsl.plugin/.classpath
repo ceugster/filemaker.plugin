@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry exported="true" kind="lib" path="lib/slf4j-jdk14-2.0.7.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/log4j-api-2.20.0.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/log4j-core-2.20.0.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/slf4j-api-2.0.7.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/curvesapi-1.07.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/documents4j-aggregation-1.1.10.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/documents4j-api-1.1.10.jar"/>
@@ -26,8 +22,6 @@
 	<classpathentry exported="true" kind="lib" path="lib/fmjdbc.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/jasypt-1.9.3.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/javassist.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/jaxb-impl-2.3.6.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/jaxb-runtime-3.0.2.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/poi-5.2.2.jar" sourcepath="libsrc/poi-src-5.2.2.zip"/>
 	<classpathentry exported="true" kind="lib" path="lib/poi-ooxml-5.2.2.jar" sourcepath="libsrc/poi-ooxml-src-5.2.2.zip"/>
 	<classpathentry exported="true" kind="lib" path="lib/poi-ooxml-full-5.2.2.jar"/>

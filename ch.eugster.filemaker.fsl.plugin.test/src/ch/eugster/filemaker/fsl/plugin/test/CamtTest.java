@@ -124,4 +124,5 @@ public class CamtTest extends Camt
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
 	}
+	
 }

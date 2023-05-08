@@ -29,7 +29,8 @@ Optional Parameters: Name: workbook Value: name of workbook
 
 Mandatory Parameters: Name: "sheet" Values: sheetname (String) or sheetindex (Integer)
 
-"Xls.activateWorkbook"
+### "Xls.activateWorkbook"
+Mandatory Parameters: Name: "workbook" Values: workbook name
 
 "Xls.activeSheetPresent"
 

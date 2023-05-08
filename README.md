@@ -24,7 +24,17 @@ Below you see an example of the result using the given example above.
 
 List of commands:
 
-"Xls.activateSheet"
+"Xls.activateSheet" 
+
+Parameters
+
+Optional:
+
+Name: workbook Value: name of workbook
+
+Mandatory:
+
+Name: "sheet" Values: sheetname (String) or sheetindex (Integer)
 
 "Xls.activateWorkbook"
 

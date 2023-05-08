@@ -76,4 +76,7 @@ List of commands:
 "Xls.rotateCells"
 
 "Xls.alignHorizontally"
+
+Below you see an example of the result using the given example above.
+
 ![qr-invoice-e1](https://user-images.githubusercontent.com/1636301/236786580-bc1bee67-af0c-43ef-94ef-fd4c117ddc60.svg)

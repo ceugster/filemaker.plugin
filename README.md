@@ -1,13 +1,13 @@
 # filemaker.plugin
 This plugin provides the following features
-## Fsl
+# Fsl
 Fsl is the main entry for using the functions.
 
 Use: Fsl.execute("Xyz.command", "{}")
 
 Actually there are the following modules:
 
-### QRBill
+## QRBill
 *QRBill* has one command 'generate':
 
 As parameter you have to use a json string with following structure:
@@ -19,12 +19,12 @@ Below you see an example of the result using the given example above.
 
 ![qr-invoice-e1](https://user-images.githubusercontent.com/1636301/236786580-bc1bee67-af0c-43ef-94ef-fd4c117ddc60.svg)
 
-### Xls
-*Xls* provides commands to create an xls file
+## Xls
+Xls provides commands to create an xls file
 
 List of commands:
 
-"Xls.activateSheet" 
+### "Xls.activateSheet" 
 
 Parameters
 
@@ -36,7 +36,7 @@ Mandatory:
 
 Name: "sheet" Values: sheetname (String) or sheetindex (Integer)
 
-"Xls.activateWorkbook"
+### "Xls.activateWorkbook"
 
 "Xls.activeSheetPresent"
 

@@ -39,6 +39,8 @@ Empty Parameter, returns "present" with value 1 if active sheet is present, else
 Empty Parameter, returns "present" with value 1 if active workbook is present, else 0
 
 ### "Xls.copy"
+Mandatory Parameters: Name: "source" source cell range, "target" target cell range,
+source: cell range coordinates as address (A1:A1) or as integers (top row, left col, bottom row, right col)
 
 "Xls.createAndActivateSheetByName"
 

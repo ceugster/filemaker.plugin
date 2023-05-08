@@ -1301,9 +1301,7 @@ public class Xls extends Executor<Xls>
 			}
 			else
 			{
-				Fsl.addErrorMessage("Before: new XSSFWorkbook()");
 				Xls.workbooks.put(name, new XSSFWorkbook());
-				Fsl.addErrorMessage("After: new XSSFWorkbook()");
 			}
 		}
 		else

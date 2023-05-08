@@ -36,7 +36,7 @@ Mandatory:
 
 Name: "sheet" Values: sheetname (String) or sheetindex (Integer)
 
-### "Xls.activateWorkbook"
+"Xls.activateWorkbook"
 
 "Xls.activeSheetPresent"
 

@@ -25,28 +25,44 @@ Xls provides commands to create an xls file
 List of commands:
 
 ### "Xls.activateSheet" 
-Optional Parameters: Name: workbook Value: name of workbook
+activates the selected sheet
 
 Mandatory Parameters: Name: "sheet" Values: sheetname (String) or sheetindex (Integer)
 
+Optional Parameters: Name: workbook Value: name of workbook
+
 ### "Xls.activateWorkbook"
+activates the selected workbook
+
 Mandatory Parameters: Name: "workbook" Values: workbook name
 
 ### "Xls.activeSheetPresent"
+returns if an active sheet is present
+
 Empty Parameter, returns "present" with value 1 if active sheet is present, else 0
 
 ### "Xls.activeWorkbookPresent"
+returns if an active workbook is present
+
 Empty Parameter, returns "present" with value 1 if active workbook is present, else 0
 
 ### "Xls.copy"
+copies cells from source to target
+
 Mandatory Parameters: Name: "source" source cell range, "target" target cell range,
 source: cell range coordinates as address (A1:A1) or as integers (top row, left col, bottom row, right col)
 
-"Xls.createAndActivateSheetByName"
+### "Xls.createAndActivateSheetByName"
+creates and activates the named sheet
 
-"Xls.createAndActivateWorkbook"
+Mandatory Parameters: Name: "sheet" Value: arbitrary name
 
-"Xls.createSheet"
+### "Xls.createAndActivateWorkbook"
+creates and activates the named workbook
+
+Mandatory Parameters: Name: "workbook" Value: arbitrary name
+
+### "Xls.createSheet"
 
 "Xls.createWorkbook"
 

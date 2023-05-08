@@ -131,9 +131,12 @@ Optional Parameters: "left" with text value, "center" with text value, "right" w
 
 "Xls.setPrintOptions"
 
-"Xls.applyFontStyle"
+### "Xls.applyFontStyle"
+set font style
 
-"Xls.applyNumberFormat"
+Mandatory Parameters: "0" normal, "1" bold, "2" italic, "3" bold and italic 
+
+### "Xls.applyNumberFormat"
 
 "Xls.autoSizeColumns"
 

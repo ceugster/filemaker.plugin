@@ -63,30 +63,55 @@ creates and activates the named workbook
 Mandatory Parameters: Name: "workbook" Value: arbitrary name
 
 ### "Xls.createSheet"
+Mandatory Parameters: Name: "sheet" Value: arbitrary name
 
-"Xls.createWorkbook"
+### "Xls.createWorkbook"
+Mandatory Parameters: Name: "workbook" Value: arbitrary name
 
-"Xls.getActiveSheetIndex"
+### "Xls.getActiveSheetIndex"
+returns the index of the active sheet
 
-"Xls.getActiveSheetName"
+Optional Parameters: Name: "workbook" Value: the workbook used
 
-"Xls.getActiveWorkbookName"
+### "Xls.getActiveSheetName"
+returns the name of the active sheet
 
-"Xls.getCallableMethods"
+Optional Parameters: Name: "workbook" Value: the workbook used
 
-"Xls.getSheetNames"
+### "Xls.getActiveWorkbookName"
+returns the name of the active workbook
 
-"Xls.getWorkbookNames"
+### "Xls.getCallableMethods"
+returns a list of methods
 
-"Xls.releaseWorkbook"
+### "Xls.getSheetNames"
+returns list of sheet names
 
-"Xls.releaseWorkbooks"
+Optional Parameters: Name: "workbook" Value: the workbook used
 
-"Xls.saveAndReleaseWorkbook"
+### "Xls.getWorkbookNames"
+returns list of workbook names
 
-"Xls.saveWorkbook"
+### "Xls.releaseWorkbook"
+removes named workbook
 
-"Xls.setCells"
+Mandatory Parameters: Name: "workbook" Value: name of the workbook to remove
+
+### "Xls.releaseWorkbooks"
+removes all workbooks
+
+### "Xls.saveAndReleaseWorkbook"
+saves and releases named workbook
+
+Mandatory Parameters: Name "workbook" Value: name of the workbook to save and remove
+
+### "Xls.saveWorkbook"
+saves named workbook
+
+Mandatory Parameters: Name "workbook" Value: name of the workbook to save
+
+### "Xls.setCells"
+
 
 "Xls.setCellValue"
 

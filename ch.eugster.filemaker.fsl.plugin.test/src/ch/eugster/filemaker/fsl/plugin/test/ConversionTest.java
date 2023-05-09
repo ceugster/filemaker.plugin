@@ -39,26 +39,26 @@ public class ConversionTest
 	
 	private static String XML_SOURCE_CONTENT;
 
-	private static String XML_TARGET_CONTENT;
+//	private static String XML_TARGET_CONTENT;
 
-	private static String JSON_SOURCE_PATH = "resources/json/camt.054_P_CH0809000000450010065_1111204750_0_2022121623562233.json";
+//	private static String JSON_SOURCE_PATH = "resources/json/camt.054_P_CH0809000000450010065_1111204750_0_2022121623562233.json";
 
-	private static File JSON_SOURCE_FILE = new File(JSON_SOURCE_PATH);
+//	private static File JSON_SOURCE_FILE = new File(JSON_SOURCE_PATH);
 	
 	private static String JSON_TARGET_PATH = "targets/camt.054_P_CH0809000000450010065_1111204750_0_2022121623562233.json";
 
 	private static File JSON_TARGET_FILE = new File(JSON_TARGET_PATH);
 	
-	private static String JSON_SOURCE_CONTENT;
+//	private static String JSON_SOURCE_CONTENT;
 
-	private static String JSON_TARGET_CONTENT;
+//	private static String JSON_TARGET_CONTENT;
 
 	@BeforeAll
 	public static void beforeAll() throws IOException
 	{
 		mapper = new ObjectMapper();
 		XML_SOURCE_CONTENT = FileUtils.readFileToString(XML_SOURCE_FILE, Charset.defaultCharset());
-		JSON_SOURCE_CONTENT = FileUtils.readFileToString(JSON_SOURCE_FILE, Charset.defaultCharset());
+//		JSON_SOURCE_CONTENT = FileUtils.readFileToString(JSON_SOURCE_FILE, Charset.defaultCharset());
 	}
 
 	@AfterEach
@@ -68,7 +68,7 @@ public class ConversionTest
 		{
 			if (XML_TARGET_FILE.exists())
 			{
-				XML_TARGET_CONTENT = FileUtils.readFileToString(XML_TARGET_FILE, Charset.defaultCharset());
+//				XML_TARGET_CONTENT = FileUtils.readFileToString(XML_TARGET_FILE, Charset.defaultCharset());
 			}
 		}
 		catch (Exception e)
@@ -79,7 +79,7 @@ public class ConversionTest
 		{
 			if (JSON_TARGET_FILE.exists())
 			{
-				JSON_TARGET_CONTENT = FileUtils.readFileToString(JSON_TARGET_FILE, Charset.defaultCharset());
+//				JSON_TARGET_CONTENT = FileUtils.readFileToString(JSON_TARGET_FILE, Charset.defaultCharset());
 			}
 		}
 		catch (Exception e)

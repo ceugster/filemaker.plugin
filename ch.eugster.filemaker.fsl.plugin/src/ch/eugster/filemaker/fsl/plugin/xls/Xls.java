@@ -925,7 +925,7 @@ public class Xls extends Executor<Xls>
 		return sheet;
 	}
 
-	private static boolean activateSheet(Sheet sheet)
+	protected static boolean activateSheet(Sheet sheet)
 	{
 		boolean result = activateWorkbook(sheet.getWorkbook());
 		if (result)
@@ -935,7 +935,7 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	private static boolean activateWorkbook(Workbook workbook)
+	protected static boolean activateWorkbook(Workbook workbook)
 	{
 		boolean result = Objects.nonNull(workbook);
 		if (result)
@@ -948,7 +948,7 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	private static boolean activeSheetPresent()
+	protected static boolean activeSheetPresent()
 	{
 		boolean present = Objects.nonNull(Xls.activeWorkbook);
 		if (present)
@@ -1245,7 +1245,7 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	private static Sheet createSheet(Workbook workbook, JsonNode sheetNode)
+	protected static Sheet createSheet(Workbook workbook, JsonNode sheetNode)
 	{
 		Sheet sheet = null;
 		if (Objects.nonNull(workbook))
@@ -1277,7 +1277,7 @@ public class Xls extends Executor<Xls>
 		return sheet;
 	}
 
-	private static void formatNumber(Sheet sheet, CellRangeAddress rangeAddress, int index)
+	protected static void formatNumber(Sheet sheet, CellRangeAddress rangeAddress, int index)
 	{
 		CellStyle cellStyle = sheet.getWorkbook().createCellStyle();
 		cellStyle.setDataFormat((short) index);
@@ -1290,7 +1290,7 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	private static Workbook createWorkbook(String name)
+	protected static Workbook createWorkbook(String name)
 	{
 		Workbook workbook = null;
 		if (!name.trim().isEmpty())
@@ -1311,7 +1311,7 @@ public class Xls extends Executor<Xls>
 		return workbook;
 	}
 	
-	private static void setRichTextString(Cell cell, String value)
+	protected static void setRichTextString(Cell cell, String value)
 	{
 		if (XSSFCell.class.isInstance(cell))
 		{
@@ -1323,7 +1323,7 @@ public class Xls extends Executor<Xls>
 		}
 	}
 	
-	private static List<String> getCallableMethods()
+	protected static List<String> getCallableMethods()
 	{
 		List<String> callableMethods = new ArrayList<String>();
 		Method[] methods = Xls.class.getDeclaredMethods();
@@ -1352,7 +1352,7 @@ public class Xls extends Executor<Xls>
 		return callableMethods;
 	}
 
-	private static CellAddress getCellAddress(int row, int col)
+	protected static CellAddress getCellAddress(int row, int col)
 	{
 		CellAddress cellAddress = null;
 		try
@@ -1366,7 +1366,7 @@ public class Xls extends Executor<Xls>
 		return cellAddress;
 	}
 	
-	private static CellAddress getCellAddress(JsonNode cellNode, String key)
+	protected static CellAddress getCellAddress(JsonNode cellNode, String key)
 	{
 		CellAddress cellAddress = null;
 		if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
@@ -1391,7 +1391,7 @@ public class Xls extends Executor<Xls>
 		return cellAddress;
 	}
 	
-	private static CellAddress getCellAddress(TextNode cellNode, String key)
+	protected static CellAddress getCellAddress(TextNode cellNode, String key)
 	{
 		CellAddress cellAddress = null;
 		try
@@ -1405,7 +1405,7 @@ public class Xls extends Executor<Xls>
 		return cellAddress;
 	}
 
-	private static CellAddress getCellAddress(ObjectNode cellNode, String key)
+	protected static CellAddress getCellAddress(ObjectNode cellNode, String key)
 	{
 		CellAddress cellAddress = null;
 		if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
@@ -1451,12 +1451,12 @@ public class Xls extends Executor<Xls>
 		return cellAddress;
 	}
 
-	private static CellRangeAddress getCellRangeAddress(CellAddress address)
+	protected static CellRangeAddress getCellRangeAddress(CellAddress address)
 	{
 		return getCellRangeAddress(address, address);
 	}
 
-	private static CellRangeAddress getCellRangeAddress(CellAddress topLeftAddress, CellAddress bottomRightAddress)
+	protected static CellRangeAddress getCellRangeAddress(CellAddress topLeftAddress, CellAddress bottomRightAddress)
 	{
 		CellRangeAddress cellRangeAddress = null;
 		if (Objects.nonNull(topLeftAddress))
@@ -1481,13 +1481,13 @@ public class Xls extends Executor<Xls>
 		return cellRangeAddress;
 	}
 
-	private static CellRangeAddress getCellRangeAddress(int topRow, int bottomRow, int leftCol, int rightCol)
+	protected static CellRangeAddress getCellRangeAddress(int topRow, int bottomRow, int leftCol, int rightCol)
 	{
 		return new CellRangeAddress(Math.min(topRow, bottomRow), Math.max(topRow, bottomRow),
 				Math.min(leftCol, rightCol), Math.max(leftCol, rightCol));
 	}
 
-	private static CellRangeAddress getCellRangeAddress(JsonNode rangeNode)
+	protected static CellRangeAddress getCellRangeAddress(JsonNode rangeNode)
 	{
 		CellRangeAddress rangeAddress = null;
 		if (Objects.nonNull(rangeNode) && !rangeNode.isMissingNode())
@@ -1512,7 +1512,7 @@ public class Xls extends Executor<Xls>
 		return rangeAddress;
 	}
 	
-	private static CellRangeAddress getCellRangeAddress(TextNode rangeNode)
+	protected static CellRangeAddress getCellRangeAddress(TextNode rangeNode)
 	{
 		CellRangeAddress rangeAddress = null;
 		if (Objects.nonNull(rangeNode))
@@ -1553,7 +1553,7 @@ public class Xls extends Executor<Xls>
 		return rangeAddress;
 	}
 
-	private static CellRangeAddress getCellRangeAddress(ObjectNode rangeNode)
+	protected static CellRangeAddress getCellRangeAddress(ObjectNode rangeNode)
 	{
 		CellRangeAddress cellRangeAddress = null;
 		if (Objects.nonNull(rangeNode))
@@ -1676,7 +1676,7 @@ public class Xls extends Executor<Xls>
 		return cellRangeAddress;
 	}
 
-	private static Cell getOrCreateCell(Sheet sheet, CellAddress cellAddress)
+	protected static Cell getOrCreateCell(Sheet sheet, CellAddress cellAddress)
 	{
 		Cell cell = null;
 		Row row = null;
@@ -1692,7 +1692,7 @@ public class Xls extends Executor<Xls>
 		return cell;
 	}
 
-	private static Cell getOrCreateCell(Sheet sheet, String address)
+	protected static Cell getOrCreateCell(Sheet sheet, String address)
 	{
 		return getOrCreateCell(sheet, new CellAddress(address));
 	}
@@ -1711,7 +1711,7 @@ public class Xls extends Executor<Xls>
 		return cell;
 	}
 
-	private static Row getOrCreateRow(Sheet sheet, CellAddress cellAddress)
+	protected static Row getOrCreateRow(Sheet sheet, CellAddress cellAddress)
 	{
 		Row row = null;
 		if (Objects.nonNull(sheet))
@@ -1728,7 +1728,7 @@ public class Xls extends Executor<Xls>
 		return row;
 	}
 
-	private static Row getOrCreateRow(Sheet sheet, int rowIndex)
+	protected static Row getOrCreateRow(Sheet sheet, int rowIndex)
 	{
 		Row row = null;
 		if (Objects.nonNull(sheet))
@@ -1745,7 +1745,7 @@ public class Xls extends Executor<Xls>
 		return row;
 	}
 
-	private static Workbook getWorkbookIfPresent(JsonNode parentNode)
+	protected static Workbook getWorkbookIfPresent(JsonNode parentNode)
 	{
 		Workbook workbook = null;
 		JsonNode workbookNode = parentNode.findPath(Key.WORKBOOK.key());
@@ -1774,7 +1774,7 @@ public class Xls extends Executor<Xls>
 		return workbook;
 	}
 
-	private static Sheet getSheetIfPresent(JsonNode parentNode)
+	protected static Sheet getSheetIfPresent(JsonNode parentNode)
 	{
 		Sheet sheet = null;
 		JsonNode workbookNode = parentNode.findPath(Key.WORKBOOK.key());
@@ -1805,7 +1805,7 @@ public class Xls extends Executor<Xls>
 		return sheet;
 	}
 	
-	private static Sheet findSheet(Workbook workbook, JsonNode sheetNode)
+	protected static Sheet findSheet(Workbook workbook, JsonNode sheetNode)
 	{
 		Sheet sheet = null;
 		if (Objects.nonNull(workbook))
@@ -1841,14 +1841,14 @@ public class Xls extends Executor<Xls>
 		return sheet;
 	}
 	
-	private static boolean isWithinSheetRange(CellRangeAddress cellRangeAddress)
+	protected static boolean isWithinSheetRange(CellRangeAddress cellRangeAddress)
 	{
 		CellAddress firstAddress = new CellAddress(cellRangeAddress.getFirstRow(), cellRangeAddress.getFirstColumn());
 		CellAddress lastAddress = new CellAddress(cellRangeAddress.getLastRow(), cellRangeAddress.getLastColumn());
 		return isWithinSheetRange(firstAddress) && isWithinSheetRange(lastAddress);
 	}
 
-	private static boolean isWithinSheetRange(CellAddress cellAddress)
+	protected static boolean isWithinSheetRange(CellAddress cellAddress)
 	{
 		return cellAddress.getRow() > -1
 				&& cellAddress.getRow() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxRows()
@@ -1856,17 +1856,17 @@ public class Xls extends Executor<Xls>
 				&& cellAddress.getColumn() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxColumns();
 	}
 	
-	private static boolean isWithinSheetRange(Cell cell)
+	protected static boolean isWithinSheetRange(Cell cell)
 	{
 		return isWithinSheetRange(new CellAddress(cell));
 	}
 	
-	private static boolean isWithinSheetRange(Row row)
+	protected static boolean isWithinSheetRange(Row row)
 	{
 		return row.getRowNum() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxRows();
 	}
 
-	private static boolean releaseWorkbook()
+	protected static boolean releaseWorkbook()
 	{
 		boolean result = Objects.nonNull(Xls.activeWorkbook);
 		if (result)
@@ -1893,14 +1893,15 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	private static boolean releaseWorkbook(ObjectNode requestNode)
+	protected static boolean releaseWorkbook(ObjectNode requestNode)
 	{
 		boolean result = Objects.nonNull(requestNode.get(Key.WORKBOOK.key()));
 		if (result)
 		{
-			if (TextNode.class.isInstance(requestNode.get(Key.WORKBOOK.key())))
+			JsonNode workbookNode = requestNode.get(Key.WORKBOOK.key());
+			if (TextNode.class.isInstance(workbookNode))
 			{
-				Workbook workbook = Xls.workbooks.remove(TextNode.class.cast(requestNode.get(Key.WORKBOOK.key())));
+				Workbook workbook = Xls.workbooks.remove(workbookNode.asText());
 				if (Objects.nonNull(workbook))
 				{
 					if (workbook == Xls.activeWorkbook)
@@ -1921,13 +1922,13 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	private static void releaseWorkbooks()
+	protected static void releaseWorkbooks()
 	{
 		Xls.workbooks.clear();
 		Xls.activeWorkbook = null;
 	}
 
-	private static SpreadsheetVersion getVersion()
+	protected static SpreadsheetVersion getVersion()
 	{
 		SpreadsheetVersion version = null;
 		if (workbooks.size() > 0)
@@ -1937,7 +1938,7 @@ public class Xls extends Executor<Xls>
 		return version;
 	}
 	
-	private static FormulaParsingWorkbook getFormulaParsingWorkbook(Sheet sheet)
+	protected static FormulaParsingWorkbook getFormulaParsingWorkbook(Sheet sheet)
 	{
 		FormulaParsingWorkbook workbookWrapper = null;
 		if (XSSFSheet.class.isInstance(sheet))
@@ -1951,7 +1952,7 @@ public class Xls extends Executor<Xls>
 		return workbookWrapper;
 	}
 
-	private static FormulaRenderingWorkbook getFormulaRenderingWorkbook(Sheet sheet)
+	protected static FormulaRenderingWorkbook getFormulaRenderingWorkbook(Sheet sheet)
 	{
 		FormulaRenderingWorkbook workbookWrapper = null;
 		if (XSSFSheet.class.isInstance(sheet))
@@ -1965,7 +1966,7 @@ public class Xls extends Executor<Xls>
 		return workbookWrapper;
 	}
 	
-	private static JsonNode findNode(ObjectNode requestNode, String name)
+	protected static JsonNode findNode(ObjectNode requestNode, String name)
 	{
 		return requestNode.findParent(name);
 	}
@@ -2042,7 +2043,7 @@ public class Xls extends Executor<Xls>
 		return formula;
 	}
 
-	private static boolean saveFile(File file, Workbook workbook)
+	protected static boolean saveFile(File file, Workbook workbook)
 	{
 		boolean result = true;
 		OutputStream os = null;
@@ -2071,7 +2072,7 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	private static boolean saveWorkbook(String path, Workbook workbook)
+	protected static boolean saveWorkbook(String path, Workbook workbook)
 	{
 		boolean result = true;
 		if (Objects.nonNull(workbook))
@@ -2092,7 +2093,7 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	private static void setCellStyle(Cell cell, String styleFormat)
+	protected static void setCellStyle(Cell cell, String styleFormat)
 	{
 		CellStyle style = Xls.activeWorkbook.createCellStyle();
 		DataFormat format = Xls.activeWorkbook.createDataFormat();
@@ -2100,7 +2101,7 @@ public class Xls extends Executor<Xls>
 		cell.setCellStyle(style);
 	}
 
-	private static Sheet setSheet(String name)
+	protected static Sheet setSheet(String name)
 	{
 		Sheet sheet = null;
 		if (Objects.nonNull(name))
@@ -2125,7 +2126,7 @@ public class Xls extends Executor<Xls>
 		return sheet;
 	}
 
-	private static boolean validateRangeAddress(SpreadsheetVersion spreadsheetVersion,
+	protected static boolean validateRangeAddress(SpreadsheetVersion spreadsheetVersion,
 			CellRangeAddress cellRangeAddress)
 	{
 		boolean result = true;
@@ -2147,7 +2148,7 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 	
-	private static CellRangeAddress getCellRangeAddress(CellRange<Cell> cellRange)
+	protected static CellRangeAddress getCellRangeAddress(CellRange<Cell> cellRange)
 	{
 		int top = cellRange.getTopLeftCell().getRowIndex();
 		int left = cellRange.getTopLeftCell().getColumnIndex();
@@ -2327,11 +2328,6 @@ public class Xls extends Executor<Xls>
 				}
 			}
 		}
-	}
-
-	private enum BuiltinDataFormats
-	{
-
 	}
 
 	protected boolean isFunctionSupported(String function)

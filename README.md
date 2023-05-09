@@ -9,7 +9,8 @@ Use: Fsl.execute("Xyz.command", "{}")
 Actually there are the following modules:
 
 ## QRBill
-This module is done with help by
+This module uses the https://github.com/manuelbl/SwissQRBill library.
+
 *QRBill* has one command 'generate':
 
 As parameter you have to use a json string with following structure:

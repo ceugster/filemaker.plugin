@@ -91,14 +91,14 @@ public class ConversionTest
 	@AfterAll
 	public static void afterAll() throws IOException
 	{
-		try
-		{
-			FileUtils.cleanDirectory(new File("targets"));
-		}
-		catch (Exception e)
-		{
-			
-		}
+//		try
+//		{
+//			FileUtils.cleanDirectory(new File("targets"));
+//		}
+//		catch (Exception e)
+//		{
+//			
+//		}
 	}
 
 	@Test

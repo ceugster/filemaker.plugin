@@ -160,7 +160,7 @@ public class Camt extends Executor<Camt>
 		if (Objects.nonNull(mx))
 		{
 			result = new String[2];
-			result[0] = mx.getClass().getSimpleName();
+			result[0] = mx.getNamespace().substring(mx.getNamespace().lastIndexOf(":") + 1);
 			result[1] = mx.toJson();
 		}
 		else
@@ -185,5 +185,10 @@ public class Camt extends Executor<Camt>
 		{
 			return this.key;
 		}
+	}
+	
+	public enum Identifier
+	{
+		
 	}
 }

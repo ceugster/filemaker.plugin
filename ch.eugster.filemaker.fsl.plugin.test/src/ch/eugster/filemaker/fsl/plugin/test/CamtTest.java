@@ -72,7 +72,7 @@ public class CamtTest extends Camt
 		JsonNode responseNode = mapper.readTree(result);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
-		assertEquals("MxCamt05400104", responseNode.get("identifier").asText());
+		assertEquals("camt.054.001.04", responseNode.get("identifier").asText());
 	}
 
 	@Test
@@ -84,7 +84,7 @@ public class CamtTest extends Camt
 		JsonNode responseNode = mapper.readTree(result);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
-		assertEquals("MxCamt05400104", responseNode.get("identifier").asText());
+		assertEquals("camt.054.001.04", responseNode.get("identifier").asText());
 		System.out.println(targetContent);
 	}
 

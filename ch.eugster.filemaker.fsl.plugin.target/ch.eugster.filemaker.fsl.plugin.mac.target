@@ -2,12 +2,12 @@
 <?pde version="3.8"?>
 <target name="Running Platform">
 	<locations>
-		<location path="C:\Users\christian\git\filemaker.plugin\ch.eugster.filemaker.fsl.plugin\lib" type="Directory"/>
+		<location path="/Users/christian/git/filemaker.plugin/ch.eugster.filemaker.fsl.plugin/lib" type="Directory"/>
 	</locations>
 	<environment>
 		<arch>x86_64</arch>
-		<os>win32</os>
-		<ws>win32</ws>
+		<os>macosx</os>
+		<ws>cocoa</ws>
 		<nl>en_US</nl>
 	</environment>
 </target>

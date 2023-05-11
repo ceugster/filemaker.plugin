@@ -170,7 +170,7 @@ public class Fsl<E extends Executor<?>>
 			{
 				Properties properties = new Properties();
 				properties.setProperty("handlers", "java.util.logging.FileHandler, java.util.logging.ConsoleHandler");
-				properties.setProperty("java.util.logging.FileHandler.pattern", null);
+				properties.setProperty("java.util.logging.FileHandler.pattern", "%h/.fsl/fsl.log");
 				properties.setProperty("java.util.logging.FileHandler.formatter", "java.util.logging.SimpleFormatter");
 				properties.setProperty("java.util.logging.FileHandler.level", "INFO");
 				properties.setProperty("java.util.logging.ConsoleHandler.level", "INFO");

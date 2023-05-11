@@ -19,6 +19,8 @@ import ch.eugster.filemaker.fsl.plugin.Fsl;
 
 public class Camt extends Executor<Camt>
 {
+	protected static final String IDENTIFIER_KEY = "identifier";
+	
 	public static void parse(JsonNode requestNode, ObjectNode responseNode)
 	{
 		JsonNode source = requestNode.get(Parameter.XML_FILE.key());
@@ -35,7 +37,7 @@ public class Camt extends Executor<Camt>
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing_argument 'xml_file' or 'xml_content'");
+				Fsl.addErrorMessage("missing argument 'xml_file' or 'xml_content'");
 			}
 		}
 	}
@@ -60,21 +62,23 @@ public class Camt extends Executor<Camt>
 						line = br.readLine();
 					}
 					br.close();
-					responseNode.put(Executor.RESULT, jsonify(builder.toString()));
+					String[] result = jsonify(builder.toString());
+					responseNode.put(IDENTIFIER_KEY, result[0]);
+					responseNode.put(Executor.RESULT, result[1]);
 				}
 				catch (Exception e)
 				{
-					Fsl.addErrorMessage("missing_file '" + Parameter.XML_FILE.key() + "'");
+					Fsl.addErrorMessage("missing file '" + Parameter.XML_FILE.key() + "'");
 				}
 			}
 			else
 			{
-				Fsl.addErrorMessage("invalide_file_parameter '" + Parameter.XML_FILE.key() + "'");
+				Fsl.addErrorMessage("invalid argument '" + Parameter.XML_FILE.key() + "'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("wrong_parameter_type '" + Parameter.XML_FILE.key() + "'");
+			Fsl.addErrorMessage("invalid argument '" + Parameter.XML_FILE.key() + "'");
 		}
 	}
 	
@@ -85,16 +89,18 @@ public class Camt extends Executor<Camt>
 		{
 			try
 			{
-				responseNode.put(Executor.RESULT, jsonify(source.asText()));
+				String[] result = jsonify(source.asText());
+				responseNode.put(IDENTIFIER_KEY, result[0]);
+				responseNode.put(Executor.RESULT, result[1]);
 			}
 			catch (Exception e)
 			{
-				Fsl.addErrorMessage("wrong_parameter_type. 'xml_file_path_name'");
+				Fsl.addErrorMessage("wrong_parameter_type 'xml_file_path_name'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("wrong_parameter_type. 'xml_file_path_name'");
+			Fsl.addErrorMessage("wrong_parameter_type 'xml_file_path_name'");
 		}
 	}
 	
@@ -147,18 +153,21 @@ public class Camt extends Executor<Camt>
 		}
 	}
 
-	private static String jsonify(String content)
+	private static String[] jsonify(String content)
 	{
+		String[] result = null;
 		AbstractMX mx = AbstractMX.parse(content);
-		if (Objects.isNull(mx))
+		if (Objects.nonNull(mx))
 		{
-			Fsl.addErrorMessage("Ungültiges Format.");
+			result = new String[2];
+			result[0] = mx.getClass().getSimpleName();
+			result[1] = mx.toJson();
 		}
 		else
 		{
-			return mx.toJson();
+			Fsl.addErrorMessage("invalid format '" + content + "'");
 		}
-		return null;
+		return result;
 	}
 	
 	public enum Parameter

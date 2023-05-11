@@ -229,7 +229,7 @@ public class Xls extends Executor<Xls>
 												for (int cell = targetLeft; cell <= targetRight; cell++)
 												{
 													Cell targetCell = getOrCreateCell(targetRow, cell);
-													if (sourceCell.getCellStyle().equals(CellType.STRING))
+													if (sourceCell.getCellType().equals(CellType.STRING))
 													{
 														targetCell.setCellValue(sourceCell.getRichStringCellValue());
 													}

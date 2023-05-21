@@ -3,15 +3,26 @@ package ch.eugster.filemaker.fsl.plugin.camt;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.Reader;
 import java.util.Iterator;
 import java.util.Objects;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.prowidesoftware.swift.model.mx.AbstractMX;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
@@ -150,6 +161,45 @@ public class Camt extends Executor<Camt>
 					}
 				}
 			}
+		}
+	}
+	
+	public static void extractTags(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		JsonNode pathNode = requestNode.get(Camt.Parameter.XML_FILE.key());
+		if (TextNode.class.isInstance(pathNode))
+		{
+			String path = pathNode.asText();
+	        try { 
+	            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+	            DocumentBuilder builder = factory.newDocumentBuilder();
+	            Document doc = builder.parse (new File(path)); 
+	            NodeList list = doc.getElementsByTagName("xs:element"); 
+	            for(int i = 0 ; i < list.getLength(); i++)
+	            {
+	                Node first = (Node)list.item(i);
+	                System.out.println(first);
+//	                if(first.)
+//	                {
+//	                    String nm = first.getAttribute("name"); 
+//	                    System.out.println(nm); 
+//	                    String nm1 = first.getAttribute("type"); 
+//	                    System.out.println(nm1); 
+//	                }
+	            }
+	        } 
+	        catch (ParserConfigurationException e) 
+	        {
+	            e.printStackTrace();
+	        }
+	        catch (SAXException e) 
+	        { 
+	            e.printStackTrace();
+	        }
+	        catch (IOException ed) 
+	        {
+	            ed.printStackTrace();
+	        }
 		}
 	}
 

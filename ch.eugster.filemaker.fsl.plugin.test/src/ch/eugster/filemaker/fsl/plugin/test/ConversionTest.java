@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.sql.SQLException;
@@ -30,6 +31,8 @@ public class ConversionTest
 	private static ObjectMapper mapper;
 
 	private static String XML_SOURCE_PATH = "resources/xml/camt.054_P_CH0809000000450010065_1111204750_0_2022121623562233.xml";
+
+	private static String XSD_SOURCE_PATH = "resources/xsd/camt.054.001.04.xsd";
 
 	private static File XML_SOURCE_FILE = new File(XML_SOURCE_PATH);
 	
@@ -180,6 +183,28 @@ public class ConversionTest
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		assertNotNull(responseNode.get(Executor.RESULT).asText());
+	}
+
+	@Test
+	public void testXsdFileToJsonContent() throws SQLException, IOException
+	{
+		File[] files = new File("resources/xsd/").listFiles();
+		for (File file : files)
+		{
+			ObjectNode requestNode = mapper.createObjectNode();
+			requestNode.put(Converter.Key.XML_SOURCE_FILE.key(), file.getAbsolutePath());
+			
+			String result = Fsl.execute("Converter.convertXmlToJson", requestNode.toString());
+			
+			JsonNode responseNode = mapper.readTree(result);
+			if (responseNode.get(Executor.STATUS).asText().equals("OK"))
+			{
+				String value = responseNode.get(Executor.RESULT).asText();
+				FileOutputStream fos = new FileOutputStream(new File("targets/" + file.getName() + ".json"));
+				fos.write(value.getBytes());
+				fos.close();
+			}
+		}
 	}
 
 }

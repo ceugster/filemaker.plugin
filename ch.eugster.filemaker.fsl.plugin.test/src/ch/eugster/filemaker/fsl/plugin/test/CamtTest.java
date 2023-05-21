@@ -128,4 +128,14 @@ public class CamtTest extends Camt
 		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
 	}
 	
+	@Test
+	public void testXsd() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put(Camt.Parameter.XML_FILE.key(), "./resources/xsd/camt.054.001.04.xsd");
+		String result = Fsl.execute("Camt.extractTags", requestNode.toString());
+		JsonNode responseNode = mapper.readTree(result);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(targetContent, responseNode.get(Executor.RESULT).asText());
+	}
 }

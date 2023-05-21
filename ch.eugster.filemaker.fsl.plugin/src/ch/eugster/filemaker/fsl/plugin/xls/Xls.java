@@ -637,6 +637,8 @@ public class Xls extends Executor<Xls>
 									}
 									cellAddress = direction.nextIndex(cellAddress);
 								}
+								responseNode.put(Key.ROW.key(), cellAddress.getRow());
+								responseNode.put(Key.COL.key(), cellAddress.getColumn());
 							}
 						}
 						else
@@ -2235,7 +2237,7 @@ public class Xls extends Executor<Xls>
 					return new CellAddress(cellAddress.getRow(), cellAddress.getColumn() + 1);
 			}
 		}
-
+		
 		public boolean validRange(CellAddress cellAddress, int numberOfCells)
 		{
 			switch (this)

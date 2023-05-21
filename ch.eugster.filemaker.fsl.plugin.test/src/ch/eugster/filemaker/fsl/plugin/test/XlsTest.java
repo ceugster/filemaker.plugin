@@ -47,7 +47,7 @@ public class XlsTest extends Xls
 {
 	private static ObjectMapper MAPPER = new ObjectMapper();
 
-	private static final String WORKBOOK_1 = "workbook1";
+	private static final String WORKBOOK_1 = "./targets/workbook1";
 
 	@BeforeAll
 	public static void beforeAll()
@@ -497,7 +497,8 @@ public class XlsTest extends Xls
 	@Test
 	public void testCopyFormula()
 	{
-		prepareWorkbookAndSheetIfMissing();
+		String workbook = "./targets/copyFormula.xlsx";
+		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
 		Row row = sheet.createRow(2);
 		Cell cell = row.createCell(2);
@@ -565,14 +566,15 @@ public class XlsTest extends Xls
 			}
 		}
 		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put("path", "./targets/test.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 	}
 
 	@Test
 	public void testCopySingleFormulaCellToSingleCell() throws IOException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		String workbook = "./targets/CopySingleFormulaCell.xlsx";
+		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Sheet sheet = getActiveSheet();
 		Row row0 = sheet.createRow(0);
 		Cell cell = row0.createCell(0);
@@ -603,7 +605,7 @@ public class XlsTest extends Xls
 		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode.put("path", "./targets/test.xlsx");
+		requestNode.put("path", workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
@@ -612,7 +614,8 @@ public class XlsTest extends Xls
 	@Test
 	public void testCopySingleFormulaCellToMultipleCells() throws IOException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		String workbook = "./targets/CopySingleCellMultipleCells.xlsx";
+		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Sheet sheet = getActiveSheet();
 		Row row0 = sheet.createRow(0);
 		Cell cell = row0.createCell(0);
@@ -649,7 +652,7 @@ public class XlsTest extends Xls
 		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode.put(Key.PATH_NAME.key(), "./targets/test.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
@@ -658,7 +661,8 @@ public class XlsTest extends Xls
 	@Test
 	public void testCopySingleFormulaCellToMultipleCellsWithAddresses() throws IOException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		String workbook = "./targets/testCopySingleFormulaCellToMultipleCellsWithAddresses.xlsx";
+		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Sheet sheet = getActiveSheet();
 		Row row0 = sheet.createRow(0);
 		Cell cell = row0.createCell(0);
@@ -699,7 +703,7 @@ public class XlsTest extends Xls
 		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
 		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode.put("path", "./targets/test.xlsx");
+		requestNode.put("path", workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
@@ -708,7 +712,8 @@ public class XlsTest extends Xls
 	@Test
 	public void testCopySingleFormulaCellToMultipleCellsWithInts() throws IOException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		String workbook = "./targets/testCopySingleFormulaCellToMultipleCellsWithInts.xlsx";
+		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Sheet sheet = getActiveSheet();
 		Row row0 = sheet.createRow(0);
 		Cell cell = row0.createCell(0);
@@ -753,7 +758,7 @@ public class XlsTest extends Xls
 		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
 		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode.put("path", "./targets/test.xlsx");
+		requestNode.put("path", workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
@@ -791,20 +796,21 @@ public class XlsTest extends Xls
 	@Test
 	public void testSave() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookIfMissing();
+		String workbook = "./targets/test.xlsx";
+		prepareWorkbookIfMissing(workbook);
 		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
-		requestNode.put(Key.PATH_NAME.key(), "./targets/test.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		String result = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 		JsonNode resultNode = MAPPER.readTree(result);
 		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
-		assertTrue(new File("./targets/test.xlsx").exists());
+		assertTrue(new File(workbook).exists());
 	}
 
 	@Test
 	public void testSetHeaderFooter() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		String workbook = "./targets/TestSetHeaderFooter.xlsx";
+		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		ObjectNode requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.LEFT.key(), "Header links");
 		requestNode.put(Key.CENTER.key(), "Header Mitte");
@@ -835,7 +841,12 @@ public class XlsTest extends Xls
 		assertEquals("Footer rechts",
 				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getFooter().getRight());
 
-		testSave();
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), workbook);
+		String result = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+		JsonNode resultNode = MAPPER.readTree(result);
+		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
+		assertTrue(new File(workbook).exists());
 	}
 
 	@Test
@@ -845,6 +856,7 @@ public class XlsTest extends Xls
 
 		ObjectNode requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.STYLE.key(), 0);
+		requestNode.put(Key.SIZE.key(), 14);
 		requestNode.put(Key.CELL.key(), "A1");
 		String response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
 		JsonNode responseNode = MAPPER.readTree(response);
@@ -885,8 +897,7 @@ public class XlsTest extends Xls
 //		assertEquals(true, font.getItalic());
 		
 		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "applyFontStyles.xlsx");
-		requestNode.put(Key.PATH_NAME.key(), "./targets/applyFontStyles.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), "./targets/applyFontStyles.xlsx");
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 
@@ -946,8 +957,7 @@ public class XlsTest extends Xls
 		assertEquals(true, font.getItalic());
 		
 		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "applyFontStylesRange.xlsx");
-		requestNode.put(Key.PATH_NAME.key(), "./targets/applyFontStylesRange.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), "./targets/applyFontStylesRange.xlsx");
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 	
@@ -1073,8 +1083,7 @@ public class XlsTest extends Xls
 		assertEquals("-1,234,567.89", df.formatCellValue(cell));
 		
 		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "applyNumberFormats.xlsx");
-		requestNode.put(Key.PATH_NAME.key(), "./targets/applyNumberFormats.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), "./targets/applyNumberFormats.xlsx");
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 	
@@ -1108,15 +1117,15 @@ public class XlsTest extends Xls
 		assertNull(responseNode.get(Executor.ERRORS));
 		
 		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "autoSizeColumn.xlsx");
-		requestNode.put(Key.PATH_NAME.key(), "./targets/autoSizeColumn.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), "./targets/autoSizeColumn.xlsx");
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 
 	@Test
 	public void testRotation() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing("rotate.xlsx", SHEET0);
+		String workbook = "./targets/rotate.xlsx";
+		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Sheet sheet = getActiveSheet();
 		Row row = sheet.createRow(0);
 		Cell cell = row.createCell(0);
@@ -1133,15 +1142,15 @@ public class XlsTest extends Xls
 		assertNull(responseNode.get(Executor.ERRORS));
 		
 		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "rotate.xlsx");
-		requestNode.put(Key.PATH_NAME.key(), "./targets/rotate.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 	
 	@Test
 	public void testHorizontalAlignment() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing("horizontalAlign.xlsx", SHEET0);
+		String workbook = "./targets/horizontalAlign.xlsx";
+		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Sheet sheet = getActiveSheet();
 		Row row = sheet.createRow(0);
 		Cell cell = row.createCell(0);
@@ -1182,16 +1191,16 @@ public class XlsTest extends Xls
 		assertNull(responseNode.get(Executor.ERRORS));
 		
 		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "horizontalAlign.xlsx");
-		requestNode.put(Key.PATH_NAME.key(), "./targets/horizontalAlign.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 	
 	@Test
 	public void testBookkeeperReport() throws JsonMappingException, JsonProcessingException
 	{
+		String workbook = "./targets/BookKeeperReport.xlsx";
 		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "BookKeeperReport.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		String response = Fsl.execute("Xls.createAndActivateWorkbook", requestNode.toString());
 		JsonNode responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
@@ -1310,8 +1319,7 @@ public class XlsTest extends Xls
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 
 		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "BookKeeperReport.xlsx");
-		requestNode.put(Key.PATH_NAME.key(), "./targets/BookKeeperReport.xlsx");
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 

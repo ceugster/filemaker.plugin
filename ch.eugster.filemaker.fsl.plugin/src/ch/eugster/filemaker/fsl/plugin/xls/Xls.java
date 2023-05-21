@@ -522,22 +522,22 @@ public class Xls extends Executor<Xls>
 		Workbook workbook = getWorkbookIfPresent(requestNode);
 		if (Objects.nonNull(workbook))
 		{
-			JsonNode pathNameNode = requestNode.get(Key.PATH_NAME.key());
-			if (Objects.nonNull(pathNameNode))
+			JsonNode workbookNode = requestNode.get(Key.WORKBOOK.key());
+			if (Objects.nonNull(workbookNode))
 			{
-				if (TextNode.class.isInstance(requestNode.get(Key.PATH_NAME.key())))
+				if (TextNode.class.isInstance(workbookNode))
 				{
-					String path = TextNode.class.cast(requestNode.get(Key.PATH_NAME.key())).asText();
+					String path = TextNode.class.cast(workbookNode).asText();
 					result = saveWorkbook(path, workbook);
 				}
 				else
 				{
-					result = Fsl.addErrorMessage("invalid_argument '" + Key.PATH_NAME.key() + "'");
+					result = Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
 				}
 			}
 			else
 			{
-				result = Fsl.addErrorMessage("missing_argument '" + Key.PATH_NAME.key() + "'");
+				result = Fsl.addErrorMessage("missing_argument '" + Key.WORKBOOK.key() + "'");
 			}
 		}
 		else
@@ -967,7 +967,7 @@ public class Xls extends Executor<Xls>
 		if (result)
 		{
 			CellStyle cellStyle = sheet.getWorkbook().createCellStyle();
-			Font font = sheet.getWorkbook().createFont();
+			Font font = sheet.getWorkbook().getFontAt(0);
 			JsonNode styleNode = requestNode.findPath(Key.STYLE.key());
 			if (Objects.nonNull(styleNode))
 			{
@@ -1911,10 +1911,10 @@ public class Xls extends Executor<Xls>
 						Xls.activeWorkbook = null;
 					}
 				}
-				else
-				{
-					result = Fsl.addErrorMessage("missing_argument 'workbook'");
-				}
+			}
+			else
+			{
+				result = Fsl.addErrorMessage("missing_argument 'workbook'");
 			}
 		}
 		else
@@ -2159,6 +2159,18 @@ public class Xls extends Executor<Xls>
 		return new CellRangeAddress(top, bottom, left, right);
 	}
 
+	protected boolean isFunctionSupported(String function)
+	{
+		int pos = function.indexOf("(");
+		if (pos > -1)
+		{
+			String name = function.substring(0, pos - 1);
+			FunctionNameEval functionEval = new FunctionNameEval(name);
+			System.out.println(functionEval);
+		}
+		return true;
+	}
+
 	public enum Key
 	{
 		// @formatter:off
@@ -2174,7 +2186,6 @@ public class Xls extends Executor<Xls>
 		INDEX("index"),
 		ITEMS("items"),
 		LEFT("left"),
-		PATH_NAME("path_name"),
 		RANGE("range"),
 		RIGHT("right"),
 		ROTATION("rotation"),
@@ -2182,6 +2193,7 @@ public class Xls extends Executor<Xls>
 		SHEET("sheet"),
 		SOURCE("source"),
 		START("start"),
+		SIZE("size"),
 		STYLE("style"),
 		TARGET("target"),
 		TOP("top"),
@@ -2330,18 +2342,6 @@ public class Xls extends Executor<Xls>
 				}
 			}
 		}
-	}
-
-	protected boolean isFunctionSupported(String function)
-	{
-		int pos = function.indexOf("(");
-		if (pos > -1)
-		{
-			String name = function.substring(0, pos - 1);
-			FunctionNameEval functionEval = new FunctionNameEval(name);
-			System.out.println(functionEval);
-		}
-		return true;
 	}
 
 }

@@ -13,11 +13,13 @@ import java.util.Objects;
 
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.formula.eval.FunctionEval;
+import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
+import org.apache.poi.ss.usermodel.PrintOrientation;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -47,7 +49,7 @@ public class XlsTest extends Xls
 {
 	private static ObjectMapper MAPPER = new ObjectMapper();
 
-	private static final String WORKBOOK_1 = "./targets/workbook1";
+	private static final String WORKBOOK_1 = "./targets/workbook1.xlsx";
 
 	@BeforeAll
 	public static void beforeAll()
@@ -592,10 +594,10 @@ public class XlsTest extends Xls
 
 		ObjectNode requestNode = MAPPER.createObjectNode();
 		TextNode sourceNode = requestNode.textNode("A3");
-		requestNode.set("source", sourceNode);
+		requestNode.set(Key.SOURCE.key(), sourceNode);
 
 		TextNode targetNode = requestNode.textNode("B3");
-		requestNode.set("target", targetNode);
+		requestNode.set(Key.TARGET.key(), targetNode);
 
 		String response = Fsl.execute("Xls.copy", requestNode.toString());
 
@@ -605,7 +607,8 @@ public class XlsTest extends Xls
 		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode.put("path", workbook);
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
@@ -637,10 +640,10 @@ public class XlsTest extends Xls
 
 		ObjectNode requestNode = MAPPER.createObjectNode();
 		TextNode sourceNode = requestNode.textNode("A3");
-		requestNode.set("source", sourceNode);
+		requestNode.set(Key.SOURCE.key(), sourceNode);
 
 		TextNode targetNode = requestNode.textNode("B3:C3");
-		requestNode.set("target", targetNode);
+		requestNode.set(Key.TARGET.key(), targetNode);
 
 		String response = Fsl.execute("Xls.copy", requestNode.toString());
 
@@ -652,6 +655,7 @@ public class XlsTest extends Xls
 		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
+		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.WORKBOOK.key(), workbook);
 		Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
@@ -686,12 +690,12 @@ public class XlsTest extends Xls
 		ObjectNode sourceNode = requestNode.objectNode();
 		sourceNode.put(Key.TOP_LEFT.key(), "A3");
 		sourceNode.put(Key.BOTTOM_RIGHT.key(), "A3");
-		requestNode.set("source", sourceNode);
+		requestNode.set(Key.SOURCE.key(), sourceNode);
 
 		ObjectNode targetNode = requestNode.objectNode();
 		targetNode.put(Key.TOP_LEFT.key(), "B3");
 		targetNode.put(Key.BOTTOM_RIGHT.key(), "C3");
-		requestNode.set("target", targetNode);
+		requestNode.set(Key.TARGET.key(), targetNode);
 
 		String response = Fsl.execute("Xls.copy", requestNode.toString());
 
@@ -703,7 +707,8 @@ public class XlsTest extends Xls
 		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
 		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode.put("path", workbook);
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
@@ -739,14 +744,14 @@ public class XlsTest extends Xls
 		sourceNode.put(Key.LEFT.key(), 0);
 		sourceNode.put(Key.BOTTOM.key(), 2);
 		sourceNode.put(Key.RIGHT.key(), 0);
-		requestNode.set("source", sourceNode);
+		requestNode.set(Key.SOURCE.key(), sourceNode);
 
 		ObjectNode targetNode = requestNode.objectNode();
 		targetNode.put(Key.TOP.key(), 2);
 		targetNode.put(Key.LEFT.key(), 1);
 		targetNode.put(Key.BOTTOM.key(), 2);
 		targetNode.put(Key.RIGHT.key(), 2);
-		requestNode.set("target", targetNode);
+		requestNode.set(Key.TARGET.key(), targetNode);
 
 		String response = Fsl.execute("Xls.copy", requestNode.toString());
 
@@ -758,7 +763,8 @@ public class XlsTest extends Xls
 		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
 		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode.put("path", workbook);
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
@@ -794,12 +800,24 @@ public class XlsTest extends Xls
 	}
 
 	@Test
-	public void testSave() throws JsonMappingException, JsonProcessingException
+	public void testSaveWithParameter() throws JsonMappingException, JsonProcessingException
 	{
 		String workbook = "./targets/test.xlsx";
 		prepareWorkbookIfMissing(workbook);
 		ObjectNode requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.WORKBOOK.key(), workbook);
+		String result = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+		JsonNode resultNode = MAPPER.readTree(result);
+		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
+		assertTrue(new File(workbook).exists());
+	}
+
+	@Test
+	public void testSave() throws JsonMappingException, JsonProcessingException
+	{
+		String workbook = "./targets/test.xlsx";
+		prepareWorkbookIfMissing(workbook);
+		ObjectNode requestNode = MAPPER.createObjectNode();
 		String result = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 		JsonNode resultNode = MAPPER.readTree(result);
 		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
@@ -855,10 +873,16 @@ public class XlsTest extends Xls
 		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
 
 		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.FORMAT.key(), "Arial");
 		requestNode.put(Key.STYLE.key(), 0);
 		requestNode.put(Key.SIZE.key(), 14);
+		ArrayNode arrayNode = requestNode.arrayNode();
+		arrayNode.add(254);
+		arrayNode.add(0);
+		arrayNode.add(0);
+		requestNode.set(Key.COLOR.key(), arrayNode);
 		requestNode.put(Key.CELL.key(), "A1");
-		String response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
 		JsonNode responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		Font font = Xls.activeWorkbook.getFontAt(Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(0).getCell(0).getCellStyle().getFontIndex());
@@ -868,7 +892,7 @@ public class XlsTest extends Xls
 		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.STYLE.key(), 1);
 		requestNode.put(Key.CELL.key(), "B2");
-		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
@@ -879,7 +903,7 @@ public class XlsTest extends Xls
 		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.STYLE.key(), 2);
 		requestNode.put(Key.CELL.key(), "C3");
-		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		font = Xls.activeWorkbook.getFontAt(sheet.getRow(2).getCell(2).getCellStyle().getFontIndex());
@@ -889,7 +913,7 @@ public class XlsTest extends Xls
 		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.STYLE.key(), 3);
 		requestNode.put(Key.CELL.key(), "D4");
-		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		font = Xls.activeWorkbook.getFontAt(sheet.getRow(3).getCell(3).getCellStyle().getFontIndex());
@@ -902,59 +926,471 @@ public class XlsTest extends Xls
 	}
 
 	@Test
-	public void testApplyFontStylesToRange() throws EncryptedDocumentException, IOException
+	public void testApplyFontStyleBold() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.BOLD.key(), 1);
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(2, Xls.activeWorkbook.getNumberOfFonts());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/applyFontStylesBold.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(i == 0 ? true : false, font.getBold());
+
+				assertEquals(false, font.getItalic());
+				assertEquals(Font.U_NONE, font.getUnderline());
+				assertEquals(0, font.getColor());
+				assertEquals(12, font.getFontHeightInPoints());
+				assertEquals("Calibri", font.getFontName());
+				assertEquals(false, font.getStrikeout());
+				assertEquals(Font.SS_NONE, font.getTypeOffset());
+			}			
+		}
+	}
+	
+	@Test
+	public void testApplyFontStyleBoldError() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.BOLD.key(), "A");
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(1, Xls.activeWorkbook.getNumberOfFonts());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(false, font.getBold());
+				assertEquals(false, font.getItalic());
+				assertEquals(Font.U_NONE, font.getUnderline());
+				assertEquals(0, font.getColor());
+				assertEquals(12, font.getFontHeightInPoints());
+				assertEquals("Calibri", font.getFontName());
+				assertEquals(false, font.getStrikeout());
+				assertEquals(Font.SS_NONE, font.getTypeOffset());
+			}			
+		}
+	}
+	
+	@Test
+	public void testApplyFontStyleItalic() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.ITALIC.key(), 1);
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(2, Xls.activeWorkbook.getNumberOfFonts());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/applyFontStylesItalic.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(i == 0 ? true : false, font.getItalic());
+
+				assertEquals(false, font.getBold());
+				assertEquals(Font.U_NONE, font.getUnderline());
+				assertEquals(0, font.getColor());
+				assertEquals(12, font.getFontHeightInPoints());
+				assertEquals("Calibri", font.getFontName());
+				assertEquals(false, font.getStrikeout());
+				assertEquals(Font.SS_NONE, font.getTypeOffset());
+			}			
+		}
+	}
+	
+	@Test
+	public void testApplyFontStyleUnderline() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.UNDERLINE.key(), Font.U_DOUBLE);
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(2, Xls.activeWorkbook.getNumberOfFonts());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/applyFontStylesUnderline.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(i == 0 ? Font.U_DOUBLE : Font.U_NONE, font.getUnderline());
+
+				assertEquals(false, font.getBold());
+				assertEquals(false, font.getItalic());
+				assertEquals(0, font.getColor());
+				assertEquals(12, font.getFontHeightInPoints());
+				assertEquals("Calibri", font.getFontName());
+				assertEquals(false, font.getStrikeout());
+				assertEquals(Font.SS_NONE, font.getTypeOffset());
+			}			
+		}
+	}
+	
+	@Test
+	public void testApplyFontStyleColor() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.COLOR.key(), Font.COLOR_RED);
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(2, Xls.activeWorkbook.getNumberOfFonts());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/applyFontStylesColor.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(i == 0 ? Font.COLOR_RED: 0, font.getColor());
+
+				assertEquals(false, font.getBold());
+				assertEquals(false, font.getItalic());
+				assertEquals(Font.U_NONE, font.getUnderline());
+				assertEquals(12, font.getFontHeightInPoints());
+				assertEquals("Calibri", font.getFontName());
+				assertEquals(false, font.getStrikeout());
+				assertEquals(Font.SS_NONE, font.getTypeOffset());
+			}			
+		}
+	}
+	
+	@Test
+	public void testSetPrintSetup() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.ORIENTATION.key(), PrintOrientation.LANDSCAPE.name().toLowerCase());
+		requestNode.put(Key.COPIES.key(), 2);
+		
+		String response = Fsl.execute("Xls.setPrintSetup", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/printSetup.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+	}
+	
+	@Test
+	public void testApplyFontStyleSize() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.SIZE.key(), 30);
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(2, Xls.activeWorkbook.getNumberOfFonts());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/applyFontStylesSize.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(i == 0 ? 30 : 12, font.getFontHeightInPoints());
+
+				assertEquals(false, font.getBold());
+				assertEquals(false, font.getItalic());
+				assertEquals(Font.U_NONE, font.getUnderline());
+				assertEquals(0, font.getColor());
+				assertEquals("Calibri", font.getFontName());
+				assertEquals(false, font.getStrikeout());
+				assertEquals(Font.SS_NONE, font.getTypeOffset());
+			}			
+		}
+	}
+	
+	@Test
+	public void testApplyFontStyleName() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.NAME.key(), "Courier new");
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(2, Xls.activeWorkbook.getNumberOfFonts());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/applyFontStylesName.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(i == 0 ? "Courier new" : "Calibri", font.getFontName());
+
+				assertEquals(false, font.getBold());
+				assertEquals(false, font.getItalic());
+				assertEquals(Font.U_NONE, font.getUnderline());
+				assertEquals(0, font.getColor());
+				assertEquals(12, font.getFontHeightInPoints());
+				assertEquals(false, font.getStrikeout());
+				assertEquals(Font.SS_NONE, font.getTypeOffset());
+			}			
+		}
+	}
+	
+	@Test
+	public void testApplyFontStyleStrikeOut() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.STRIKE_OUT.key(), 1);
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(2, Xls.activeWorkbook.getNumberOfFonts());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/applyFontStylesStrikeOut.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(i == 0 ? true : false, font.getStrikeout());
+
+				assertEquals(false, font.getBold());
+				assertEquals(false, font.getItalic());
+				assertEquals(Font.U_NONE, font.getUnderline());
+				assertEquals(0, font.getColor());
+				assertEquals("Calibri", font.getFontName());
+				assertEquals(12, font.getFontHeightInPoints());
+				assertEquals(Font.SS_NONE, font.getTypeOffset());
+			}			
+		}
+	}
+	
+	
+	@Test
+	public void testApplyFontStyleTypeOffset() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStyles.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TYPE_OFFSET.key(), Font.SS_SUPER);
+		requestNode.put(Key.RANGE.key(), "A1:D1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(2, Xls.activeWorkbook.getNumberOfFonts());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/applyFontStylesTypeOffset.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(i == 0 ? Font.SS_SUPER : Font.SS_NONE, font.getTypeOffset());
+
+				assertEquals(false, font.getBold());
+				assertEquals(false, font.getItalic());
+				assertEquals(Font.U_NONE, font.getUnderline());
+				assertEquals(0, font.getColor());
+				assertEquals("Calibri", font.getFontName());
+				assertEquals(12, font.getFontHeightInPoints());
+				assertEquals(false, font.getStrikeout());
+			}			
+		}
+	}
+	
+	@Test
+	public void testApplyFontStyleBoldToRange() throws EncryptedDocumentException, IOException
 	{
 		openAndActivateWorkbook("./resources/xls/applyFontStylesRange.xlsx");
 
 		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.STYLE.key(), 0);
+		requestNode.put(Key.BOLD.key(), 1);
 		requestNode.put(Key.RANGE.key(), "A1:D1");
 		
-		String response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
 		
 		JsonNode responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(2, Xls.activeWorkbook.getNumberOfFonts());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), "./targets/applyFontStylesRange.xlsx");
+		response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+
+		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(i).getCell(j).getCellStyle().getFontIndex());
+				assertEquals(i == 0 ? true : false, font.getBold());
+				assertEquals(false, font.getItalic());
+				assertEquals(Font.U_NONE, font.getUnderline());
+			}			
+		}
+	}
+	
+	@Test
+	public void testApplyFontStyleItalicToRange() throws EncryptedDocumentException, IOException
+	{
+		openAndActivateWorkbook("./resources/xls/applyFontStylesRange.xlsx");
+
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.BOLD.key(), 1);
+		requestNode.put(Key.RANGE.key(), "A1:D1");
 		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+
 		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
 		Font font = Xls.activeWorkbook.getFontAt(sheet.getRow(0).getCell(0).getCellStyle().getFontIndex());
-		assertEquals(false, font.getBold());
+		assertEquals(true, font.getBold());
 		assertEquals(false, font.getItalic());
+		assertEquals(Font.U_NONE, font.getUnderline());
 		
 		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.STYLE.key(), 1);
+		requestNode.put(Key.ITALIC.key(), 1);
 		requestNode.put(Key.RANGE.key(), "A2:D2");
 		
-		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
 		
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		font = Xls.activeWorkbook.getFontAt(sheet.getRow(1).getCell(0).getCellStyle().getFontIndex());
-		assertEquals(true, font.getBold());
-		assertEquals(false, font.getItalic());
+		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.STYLE.key(), 2);
-		requestNode.put(Key.RANGE.key(), "A3:D3");
-		
-		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
-		
-		responseNode = MAPPER.readTree(response);
-		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		font = Xls.activeWorkbook.getFontAt(sheet.getRow(2).getCell(0).getCellStyle().getFontIndex());
+		font = Xls.activeWorkbook.getFontAt(sheet.getRow(1).getCell(0).getCellStyle().getFontIndex());
 		assertEquals(false, font.getBold());
 		assertEquals(true, font.getItalic());
+		assertEquals(Font.U_NONE, font.getUnderline());
 
 		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.STYLE.key(), 3);
-		requestNode.put(Key.RANGE.key(), "A4:D4");
+		requestNode.put(Key.BOLD.key(), 1);
+		requestNode.put(Key.ITALIC.key(), 1);
+		requestNode.put(Key.RANGE.key(), "A3:D3");
 		
-		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
 		
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		font = Xls.activeWorkbook.getFontAt(sheet.getRow(3).getCell(0).getCellStyle().getFontIndex());
+		assertNull(responseNode.get(Executor.ERRORS));
+
+		font = Xls.activeWorkbook.getFontAt(sheet.getRow(2).getCell(0).getCellStyle().getFontIndex());
 		assertEquals(true, font.getBold());
 		assertEquals(true, font.getItalic());
+		assertEquals(Font.U_NONE, font.getUnderline());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.UNDERLINE.key(), Font.U_DOUBLE);
+		requestNode.put(Key.RANGE.key(), "A4:D4");
+		
+		response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+
+		font = Xls.activeWorkbook.getFontAt(sheet.getRow(3).getCell(0).getCellStyle().getFontIndex());
+		assertEquals(false, font.getBold());
+		assertEquals(false, font.getItalic());
+		assertEquals(Font.U_DOUBLE, font.getUnderline());
 		
 		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.WORKBOOK.key(), "./targets/applyFontStylesRange.xlsx");
@@ -1085,6 +1521,192 @@ public class XlsTest extends Xls
 		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.WORKBOOK.key(), "./targets/applyNumberFormats.xlsx");
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+	}
+	
+	@Test
+	public void testCellStyle() throws EncryptedDocumentException, IOException
+	{
+		String path = "./resources/xls/applyCellStyle.xlsx";
+		openAndActivateWorkbook(path);
+		
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A1");
+		ObjectNode borderNode = requestNode.objectNode();
+		ObjectNode styleNode = borderNode.objectNode();
+		TextNode node = styleNode.textNode(BorderStyle.DOTTED.name());
+		styleNode.set(Key.BOTTOM.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A1");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode(BorderStyle.DOTTED.name());
+		styleNode.set(Key.BOTTOM.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A1");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode(BorderStyle.THICK.name());
+		styleNode.set(Key.LEFT.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A1");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode(BorderStyle.DOUBLE.name());
+		styleNode.set(Key.RIGHT.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A1");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode(BorderStyle.DASH_DOT.name());
+		styleNode.set(Key.TOP.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.CELL.key(), "A2");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode("xxx");
+		styleNode.set(Key.TOP.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Executor.ERRORS).size());
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "A2");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode("xxx");
+		styleNode.set(Key.TOP.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Executor.ERRORS).size());
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "C2:D3");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode(BorderStyle.DOTTED.name());
+		styleNode.set(Key.BOTTOM.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "C2:D3");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode(BorderStyle.DOTTED.name());
+		styleNode.set(Key.BOTTOM.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "C2:D3");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode(BorderStyle.THICK.name());
+		styleNode.set(Key.LEFT.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "C2:D3");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode(BorderStyle.DOUBLE.name());
+		styleNode.set(Key.RIGHT.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "C2:D3");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode(BorderStyle.DASH_DOT.name());
+		styleNode.set(Key.TOP.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+		
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.RANGE.key(), "C2:D3");
+		borderNode = requestNode.objectNode();
+		styleNode = borderNode.objectNode();
+		node = styleNode.textNode("xxx");
+		styleNode.set(Key.TOP.key(), node);
+		borderNode.set(Key.STYLE.key(), styleNode);
+		requestNode.set(Key.BORDER.key(), borderNode);
+		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Executor.ERRORS).size());
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), path);
+		requestNode.put(Key.TARGET.key(), "./targets/applyCellStyles.xlsx");
+		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
 	}
 	
 	@Test
@@ -1238,8 +1860,8 @@ public class XlsTest extends Xls
 
 		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.RANGE.key(), "A1:H1");
-		requestNode.put(Key.STYLE.key(), FontStyle.BOLD.ordinal());
-		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		requestNode.put(Key.BOLD.key(), 1);
+		response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 
@@ -1307,8 +1929,8 @@ public class XlsTest extends Xls
 
 		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.RANGE.key(), "A4:H4");
-		requestNode.put(Key.STYLE.key(), FontStyle.BOLD.ordinal());
-		response = Fsl.execute("Xls.applyFontStyle", requestNode.toString());
+		requestNode.put(Key.BOLD.key(), 1);
+		response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 
@@ -1322,12 +1944,130 @@ public class XlsTest extends Xls
 		requestNode.put(Key.WORKBOOK.key(), workbook);
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
+	
+	@Test
+	public void testFonts() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = getActiveSheet();
+		Cell cell = getOrCreateCell(sheet, new CellAddress("A1"));
+		cell.setCellValue(new XSSFRichTextString("Das ist ein Test"));
+		cell = getOrCreateCell(sheet, new CellAddress("A2"));
+		cell.setCellValue(new XSSFRichTextString("Das ist ein weiterer Test"));
+
+		int numberOfFonts = sheet.getWorkbook().getNumberOfFonts();
+		System.out.println("Fonts im Workbook");
+		for (int i = 0; i < numberOfFonts; i++)
+		{
+			Font font = sheet.getWorkbook().getFontAt(i);
+			System.out.println(font.getFontName() + ", Size: " + font.getFontHeightInPoints() + ", Bold: " + font.getBold() + ", Italic: " + font.getItalic() + ", Underline: " + font.getUnderline() + ", Strikeout: " + font.getStrikeout() + ", Type Offset: " + font.getTypeOffset() + ", Color: " + font.getColor());
+		}
+		
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.NAME.key(), "Arial");
+		requestNode.put(Key.SIZE.key(), 30);
+		requestNode.put(Key.CELL.key(), "A1");
+		
+		String response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Key.INDEX.key()).asInt());
+		numberOfFonts = sheet.getWorkbook().getNumberOfFonts();
+		assertEquals(2, numberOfFonts);
+
+		requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.NAME.key(), "Courier New");
+		requestNode.put(Key.SIZE.key(), 24);
+		requestNode.put(Key.BOLD.key(), 1);
+		requestNode.put(Key.CELL.key(), "A2");
+		
+		response = Fsl.execute("Xls.applyFontStyles", requestNode.toString());
+		
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals(2, responseNode.get(Key.INDEX.key()).asInt());
+		numberOfFonts = sheet.getWorkbook().getNumberOfFonts();
+		assertEquals(3, numberOfFonts);
+
+		System.out.println("Fonts im Workbook");
+		for (int i = 0; i < numberOfFonts; i++)
+		{
+			Font font = sheet.getWorkbook().getFontAt(i);
+			System.out.println(font.getFontName() + ", Size: " + font.getFontHeightInPoints() + ", Bold: " + font.getBold() + ", Italic: " + font.getItalic() + ", Underline: " + font.getUnderline() + ", Strikeout: " + font.getStrikeout() + ", Type Offset: " + font.getTypeOffset() + ", Color: " + font.getColor());
+		}
+		
+		System.out.println("Fonts in den Zellen");
+		System.out.println(sheet.getRow(0).getCell(0).getCellStyle().getFontIndex());
+		System.out.println(sheet.getRow(1).getCell(0).getCellStyle().getFontIndex());
+		
+		requestNode = MAPPER.createObjectNode();
+		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+		responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+	}
+	
+	@Test
+	public void testSaveActiveWorkbook() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+
+		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testSaveNamedWorkbook() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+		
+		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testSaveWorkbookToTarget() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.TARGET.key(), WORKBOOK_1);
+		
+		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testSaveNamedWorkbookToTarget() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookAndSheetIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+		requestNode.put(Key.TARGET.key(), WORKBOOK_1);
+		
+		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
 
 	private static void openAndActivateWorkbook(String path) throws EncryptedDocumentException, IOException
 	{
 		File file = new File(path);
 		Workbook workbook = XSSFWorkbook.class.cast(WorkbookFactory.create(file));
-		Xls.workbooks.put(file.getName(), workbook);
+		Xls.workbooks.put(path, workbook);
 		Xls.activeWorkbook = workbook;
 	}
 

@@ -30,18 +30,22 @@ import org.apache.poi.ss.formula.eval.FunctionNameEval;
 import org.apache.poi.ss.formula.ptg.AreaPtgBase;
 import org.apache.poi.ss.formula.ptg.Ptg;
 import org.apache.poi.ss.formula.ptg.RefPtgBase;
+import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellRange;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Footer;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.Header;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.PrintOrientation;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -107,7 +111,7 @@ public class Xls extends Executor<Xls>
 				}
 				else
 				{
-					Fsl.addErrorMessage("missing_sheet '" + sheetNode.asText() + "'");
+					result = Fsl.addErrorMessage("missing_sheet '" + sheetNode.asText() + "'");
 				}
 			}
 		}
@@ -118,44 +122,33 @@ public class Xls extends Executor<Xls>
 	{
 		boolean result = true;
 		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
-		if (Objects.nonNull(workbookNode))
+		if (workbookNode.isTextual())
 		{
-			if (TextNode.class.isInstance(workbookNode))
+			String name = workbookNode.asText();
+			Workbook workbook = Xls.workbooks.get(name);
+			if (Objects.nonNull(workbook))
 			{
-				String name = workbookNode.asText();
-				Workbook workbook = Xls.workbooks.get(name);
-				if (Objects.nonNull(workbook))
+				if (Xls.activeWorkbook != workbook)
 				{
-					if (Xls.activeWorkbook != workbook)
-					{
-						Xls.activeWorkbook = workbook;
-					}
-				}
-				else
-				{
-					result = Fsl.addErrorMessage("missing_workbook '" + Key.WORKBOOK.key() + "'");
+					Xls.activeWorkbook = workbook;
 				}
 			}
 			else
 			{
-				result = Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
+				result = Fsl.addErrorMessage("missing_workbook '" + Key.WORKBOOK.key() + "'");
 			}
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("missing_argument '" + Key.WORKBOOK.key() + "'");
+			result = Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
 		}
 		return result;
 	}
 
 	public static boolean activeSheetPresent(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		boolean result = Objects.nonNull(Xls.activeWorkbook);
-		if (result)
-		{
-			result = activeSheetPresent();
-			responseNode.put("present", result ? 1 : 0);
-		}
+		boolean result = activeSheetPresent();
+		responseNode.put("present", result ? 1 : 0);
 		return result;
 	}
 
@@ -184,7 +177,8 @@ public class Xls extends Executor<Xls>
 				if (result)
 				{
 					CellRangeAddress targetRangeAddress = getTargetRangeAddress(targetNode);
-					result = validateRangeAddress(targetSheet.getWorkbook().getSpreadsheetVersion(), targetRangeAddress);
+					result = validateRangeAddress(targetSheet.getWorkbook().getSpreadsheetVersion(),
+							targetRangeAddress);
 					if (result)
 					{
 						if (sourceSheet == targetSheet)
@@ -254,8 +248,8 @@ public class Xls extends Executor<Xls>
 						}
 						else if (sourceRangeAddress.getNumberOfCells() == targetRangeAddress.getNumberOfCells()
 								&& sourceRangeAddress.getLastRow()
-								- sourceRangeAddress.getFirstRow() == targetRangeAddress.getLastRow()
-								- targetRangeAddress.getFirstRow())
+										- sourceRangeAddress.getFirstRow() == targetRangeAddress.getLastRow()
+												- targetRangeAddress.getFirstRow())
 						{
 							Iterator<CellAddress> sourceAddresses = sourceRangeAddress.iterator();
 							Iterator<CellAddress> targetAddresses = targetRangeAddress.iterator();
@@ -280,10 +274,10 @@ public class Xls extends Executor<Xls>
 						{
 							result = Fsl.addErrorMessage("invalid_different source and target range dimensions");
 						}
-						
-					}					
+
+					}
 				}
-			}				
+			}
 		}
 		return result;
 	}
@@ -347,7 +341,7 @@ public class Xls extends Executor<Xls>
 			}
 			else
 			{
-				Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
+				result = Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
 			}
 		}
 		else
@@ -496,14 +490,46 @@ public class Xls extends Executor<Xls>
 
 	public static boolean releaseWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		return releaseWorkbook(requestNode);
+		boolean result = true;
+		String wb = null;
+
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		if (workbookNode.isTextual())
+		{
+			wb = workbookNode.asText();
+		}
+		Workbook workbook = null;
+		if (Objects.nonNull(wb))
+		{
+			workbook = workbooks.remove(wb);
+			if (workbook == activeWorkbook)
+			{
+				activeWorkbook = null;
+			}
+		}
+		else
+		{
+			workbook = Xls.activeWorkbook;
+			Set<Entry<String, Workbook>> entries = workbooks.entrySet();
+			Iterator<Entry<String, Workbook>> iterator = entries.iterator();
+			while (iterator.hasNext())
+			{
+				Entry<String, Workbook> entry = iterator.next();
+				if (entry.getValue() == workbook)
+				{
+					workbook = workbooks.remove(entry.getKey());
+					Xls.activeWorkbook = null;
+					break;
+				}
+			}
+		}
+		return result;
 	}
 
-	public static boolean releaseWorkbooks(ObjectNode requestNode, ObjectNode responseNode)
+	public static void releaseWorkbooks(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		Xls.workbooks.clear();
-		boolean result = releaseWorkbook();
-		return result;
+		Xls.activeWorkbook = null;
 	}
 
 	public static boolean saveAndReleaseWorkbook(ObjectNode requestNode, ObjectNode responseNode)
@@ -519,30 +545,57 @@ public class Xls extends Executor<Xls>
 	public static boolean saveWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
-		Workbook workbook = getWorkbookIfPresent(requestNode);
-		if (Objects.nonNull(workbook))
+		String target = null;
+		String wb = null;
+
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
+		if (workbookNode.isTextual())
 		{
-			JsonNode workbookNode = requestNode.get(Key.WORKBOOK.key());
-			if (Objects.nonNull(workbookNode))
+			wb = workbookNode.asText();
+		}
+		JsonNode targetNode = requestNode.findPath(Key.TARGET.key());
+		if (targetNode.isTextual())
+		{
+			target = targetNode.asText();
+		}
+		Workbook workbook = null;
+		if (Objects.nonNull(wb))
+		{
+			workbook = workbooks.get(wb);
+			if (Objects.nonNull(workbook))
 			{
-				if (TextNode.class.isInstance(workbookNode))
+				if (Objects.nonNull(target))
 				{
-					String path = TextNode.class.cast(workbookNode).asText();
-					result = saveWorkbook(path, workbook);
+					result = saveWorkbookAs(workbook, target);
 				}
 				else
 				{
-					result = Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
+					result = saveWorkbook(workbook);
 				}
 			}
 			else
 			{
-				result = Fsl.addErrorMessage("missing_argument '" + Key.WORKBOOK.key() + "'");
+				result = Fsl.addErrorMessage("invalid argument '" + Key.WORKBOOK.key() + "'");
 			}
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("missing_argument '" + Key.WORKBOOK.key() + "'");
+			workbook = Xls.activeWorkbook;
+			if (Objects.nonNull(workbook))
+			{
+				if (Objects.nonNull(target))
+				{
+					result = saveWorkbookAs(workbook, target);
+				}
+				else
+				{
+					result = saveWorkbook(workbook);
+				}
+			}
+			else
+			{
+				result = Fsl.addErrorMessage("missing argument '" + Key.WORKBOOK.key() + "'");
+			}
 		}
 		return result;
 	}
@@ -555,42 +608,35 @@ public class Xls extends Executor<Xls>
 		if (result)
 		{
 			JsonNode cellNode = requestNode.findPath(Key.CELL.key());
-			result = Objects.nonNull(cellNode) && !cellNode.isMissingNode();
+			result = !cellNode.isMissingNode();
 			if (result)
 			{
 				CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
 				if (Objects.nonNull(cellAddress))
 				{
-					if (!requestNode.get(Key.VALUES.key()).isMissingNode())
+					JsonNode valuesNode = requestNode.get(Key.VALUES.key());
+					if (valuesNode.isArray())
 					{
-						if (ArrayNode.class.isInstance(requestNode.get(Key.VALUES.key())))
+						Direction direction = Direction.DEFAULT;
+						if (valuesNode.size() > 0)
 						{
-							ArrayNode valuesNode = ArrayNode.class.cast(requestNode.get(Key.VALUES.key()));
-							Direction direction = Direction.DEFAULT;
-							if (valuesNode.size() == 0)
+							JsonNode directionNode = requestNode.findPath(Key.DIRECTION.key());
+							if (Objects.nonNull(directionNode) && !directionNode.isMissingNode())
 							{
-								result = Fsl.addErrorMessage("invalid_argument '" + Key.VALUES.key() + "'");
-							}
-							else if (valuesNode.size() > 1)
-							{
-								JsonNode directionNode = requestNode.findPath(Key.DIRECTION.key());
-								if (Objects.nonNull(directionNode) && !directionNode.isMissingNode())
+								if (TextNode.class.isInstance(directionNode))
 								{
-									if (TextNode.class.isInstance(directionNode))
+									try
 									{
-										try
-										{
-											direction = Direction.valueOf(directionNode.asText().toUpperCase());
-										}
-										catch (Exception e)
-										{
-											result = Fsl.addErrorMessage("invalid_argument 'direction'");
-										}
+										direction = Direction.valueOf(directionNode.asText().toUpperCase());
 									}
-									else
+									catch (Exception e)
 									{
 										result = Fsl.addErrorMessage("invalid_argument 'direction'");
 									}
+								}
+								else
+								{
+									result = Fsl.addErrorMessage("invalid_argument 'direction'");
 								}
 							}
 							if (direction.validRange(cellAddress, valuesNode.size()))
@@ -668,7 +714,7 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	public static void setCellValue(ObjectNode requestNode, ObjectNode responseNode)
+	public static boolean setCellValue(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
 		JsonNode valueNode = requestNode.findPath(Key.VALUES.key());
@@ -707,139 +753,82 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							Fsl.addErrorMessage("invalid_argument 'value'");
+							result = Fsl.addErrorMessage("invalid_argument 'value'");
 						}
 					}
 					else
 					{
-						Fsl.addErrorMessage("invalid_argument 'value'");
+						result = Fsl.addErrorMessage("invalid_argument 'value'");
 					}
 				}
 				else
 				{
-					Fsl.addErrorMessage("missing_argument 'value'");
+					result = Fsl.addErrorMessage("missing_argument 'value'");
 				}
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing_argument 'cell'");
+				result = Fsl.addErrorMessage("missing_argument 'cell'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing_active_sheet");
+			result = Fsl.addErrorMessage("missing_active_sheet");
 		}
+		return result;
 	}
+	
+	public static boolean setPrintSetup(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		boolean result = true;
+		
+		Sheet sheet = getSheetIfPresent(requestNode);
+		if (Objects.nonNull(sheet)) 
+		{
+			JsonNode orientationNode = requestNode.findPath(Key.ORIENTATION.key());
+			PrintOrientation orientation = PrintOrientation.DEFAULT;
+			if (orientationNode.isTextual())
+			{
+				try
+				{
+					orientation = PrintOrientation.valueOf(orientationNode.asText().toUpperCase());
+				}
+				catch (Exception e)
+				{
+					result = Fsl.addErrorMessage("invalid argument 'orientation'");
+				}
+			}
+			switch (orientation)
+			{
+				case LANDSCAPE:
+				{
+					sheet.getPrintSetup().setLandscape(true);
+				}
+				case PORTRAIT:
+				{
+					sheet.getPrintSetup().setNoOrientation(false);
+					sheet.getPrintSetup().setLandscape(false);
+				}
+				default:
+				{
+					sheet.getPrintSetup().setNoOrientation(true);
+				}
+				
+			}
 
-//	public static void setColumnFormulae(ObjectNode requestNode, ObjectNode responseNode)
-//	{
-//		Sheet sheet = getSheetIfPresent(requestNode);
-//		if (Objects.nonNull(sheet))
-//		{
-//			int rowIndex = 0;
-//			JsonNode rowIndexNode = requestNode.get("row_index");
-//			if (Objects.nonNull(rowIndexNode))
-//			{
-//				if (rowIndexNode.isInt())
-//				{
-//					rowIndex = rowIndexNode.asInt() - 1;
-//					if (rowIndex < 0)
-//					{
-//						Fsl.addErrorMessage("invalid_argument 'row_index'");
-//					}
-//				}
-//				else
-//				{
-//					Fsl.addErrorMessage("invalid_argument 'row_index'");
-//				}
-//			}
-//			int colIndex = 0;
-//			JsonNode colIndexNode = requestNode.get("col_index");
-//			if (Objects.nonNull(colIndexNode))
-//			{
-//				if (colIndexNode.isInt())
-//				{
-//					colIndex = colIndexNode.asInt() - 1;
-//					if (colIndex < 0)
-//					{
-//						Fsl.addErrorMessage("invalid_argument 'col_index'");
-//					}
-//				}
-//				else
-//				{
-//					Fsl.addErrorMessage("invalid_argument 'col_index'");
-//				}
-//			}
-//			JsonNode formulaeNode = requestNode.get("formulae");
-//			if (Objects.nonNull(formulaeNode))
-//			{
-//				for (int i = 0; i < formulaeNode.size(); i++)
-//				{
-//					Row row = getOrCreateRow(sheet, i + rowIndex);
-//					if (Objects.isNull(row.getCell(colIndex)))
-//					{
-//						Cell cell = row.createCell(colIndex);
-//						cell.setCellFormula(formulaeNode.get(i).asText());
-//					}
-//				}
-//			}
-//		}
-//	}
-//
-//	public static void setColumnTitles(ObjectNode requestNode, ObjectNode responseNode)
-//	{
-//		Sheet sheet = getSheetIfPresent(requestNode);
-//		if (Objects.nonNull(sheet))
-//		{
-//			int rowIndex = 0;
-//			JsonNode rowIndexNode = requestNode.get("row_index");
-//			if (Objects.nonNull(rowIndexNode))
-//			{
-//				if (rowIndexNode.isInt())
-//				{
-//					rowIndex = rowIndexNode.asInt() - 1;
-//					if (rowIndex < 0)
-//					{
-//						Fsl.addErrorMessage("invalid_argument 'row_index'");
-//					}
-//				}
-//				else
-//				{
-//					Fsl.addErrorMessage("invalid_argument 'row_index'");
-//				}
-//			}
-//			int colIndex = 0;
-//			JsonNode colIndexNode = requestNode.get("col_index");
-//			if (Objects.nonNull(colIndexNode))
-//			{
-//				if (colIndexNode.isInt())
-//				{
-//					colIndex = colIndexNode.asInt() - 1;
-//					if (colIndex < 0)
-//					{
-//						Fsl.addErrorMessage("invalid_argument 'col_index'");
-//					}
-//				}
-//				else
-//				{
-//					Fsl.addErrorMessage("invalid_argument 'col_index'");
-//				}
-//			}
-//			JsonNode titlesNode = requestNode.get("titles");
-//			if (Objects.nonNull(titlesNode))
-//			{
-//				for (int i = 0; i < titlesNode.size(); i++)
-//				{
-//					Row row = getOrCreateRow(sheet, i + rowIndex);
-//					if (Objects.isNull(row.getCell(colIndex)))
-//					{
-//						Cell cell = row.createCell(colIndex);
-//						setRichTextString(cell, titlesNode.get(i).asText());
-//					}
-//				}
-//			}
-//		}
-//	}
+			int copies = 1;
+			JsonNode copiesNode = requestNode.findPath(Key.COPIES.key());
+			if (copiesNode.isInt())
+			{
+				copies = copiesNode.asInt();
+			}
+			if (copies > 0 && copies <= Short.MAX_VALUE)
+			{
+				sheet.getPrintSetup().setCopies((short) copies);
+			}
+		}		
+		return result;
+	}
 
 	public static void setHeaders(ObjectNode requestNode, ObjectNode responseNode)
 	{
@@ -895,8 +884,9 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	public static void setPrintOptions(ObjectNode requestNode, ObjectNode responseNode)
+	public static boolean setPrintOptions(ObjectNode requestNode, ObjectNode responseNode)
 	{
+		boolean result = true;
 		try
 		{
 			if (ObjectNode.class.isInstance(requestNode.get("bottom_margin")))
@@ -909,8 +899,9 @@ public class Xls extends Executor<Xls>
 		}
 		catch (Exception e)
 		{
-			Fsl.addErrorMessage(e.getLocalizedMessage());
+			result = Fsl.addErrorMessage(e.getLocalizedMessage());
 		}
+		return result;
 	}
 
 	protected static Sheet getActiveSheet()
@@ -960,65 +951,54 @@ public class Xls extends Executor<Xls>
 		return present;
 	}
 
-	public static boolean applyFontStyle(ObjectNode requestNode, ObjectNode responseNode)
+	public static boolean applyFontStyles(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		Sheet sheet = getSheetIfPresent(requestNode);
 		boolean result = Objects.nonNull(sheet);
 		if (result)
 		{
-			CellStyle cellStyle = sheet.getWorkbook().createCellStyle();
-			Font font = sheet.getWorkbook().getFontAt(0);
-			JsonNode styleNode = requestNode.findPath(Key.STYLE.key());
-			if (Objects.nonNull(styleNode))
+			CellRangeAddress rangeAddress = null;
+			JsonNode cellNode = requestNode.findPath(Key.CELL.key());
+			if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
 			{
-				if (IntNode.class.isInstance(styleNode))
-				{
-					int style = styleNode.asInt();
-					if (style > -1 || style < 4)
-					{
-						CellRangeAddress rangeAddress = null;
-						JsonNode cellNode = requestNode.findPath(Key.CELL.key());
-						JsonNode rangeNode = requestNode.findPath(Key.RANGE.key());
-						if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
-						{
-							CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
-							rangeAddress = getCellRangeAddress(cellAddress);
-						}
-						else if (Objects.nonNull(rangeNode) && !rangeNode.isMissingNode())
-						{
-							rangeAddress = getCellRangeAddress(rangeNode);
-						}
-						else
-						{
-							result = Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
-						}
-						if (Objects.nonNull(rangeAddress))
-						{
-							FontStyle fontStyle = FontStyle.values()[style];
-							fontStyle.setFontStyle(font);
-							cellStyle.setFont(font);
-							Iterator<CellAddress> cellAddresses = rangeAddress.iterator();
-							while (cellAddresses.hasNext())
-							{
-								CellAddress cellAddress = cellAddresses.next();
-								Cell cell = getOrCreateCell(sheet, cellAddress);
-								cell.setCellStyle(cellStyle);
-							}
-						}
-					}
-					else
-					{
-						result = Fsl.addErrorMessage("invalid_fontstyle (possible values for 'style' are 0-3)");
-					}
-				}
-				else
-				{
-					result = Fsl.addErrorMessage("invalid_argument 'style'");
-				}
+				CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
+				rangeAddress = getCellRangeAddress(cellAddress);
 			}
 			else
 			{
-				result = Fsl.addErrorMessage("missing_argument 'style'");
+				JsonNode rangeNode = requestNode.findPath(Key.RANGE.key());
+				if (Objects.nonNull(rangeNode) && !rangeNode.isMissingNode())
+				{
+					rangeAddress = getCellRangeAddress(rangeNode);
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
+				}
+			}
+			if (result && Objects.nonNull(rangeAddress))
+			{
+				Iterator<CellAddress> cellAddresses = rangeAddress.iterator();
+				while (cellAddresses.hasNext())
+				{
+					CellAddress cellAddress = cellAddresses.next();
+					Cell cell = getOrCreateCell(sheet, cellAddress);
+					CellStyle cellStyle = cell.getCellStyle();
+					MergedCellStyle mcs = new MergedCellStyle(cellStyle);
+					int fontIndex = cellStyle.getFontIndex();
+					Font font = sheet.getWorkbook().getFontAt(fontIndex);
+					MergedFont m = new MergedFont(font);
+					m.applyRequestedFontStyles(requestNode);
+					font = getFont(sheet, m);
+					if (font.getIndex() != fontIndex) 
+					{
+						mcs.setFontIndex(font.getIndex());
+						cellStyle = getCellStyle(sheet, mcs);
+						cell.setCellStyle(cellStyle);
+					}
+					
+					responseNode.put(Key.INDEX.key(), font.getIndex());
+				}
 			}
 		}
 		return result;
@@ -1076,12 +1056,62 @@ public class Xls extends Executor<Xls>
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing_argument '" + Key.CELL.key() + "' or '" + Key.RANGE.key() + "'");
+				result = Fsl.addErrorMessage("missing_argument '" + Key.CELL.key() + "' or '" + Key.RANGE.key() + "'");
 			}
 		}
 		return result;
 	}
-	
+
+	public static boolean applyCellStyles(ObjectNode requestNode, ObjectNode responseNode)
+	{
+		Sheet sheet = getSheetIfPresent(requestNode);
+		boolean result = Objects.nonNull(sheet);
+		if (result)
+		{
+			CellRangeAddress rangeAddress = null;
+			JsonNode cellNode = requestNode.findPath(Key.CELL.key());
+			if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
+			{
+				CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
+				rangeAddress = getCellRangeAddress(cellAddress);
+			}
+			else
+			{
+				JsonNode rangeNode = requestNode.findPath(Key.RANGE.key());
+				if (Objects.nonNull(rangeNode) && !rangeNode.isMissingNode())
+				{
+					rangeAddress = getCellRangeAddress(rangeNode);
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
+				}
+			}
+			if (result && Objects.nonNull(rangeAddress))
+			{
+				Iterator<CellAddress> cellAddresses = rangeAddress.iterator();
+				while (cellAddresses.hasNext())
+				{
+					CellAddress cellAddress = cellAddresses.next();
+					Cell cell = getOrCreateCell(sheet, cellAddress);
+					MergedCellStyle m = new MergedCellStyle(cell.getCellStyle());
+					result = m.applyRequestedStyles(requestNode);
+					if (result)
+					{
+						CellStyle cellStyle = getCellStyle(sheet, m);
+						responseNode.put(Key.INDEX.key(), cellStyle.getIndex());
+						cell.setCellStyle(cellStyle);
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+		return result;
+	}
+
 	public static boolean autoSizeColumns(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		Sheet sheet = getSheetIfPresent(requestNode);
@@ -1095,7 +1125,7 @@ public class Xls extends Executor<Xls>
 				cellRangeAddress = getCellRangeAddress(rangeNode);
 				if (Objects.isNull(cellRangeAddress))
 				{
-					Fsl.addErrorMessage("invalid argument '"+ Key.RANGE.key());
+					Fsl.addErrorMessage("invalid argument '" + Key.RANGE.key());
 				}
 			}
 			else
@@ -1110,12 +1140,12 @@ public class Xls extends Executor<Xls>
 					}
 					else
 					{
-						Fsl.addErrorMessage("invalid argument '"+ Key.CELL.key());
+						Fsl.addErrorMessage("invalid argument '" + Key.CELL.key());
 					}
 				}
 				else
 				{
-					Fsl.addErrorMessage("missing argument one of '"+ Key.RANGE.key() + "', '" + Key.CELL.key() + "'");
+					Fsl.addErrorMessage("missing argument one of '" + Key.RANGE.key() + "', '" + Key.CELL.key() + "'");
 				}
 			}
 			result = Objects.nonNull(cellRangeAddress);
@@ -1131,7 +1161,7 @@ public class Xls extends Executor<Xls>
 		}
 		return result;
 	}
-	
+
 	public static boolean rotateCells(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = IntNode.class.isInstance(requestNode.get(Key.ROTATION.key()));
@@ -1157,7 +1187,7 @@ public class Xls extends Executor<Xls>
 				{
 					Fsl.addErrorMessage("missing argument '" + Key.RANGE.key() + "'");
 				}
-				if (Objects.nonNull(rangeAddress)) 
+				if (Objects.nonNull(rangeAddress))
 				{
 					Iterator<CellAddress> cellAddresses = rangeAddress.iterator();
 					while (cellAddresses.hasNext())
@@ -1170,7 +1200,7 @@ public class Xls extends Executor<Xls>
 							if (Objects.nonNull(cell))
 							{
 								CellStyle cellStyle = sheet.getWorkbook().createCellStyle();
-								cellStyle.setRotation((short)rotation);
+								cellStyle.setRotation((short) rotation);
 								cell.setCellStyle(cellStyle);
 							}
 						}
@@ -1192,7 +1222,7 @@ public class Xls extends Executor<Xls>
 		}
 		return result;
 	}
-	
+
 	public static boolean alignHorizontally(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		Sheet sheet = getSheetIfPresent(requestNode);
@@ -1237,7 +1267,7 @@ public class Xls extends Executor<Xls>
 							}
 						}
 					}
-				}				
+				}
 			}
 			else
 			{
@@ -1266,7 +1296,7 @@ public class Xls extends Executor<Xls>
 						Fsl.addErrorMessage("sheet '" + sheetNode.asText() + "' already exists");
 					}
 				}
-				else 
+				else
 				{
 					Fsl.addErrorMessage("invalid_argument 'sheet'");
 				}
@@ -1312,7 +1342,7 @@ public class Xls extends Executor<Xls>
 		}
 		return workbook;
 	}
-	
+
 	protected static void setRichTextString(Cell cell, String value)
 	{
 		if (XSSFCell.class.isInstance(cell))
@@ -1324,7 +1354,7 @@ public class Xls extends Executor<Xls>
 			cell.setCellValue(new HSSFRichTextString(value));
 		}
 	}
-	
+
 	protected static List<String> getCallableMethods()
 	{
 		List<String> callableMethods = new ArrayList<String>();
@@ -1367,7 +1397,7 @@ public class Xls extends Executor<Xls>
 		}
 		return cellAddress;
 	}
-	
+
 	protected static CellAddress getCellAddress(JsonNode cellNode, String key)
 	{
 		CellAddress cellAddress = null;
@@ -1392,7 +1422,7 @@ public class Xls extends Executor<Xls>
 		}
 		return cellAddress;
 	}
-	
+
 	protected static CellAddress getCellAddress(TextNode cellNode, String key)
 	{
 		CellAddress cellAddress = null;
@@ -1513,7 +1543,7 @@ public class Xls extends Executor<Xls>
 		}
 		return rangeAddress;
 	}
-	
+
 	protected static CellRangeAddress getCellRangeAddress(TextNode rangeNode)
 	{
 		CellRangeAddress rangeAddress = null;
@@ -1806,7 +1836,7 @@ public class Xls extends Executor<Xls>
 		}
 		return sheet;
 	}
-	
+
 	protected static Sheet findSheet(Workbook workbook, JsonNode sheetNode)
 	{
 		Sheet sheet = null;
@@ -1842,7 +1872,7 @@ public class Xls extends Executor<Xls>
 		}
 		return sheet;
 	}
-	
+
 	protected static boolean isWithinSheetRange(CellRangeAddress cellRangeAddress)
 	{
 		CellAddress firstAddress = new CellAddress(cellRangeAddress.getFirstRow(), cellRangeAddress.getFirstColumn());
@@ -1857,71 +1887,15 @@ public class Xls extends Executor<Xls>
 				&& cellAddress.getColumn() > -1
 				&& cellAddress.getColumn() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxColumns();
 	}
-	
+
 	protected static boolean isWithinSheetRange(Cell cell)
 	{
 		return isWithinSheetRange(new CellAddress(cell));
 	}
-	
+
 	protected static boolean isWithinSheetRange(Row row)
 	{
 		return row.getRowNum() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxRows();
-	}
-
-	protected static boolean releaseWorkbook()
-	{
-		boolean result = Objects.nonNull(Xls.activeWorkbook);
-		if (result)
-		{
-			String name = null;
-			Set<Entry<String, Workbook>> workbooks = Xls.workbooks.entrySet();
-			Iterator<Entry<String, Workbook>> iterator = workbooks.iterator();
-			while (iterator.hasNext())
-			{
-				Entry<String, Workbook> workbook = iterator.next();
-				if (workbook == Xls.activeWorkbook)
-				{
-					name = workbook.getKey();
-					break;
-				}
-			}
-			result = Objects.nonNull(name);
-			if (result)
-			{
-				Xls.workbooks.remove(name);
-				Xls.activeWorkbook = null;
-			}
-		}
-		return result;
-	}
-
-	protected static boolean releaseWorkbook(ObjectNode requestNode)
-	{
-		boolean result = Objects.nonNull(requestNode.get(Key.WORKBOOK.key()));
-		if (result)
-		{
-			JsonNode workbookNode = requestNode.get(Key.WORKBOOK.key());
-			if (TextNode.class.isInstance(workbookNode))
-			{
-				Workbook workbook = Xls.workbooks.remove(workbookNode.asText());
-				if (Objects.nonNull(workbook))
-				{
-					if (workbook == Xls.activeWorkbook)
-					{
-						Xls.activeWorkbook = null;
-					}
-				}
-			}
-			else
-			{
-				result = Fsl.addErrorMessage("missing_argument 'workbook'");
-			}
-		}
-		else
-		{
-			result = releaseWorkbook();
-		}
-		return result;
 	}
 
 	protected static void releaseWorkbooks()
@@ -1939,7 +1913,7 @@ public class Xls extends Executor<Xls>
 		}
 		return version;
 	}
-	
+
 	protected static FormulaParsingWorkbook getFormulaParsingWorkbook(Sheet sheet)
 	{
 		FormulaParsingWorkbook workbookWrapper = null;
@@ -1967,7 +1941,7 @@ public class Xls extends Executor<Xls>
 		}
 		return workbookWrapper;
 	}
-	
+
 	protected static JsonNode findNode(ObjectNode requestNode, String name)
 	{
 		return requestNode.findParent(name);
@@ -2004,7 +1978,8 @@ public class Xls extends Executor<Xls>
 	protected static String copyFormula(Sheet sheet, String formula, int rowDiff, int colDiff)
 	{
 		FormulaParsingWorkbook workbookWrapper = getFormulaParsingWorkbook(sheet);
-		Ptg[] ptgs = FormulaParser.parse(formula, workbookWrapper, FormulaType.CELL, sheet.getWorkbook().getSheetIndex(sheet));
+		Ptg[] ptgs = FormulaParser.parse(formula, workbookWrapper, FormulaType.CELL,
+				sheet.getWorkbook().getSheetIndex(sheet));
 		for (int i = 0; i < ptgs.length; i++)
 		{
 			if (ptgs[i] instanceof RefPtgBase)
@@ -2074,33 +2049,78 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	protected static boolean saveWorkbook(String path, Workbook workbook)
+	protected static boolean saveWorkbook(Workbook workbook)
 	{
-		boolean result = true;
+		boolean result = false;
 		if (Objects.nonNull(workbook))
 		{
-			if (Objects.nonNull(path))
+			Set<Entry<String, Workbook>> entries = workbooks.entrySet();
+			Iterator<Entry<String, Workbook>> iterator = entries.iterator();
+			while (iterator.hasNext())
 			{
-				result = saveFile(new File(path), workbook);
-			}
-			else
-			{
-				result = Fsl.addErrorMessage("missing_argument 'path_name'");
+				Entry<String, Workbook> entry = iterator.next();
+				if (entry.getValue() == workbook)
+				{
+					result = saveFile(new File(entry.getKey()), workbook);
+				}
 			}
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("missing_argument 'workbook'");
+			result = Fsl.addErrorMessage("missing argument '" + Key.WORKBOOK.key() + "'");
 		}
 		return result;
 	}
 
-	protected static void setCellStyle(Cell cell, String styleFormat)
+	protected static boolean saveWorkbookAs(Workbook workbook, String target)
 	{
-		CellStyle style = Xls.activeWorkbook.createCellStyle();
-		DataFormat format = Xls.activeWorkbook.createDataFormat();
-		style.setDataFormat(format.getFormat(styleFormat));
-		cell.setCellStyle(style);
+		boolean result = false;
+		if (Objects.nonNull(workbook))
+		{
+			Set<Entry<String, Workbook>> entries = workbooks.entrySet();
+			Iterator<Entry<String, Workbook>> iterator = entries.iterator();
+			while (iterator.hasNext())
+			{
+				Entry<String, Workbook> entry = iterator.next();
+				if (entry.getValue() == workbook)
+				{
+					result = saveFile(new File(target), workbook);
+				}
+			}
+		}
+		else
+		{
+			result = Fsl.addErrorMessage("missing argument '" + Key.WORKBOOK.key() + "'");
+		}
+		return result;
+	}
+
+	protected static CellStyle getCellStyle(Sheet sheet, MergedCellStyle m)
+	{
+		CellStyle cellStyle = null;
+		for (int i = 0; i < sheet.getWorkbook().getNumCellStyles(); i++)
+		{
+			CellStyle cs = sheet.getWorkbook().getCellStyleAt(i);
+			if (cs.getAlignment().equals(m.getHalign()) && cs.getVerticalAlignment().equals(m.getValign())
+					&& cs.getBorderBottom().equals(m.getBottom()) && cs.getBorderLeft().equals(m.getLeft())
+					&& cs.getBorderRight().equals(m.getRight()) && cs.getBorderTop().equals(m.getTop())
+					&& cs.getBottomBorderColor() == m.getbColor() && cs.getLeftBorderColor() == m.getlColor()
+					&& cs.getRightBorderColor() == m.getrColor() && cs.getTopBorderColor() == m.gettColor()
+					&& cs.getDataFormat() == m.getDataFormat()&& cs.getFillBackgroundColor() == m.getBgColor()
+					&& cs.getFillForegroundColor() == m.getFgColor()&& cs.getFontIndex() == m.getFontIndex()
+					&& cs.getFillPattern().equals(m.getFillPattern()) && cs.getShrinkToFit() == m.getShrinkToFit()
+					&& cs.getWrapText() == m.getWrapText())
+			{
+				cellStyle = cs;
+				break;
+			}
+		}
+		if (Objects.isNull(cellStyle))
+		{
+			cellStyle = sheet.getWorkbook().createCellStyle();
+			m.applyToCellStyle(sheet, cellStyle);
+		}
+		return cellStyle;
 	}
 
 	protected static Sheet setSheet(String name)
@@ -2113,17 +2133,17 @@ public class Xls extends Executor<Xls>
 				sheet = Xls.activeWorkbook.getSheet(name);
 				if (Objects.isNull(sheet))
 				{
-					Fsl.addErrorMessage("missing_sheet 'name'");
+					Fsl.addErrorMessage("missing sheet '" + Key.NAME.key() + "'");
 				}
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing_workbook");
+				Fsl.addErrorMessage("missing argument 'workbook'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing_parameter 'name'");
+			Fsl.addErrorMessage("missing argument'" + Key.SHEET.key() + "'");
 		}
 		return sheet;
 	}
@@ -2149,7 +2169,7 @@ public class Xls extends Executor<Xls>
 		}
 		return result;
 	}
-	
+
 	protected static CellRangeAddress getCellRangeAddress(CellRange<Cell> cellRange)
 	{
 		int top = cellRange.getTopLeftCell().getRowIndex();
@@ -2171,35 +2191,100 @@ public class Xls extends Executor<Xls>
 		return true;
 	}
 
+	protected static Font getFont(Sheet sheet, MergedFont m)
+	{
+		Font font = null;
+		for (int i = 0; i < sheet.getWorkbook().getNumberOfFonts(); i++)
+		{
+			Font f = sheet.getWorkbook().getFontAt(i);
+			if (f.getFontName().equals(m.getName()) && f.getFontHeightInPoints() == m.getSize() && f.getBold() == m.getBold()
+					&& f.getItalic() == m.getItalic() && f.getUnderline() == m.getUnderline() && f.getStrikeout() == m.getStrikeOut()
+					&& f.getTypeOffset() == m.getTypeOffset() && f.getColor() == m.getColor())
+			{
+				font = f;
+				break;
+			}
+		}
+		if (Objects.isNull(font))
+		{
+			font = sheet.getWorkbook().createFont();
+			font.setFontName(m.getName());
+			font.setFontHeightInPoints(m.getSize().shortValue());
+			font.setBold(m.getBold().booleanValue());
+			font.setItalic(m.getItalic().booleanValue());
+			font.setUnderline(m.getUnderline().byteValue());
+			font.setStrikeout(m.getStrikeOut().booleanValue());
+			font.setTypeOffset(m.getTypeOffset().shortValue());
+			font.setColor(m.getColor().shortValue());
+		}
+		return font;
+	}
+
+	protected static BorderStyle valueOfBorderStyle(String borderStyleName)
+	{
+		BorderStyle borderStyle = null;
+		try
+		{
+			borderStyle = BorderStyle.valueOf(borderStyleName.toUpperCase());
+		}
+		catch (Exception e)
+		{
+		}
+		return borderStyle;
+	}
+
 	public enum Key
 	{
 		// @formatter:off
 		ADDRESS("address"),
 		ALIGNMENT("alignment"),
+		BACKGROUND("background"),
+		BLUE("blue"),
+		BOLD("bold"),
+		BORDER("border"),
 		BOTTOM_RIGHT("bottom_right"),
 		BOTTOM("bottom"),
 		CELL("cell"),
 		CENTER("center"),
 		COL("col"),
+		COLOR("color"),
+		COPIES("copies"),
+		DATA_FORMAT("data_format"),
 		DIRECTION("direction"),
+		FILL_PATTERN("fill_pattern"),
+		FONT("font"),
+		FOREGROUND("foreground"),
 		FORMAT("format"),
+		GREEN("green"),
+		HEIGHT("height"),
+		HORIZONTAL("horizontal"),
 		INDEX("index"),
+		ITALIC("italic"),
 		ITEMS("items"),
 		LEFT("left"),
+		ORIENTATION("orientation"),
+		NAME("name"),
 		RANGE("range"),
+		RED("red"),
 		RIGHT("right"),
 		ROTATION("rotation"),
 		ROW("row"),
 		SHEET("sheet"),
+		SHRINK_TO_FIT("shrink_to_fit"),
 		SOURCE("source"),
 		START("start"),
 		SIZE("size"),
+		STRIKE_OUT("strike_out"),
 		STYLE("style"),
 		TARGET("target"),
 		TOP("top"),
 		TOP_LEFT("top_left"),
+		TYPE_OFFSET("type_offset"),
+		UNDERLINE("underline"),
 		VALUES("values"),
-		WORKBOOK("workbook");
+		VERTICAL("vertical"),
+		WORKBOOK("workbook"),
+		WRAP_TEXT("wrap_text");
 		// @formatter:on
 
 		private Key(String key)
@@ -2249,7 +2334,7 @@ public class Xls extends Executor<Xls>
 					return new CellAddress(cellAddress.getRow(), cellAddress.getColumn() + 1);
 			}
 		}
-		
+
 		public boolean validRange(CellAddress cellAddress, int numberOfCells)
 		{
 			switch (this)
@@ -2308,40 +2393,626 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	protected enum FontStyle
+	static class MergedFont
 	{
-		NORMAL, BOLD, ITALIC, BOLD_ITALIC;
+		String name;
+		Short size;
+		Boolean bold;
+		Boolean italic;
+		Byte underline;
+		Boolean strikeOut;
+		Short typeOffset;
+		Short color;
 
-		public void setFontStyle(Font font)
+		public MergedFont(Font font)
 		{
-			switch (this)
+			name = font.getFontName();
+			size = font.getFontHeightInPoints();
+			bold = font.getBold();
+			italic = font.getItalic();
+			underline = font.getUnderline();
+			strikeOut = font.getStrikeout();
+			typeOffset = font.getTypeOffset();
+			color = font.getColor();
+		}
+		
+		public void applyToFont(Sheet sheet, Font font)
+		{
+			font.setFontName(name);
+			font.setFontHeightInPoints(size);
+			font.setBold(bold);
+			font.setItalic(italic);
+			font.setUnderline(underline);
+			font.setStrikeout(strikeOut);
+			font.setTypeOffset(typeOffset);
+			font.setColor(color);
+		}
+		
+		public void applyRequestedFontStyles(ObjectNode requestNode)
+		{
+			JsonNode nameNode = requestNode.findPath(Key.NAME.key());
+			if (nameNode.isTextual())
 			{
-				case NORMAL:
+				name = nameNode.asText();
+			}
+			JsonNode sizeNode = requestNode.findPath(Key.SIZE.key());
+			if (sizeNode.isInt())
+			{
+				int s = sizeNode.asInt();
+				if (s >= Short.MIN_VALUE && s <= Short.MAX_VALUE)
 				{
-					font.setBold(false);
-					font.setItalic(false);
-					break;
+					size = (short) s;
 				}
-				case BOLD:
+				else
 				{
-					font.setBold(true);
-					font.setItalic(false);
-					break;
+					Fsl.addErrorMessage("invalid argument 'size'");
 				}
-				case ITALIC:
+			}
+			JsonNode boldNode = requestNode.findPath(Key.BOLD.key());
+			if (boldNode.isInt())
+			{
+				bold = boldNode.asBoolean();
+			}
+			JsonNode italicNode = requestNode.findPath(Key.ITALIC.key());
+			if (italicNode.isInt())
+			{
+				italic = italicNode.asBoolean();
+			}
+			JsonNode underlineNode = requestNode.findPath(Key.UNDERLINE.key());
+			if (underlineNode.isInt())
+			{
+				int u = underlineNode.asInt();
+				if (u >= Byte.MIN_VALUE && u <= Byte.MAX_VALUE)
 				{
-					font.setBold(false);
-					font.setItalic(true);
-					break;
+					underline = (byte) u;
 				}
-				case BOLD_ITALIC:
+				else
 				{
-					font.setBold(true);
-					font.setItalic(true);
-					break;
+					Fsl.addErrorMessage("invalid argument 'underline'");
+				}
+			}
+			JsonNode strikeOutNode = requestNode.findPath(Key.STRIKE_OUT.key());
+			if (strikeOutNode.isInt())
+			{
+				strikeOut = strikeOutNode.asBoolean();
+			}
+			JsonNode typeOffsetNode = requestNode.findPath(Key.TYPE_OFFSET.key());
+			if (typeOffsetNode.isInt())
+			{
+				int t = typeOffsetNode.asInt();
+				if (t >= Short.MIN_VALUE && t <= Short.MAX_VALUE)
+				{
+					typeOffset = (short) t;
+				}
+				else
+				{
+					Fsl.addErrorMessage("invalid argument 'type_offset'");
+				}
+			}
+			JsonNode colorNode = requestNode.findPath(Key.COLOR.key());
+			if (colorNode.isInt())
+			{
+				int w = colorNode.asInt();
+				if (w >= Short.MIN_VALUE && w <= Short.MAX_VALUE)
+				{
+					color = (short) w;
+				}
+				else
+				{
+					Fsl.addErrorMessage("invalid argument 'color'");
 				}
 			}
 		}
-	}
+		
+		public String getName()
+		{
+			return name;
+		}
 
+		public Short getSize()
+		{
+			return size;
+		}
+
+		public Boolean getBold()
+		{
+			return bold;
+		}
+
+		public Boolean getItalic()
+		{
+			return italic;
+		}
+
+		public Byte getUnderline()
+		{
+			return underline;
+		}
+
+		public Boolean getStrikeOut()
+		{
+			return strikeOut;
+		}
+
+		public Short getTypeOffset()
+		{
+			return typeOffset;
+		}
+
+		public Short getColor()
+		{
+			return color;
+		}
+	}
+	
+	static class MergedCellStyle
+	{
+		private HorizontalAlignment halign;
+		private VerticalAlignment valign;
+		private BorderStyle bottom;
+		private BorderStyle left;
+		private BorderStyle right;
+		private BorderStyle top;
+		private Short bColor;
+		private Short lColor;
+		private Short rColor;
+		private Short tColor;
+		private Short dataFormat;
+		private Short bgColor;
+		private Short fgColor;
+		private FillPatternType fillPattern;
+		private Integer fontIndex;
+		private Boolean shrinkToFit;
+		private Boolean wrapText;
+
+		public MergedCellStyle(CellStyle c)
+		{
+			halign = c.getAlignment();
+			valign = c.getVerticalAlignment();
+			bottom = c.getBorderBottom();
+			left = c.getBorderLeft();
+			right = c.getBorderRight();
+			top = c.getBorderTop();
+			bColor = c.getBottomBorderColor();
+			lColor = c.getLeftBorderColor();
+			rColor = c.getRightBorderColor();
+			tColor = c.getTopBorderColor();
+			dataFormat = c.getDataFormat();
+			bgColor = c.getFillBackgroundColor();
+			fgColor = c.getFillForegroundColor();
+			fillPattern = c.getFillPattern();
+			fontIndex = c.getFontIndex();
+			shrinkToFit = c.getShrinkToFit();
+			wrapText = c.getWrapText();
+		}
+		
+		public void applyToCellStyle(Sheet sheet, CellStyle cellStyle)
+		{
+			cellStyle.setAlignment(halign);
+			cellStyle.setVerticalAlignment(valign);
+			cellStyle.setBorderBottom(bottom);
+			cellStyle.setBorderLeft(left);
+			cellStyle.setBorderRight(right);
+			cellStyle.setBorderTop(top);
+			cellStyle.setBottomBorderColor(bColor);
+			cellStyle.setLeftBorderColor(lColor);
+			cellStyle.setRightBorderColor(rColor);
+			cellStyle.setTopBorderColor(tColor);
+			cellStyle.setDataFormat(dataFormat);
+			cellStyle.setFillBackgroundColor(bgColor);
+			cellStyle.setFillForegroundColor(fgColor);
+			cellStyle.setFillPattern(fillPattern);
+			cellStyle.setFont(sheet.getWorkbook().getFontAt(fontIndex));
+			cellStyle.setShrinkToFit(shrinkToFit);
+			cellStyle.setWrapText(wrapText);
+
+		}
+		
+		public boolean applyRequestedStyles(ObjectNode requestNode)
+		{
+			boolean result = true;
+			JsonNode halignNode = requestNode.findPath(Key.HORIZONTAL.key());
+			if (Objects.nonNull(halignNode) && !halignNode.isMissingNode())
+			{
+				if (TextNode.class.isInstance(halignNode))
+				{
+					halign = HorizontalAlignment.valueOf(halignNode.asText().toUpperCase());
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("invalid argument 'horizontal'");
+				}
+			}
+			JsonNode valignNode = requestNode.findPath(Key.VERTICAL.key());
+			if (Objects.nonNull(valignNode) && !valignNode.isMissingNode())
+			{
+				if (TextNode.class.isInstance(valignNode))
+				{
+					valign = VerticalAlignment.valueOf(valignNode.asText().toUpperCase());
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("invalid argument 'vertical'");
+				}
+			}
+			JsonNode borderNode = requestNode.findPath(Key.BORDER.key());
+			if (borderNode.isObject())
+			{
+				JsonNode styleNode = borderNode.findPath(Key.STYLE.key());
+				if (styleNode.isObject())
+				{
+					JsonNode bottomNode = styleNode.findPath(Key.BOTTOM.key());
+					if (bottomNode.isTextual())
+					{
+						BorderStyle borderStyle = valueOfBorderStyle(bottomNode.asText());
+						if (Objects.nonNull(borderStyle))
+						{
+							bottom = borderStyle;
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid argument 'border.style.bottom'");
+						}
+					}
+					JsonNode leftNode = styleNode.findPath(Key.LEFT.key());
+					if (leftNode.isTextual())
+					{
+						BorderStyle borderStyle = valueOfBorderStyle(leftNode.asText());
+						if (Objects.nonNull(borderStyle))
+						{
+							left = borderStyle;
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid argument 'border.style.left'");
+						}
+					}
+					JsonNode rightNode = styleNode.findPath(Key.RIGHT.key());
+					if (rightNode.isTextual())
+					{
+						BorderStyle borderStyle = valueOfBorderStyle(rightNode.asText());
+						if (Objects.nonNull(borderStyle))
+						{
+							right = borderStyle;
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid argument 'border.style.right'");
+						}
+					}
+					JsonNode topNode = styleNode.findPath(Key.TOP.key());
+					if (topNode.isTextual())
+					{
+						BorderStyle borderStyle = valueOfBorderStyle(topNode.asText());
+						if (Objects.nonNull(borderStyle))
+						{
+							top = borderStyle;
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid argument 'border.style.top'");
+						}
+					}
+				}
+				JsonNode colorNode = borderNode.findPath(Key.COLOR.key());
+				if (colorNode.isObject())
+				{
+					JsonNode bottomNode = colorNode.findPath(Key.BOTTOM.key());
+					if (bottomNode.isInt())
+					{
+						int c = bottomNode.asInt();
+						if (c >= Short.MIN_VALUE && c <= Short.MAX_VALUE)
+						{
+							bColor = (short) c;
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid argument 'border.color.bottom'");
+						}
+					}
+					JsonNode leftNode = colorNode.findPath(Key.LEFT.key());
+					if (leftNode.isInt())
+					{
+						int c = leftNode.asInt();
+						if (c >= Short.MIN_VALUE && c <= Short.MAX_VALUE)
+						{
+							lColor = (short) c;
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid argument 'border.color.left'");
+						}
+					}
+					JsonNode rightNode = colorNode.findPath(Key.RIGHT.key());
+					if (rightNode.isInt())
+					{
+						int c = rightNode.asInt();
+						if (c >= Short.MIN_VALUE && c <= Short.MAX_VALUE)
+						{
+							rColor = (short) c;
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid argument 'border.color.right'");
+						}
+					}
+					JsonNode topNode = colorNode.findPath(Key.TOP.key());
+					if (topNode.isInt())
+					{
+						int c = topNode.asInt();
+						if (c >= Short.MIN_VALUE && c <= Short.MAX_VALUE)
+						{
+							tColor = (short) c;
+						}
+						else
+						{
+							result = Fsl.addErrorMessage("invalid argument 'border.color.top'");
+						}
+					}
+				}
+			}
+			JsonNode dataFormatNode = requestNode.findPath(Key.DATA_FORMAT.key());
+			if (Objects.nonNull(dataFormatNode) && !dataFormatNode.isMissingNode())
+			{
+				if (IntNode.class.isInstance(dataFormatNode))
+				{
+					int df = dataFormatNode.asInt();
+					if (df >= Short.MIN_VALUE && df <= Short.MAX_VALUE)
+					{
+						dataFormat = (short) df;
+					}
+					else
+					{
+						result = Fsl.addErrorMessage("invalid argument 'dataFormat'");
+					}
+				}
+			}
+			JsonNode bgNode = requestNode.findPath(Key.BACKGROUND.key());
+			if (Objects.nonNull(bgNode) && !bgNode.isMissingNode())
+			{
+				if (ObjectNode.class.isInstance(bgNode))
+				{
+					JsonNode colorNode = bgNode.findPath(Key.COLOR.key());
+					if (colorNode.isInt())
+					{
+						bgColor = (short) colorNode.asInt();
+					}
+					else
+					{
+						result = Fsl.addErrorMessage("invalid argument 'background.color'");
+					}
+				}
+			}
+			JsonNode fgNode = requestNode.findPath(Key.FOREGROUND.key());
+			if (Objects.nonNull(fgNode) && !fgNode.isMissingNode())
+			{
+				if (ObjectNode.class.isInstance(fgNode))
+				{
+					JsonNode colorNode = fgNode.findPath(Key.COLOR.key());
+					if (colorNode.isInt())
+					{
+						fgColor = (short) colorNode.asInt();
+					}
+					else
+					{
+						result = Fsl.addErrorMessage("invalid argument 'foreground.color'");
+					}
+				}
+			}
+			JsonNode fillPatternNode = requestNode.findPath(Key.FILL_PATTERN.key());
+			if (Objects.nonNull(fillPatternNode) && !fillPatternNode.isMissingNode())
+			{
+				if (TextNode.class.isInstance(fillPatternNode))
+				{
+					try
+					{
+						fillPattern = FillPatternType.valueOf(fillPatternNode.asText());
+					}
+					catch (Exception e)
+					{
+						result = Fsl.addErrorMessage("invalid argument '" + Key.FILL_PATTERN.key() + "'");
+					}
+				}
+			}
+			JsonNode fontIndexNode = requestNode.findPath(Key.FONT.key());
+			if (Objects.nonNull(fontIndexNode) && !fontIndexNode.isMissingNode())
+			{
+				if (IntNode.class.isInstance(fontIndexNode))
+				{
+					fontIndex = fontIndexNode.asInt();
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("invalid argument 'font'");
+				}
+			}
+			JsonNode shrinkToFitNode = requestNode.findPath(Key.SHRINK_TO_FIT.key());
+			if (Objects.nonNull(shrinkToFitNode) && !shrinkToFitNode.isMissingNode())
+			{
+				if (shrinkToFitNode.isInt())
+				{
+					shrinkToFit = shrinkToFitNode.asBoolean();
+				}
+			}
+			JsonNode wrapTextNode = requestNode.findPath(Key.WRAP_TEXT.key());
+			if (Objects.nonNull(wrapTextNode) && !wrapTextNode.isMissingNode())
+			{
+				if (wrapTextNode.isInt())
+				{
+					wrapText = wrapTextNode.asBoolean();
+				}
+			}
+			return result;
+		}
+		
+		public void setHalign(HorizontalAlignment halign)
+		{
+			this.halign = halign;
+		}
+
+		public void setValign(VerticalAlignment valign)
+		{
+			this.valign = valign;
+		}
+
+		public void setBottom(BorderStyle bottom)
+		{
+			this.bottom = bottom;
+		}
+
+		public void setLeft(BorderStyle left)
+		{
+			this.left = left;
+		}
+
+		public void setRight(BorderStyle right)
+		{
+			this.right = right;
+		}
+
+		public void setTop(BorderStyle top)
+		{
+			this.top = top;
+		}
+
+		public void setbColor(Short bColor)
+		{
+			this.bColor = bColor;
+		}
+
+		public void setlColor(Short lColor)
+		{
+			this.lColor = lColor;
+		}
+
+		public void setrColor(Short rColor)
+		{
+			this.rColor = rColor;
+		}
+
+		public void settColor(Short tColor)
+		{
+			this.tColor = tColor;
+		}
+
+		public void setDataFormat(Short dataFormat)
+		{
+			this.dataFormat = dataFormat;
+		}
+
+		public void setBgColor(Short bgColor)
+		{
+			this.bgColor = bgColor;
+		}
+
+		public void setFgColor(Short fgColor)
+		{
+			this.fgColor = fgColor;
+		}
+
+		public void setFillPattern(FillPatternType fillPattern)
+		{
+			this.fillPattern = fillPattern;
+		}
+
+		public void setFontIndex(Integer fontIndex)
+		{
+			this.fontIndex = fontIndex;
+		}
+
+		public void setShrinkToFit(Boolean shrinkToFit)
+		{
+			this.shrinkToFit = shrinkToFit;
+		}
+
+		public void setWrapText(Boolean wrapText)
+		{
+			this.wrapText = wrapText;
+		}
+
+		public HorizontalAlignment getHalign()
+		{
+			return halign;
+		}
+
+		public VerticalAlignment getValign()
+		{
+			return valign;
+		}
+
+		public BorderStyle getBottom()
+		{
+			return bottom;
+		}
+
+		public BorderStyle getLeft()
+		{
+			return left;
+		}
+
+		public BorderStyle getRight()
+		{
+			return right;
+		}
+
+		public BorderStyle getTop()
+		{
+			return top;
+		}
+
+		public Short getbColor()
+		{
+			return bColor;
+		}
+
+		public Short getlColor()
+		{
+			return lColor;
+		}
+
+		public Short getrColor()
+		{
+			return rColor;
+		}
+
+		public Short gettColor()
+		{
+			return tColor;
+		}
+
+		public Short getDataFormat()
+		{
+			return dataFormat;
+		}
+
+		public Short getBgColor()
+		{
+			return bgColor;
+		}
+
+		public Short getFgColor()
+		{
+			return fgColor;
+		}
+
+		public FillPatternType getFillPattern()
+		{
+			return fillPattern;
+		}
+
+		public Integer getFontIndex()
+		{
+			return fontIndex;
+		}
+
+		public Boolean getShrinkToFit()
+		{
+			return shrinkToFit;
+		}
+
+		public Boolean getWrapText()
+		{
+			return wrapText;
+		}
+	}
 }

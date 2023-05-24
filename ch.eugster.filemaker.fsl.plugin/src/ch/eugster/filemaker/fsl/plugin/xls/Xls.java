@@ -6,7 +6,10 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.text.DateFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -31,17 +34,19 @@ import org.apache.poi.ss.formula.ptg.AreaPtgBase;
 import org.apache.poi.ss.formula.ptg.Ptg;
 import org.apache.poi.ss.formula.ptg.RefPtgBase;
 import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.BuiltinFormats;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellRange;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Footer;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.Header;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.PrintOrientation;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -50,6 +55,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellAddress;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.ss.util.CellUtil;
+import org.apache.poi.xssf.usermodel.IndexedColorMap;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFEvaluationWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
@@ -226,6 +232,7 @@ public class Xls extends Executor<Xls>
 													if (sourceCell.getCellType().equals(CellType.STRING))
 													{
 														targetCell.setCellValue(sourceCell.getRichStringCellValue());
+														
 													}
 													else if (sourceCell.getCellType().equals(CellType.NUMERIC))
 													{
@@ -614,7 +621,7 @@ public class Xls extends Executor<Xls>
 				CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
 				if (Objects.nonNull(cellAddress))
 				{
-					JsonNode valuesNode = requestNode.get(Key.VALUES.key());
+					JsonNode valuesNode = requestNode.findPath(Key.VALUES.key());
 					if (valuesNode.isArray())
 					{
 						Direction direction = Direction.DEFAULT;
@@ -646,10 +653,6 @@ public class Xls extends Executor<Xls>
 									JsonNode valueNode = valuesNode.get(i);
 									JsonNodeType nodeType = valueNode.getNodeType();
 									Cell cell = getOrCreateCell(sheet, cellAddress);
-									if (nodeType.equals(JsonNodeType.NULL))
-									{
-										// do nothing
-									}
 									if (nodeType.equals(JsonNodeType.NUMBER))
 									{
 										cell.setCellValue(valueNode.asDouble());
@@ -660,15 +663,40 @@ public class Xls extends Executor<Xls>
 										{
 											try
 											{
+												Date date = DateFormat.getDateInstance().parse(valueNode.asText());
 												cell.setCellFormula(valueNode.asText());
 												FormulaEvaluator evaluator = Xls.activeWorkbook.getCreationHelper()
 														.createFormulaEvaluator();
 												CellType cellType = evaluator.evaluateFormulaCell(cell);
 												System.out.println(cellType);
 											}
-											catch (FormulaParseException e)
+											catch (ParseException pe)
 											{
-												setRichTextString(cell, valueNode.asText());
+												try
+												{
+													double time = DateUtil.convertTime(valueNode.asText());
+													cell.setCellValue(time);
+													MergedCellStyle mcs = new MergedCellStyle(cell.getCellStyle());
+													int formatIndex = BuiltinFormats.getBuiltinFormat("h:mm");
+													mcs.setDataFormat((short) formatIndex);
+													CellStyle cellStyle = getCellStyle(sheet, mcs);
+													cell.setCellStyle(cellStyle);
+												}
+												catch (Exception e)
+												{
+													try
+													{
+														cell.setCellFormula(valueNode.asText());
+														FormulaEvaluator evaluator = Xls.activeWorkbook.getCreationHelper()
+																.createFormulaEvaluator();
+														CellType cellType = evaluator.evaluateFormulaCell(cell);
+														System.out.println(cellType);
+													}
+													catch (FormulaParseException fpe)
+													{
+														setRichTextString(cell, valueNode.asText());
+													}
+												}
 											}
 										}
 									}
@@ -714,70 +742,6 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	public static boolean setCellValue(ObjectNode requestNode, ObjectNode responseNode)
-	{
-		boolean result = true;
-		JsonNode valueNode = requestNode.findPath(Key.VALUES.key());
-		Sheet sheet = getSheetIfPresent(requestNode);
-		result = Objects.nonNull(sheet);
-		if (result)
-		{
-			JsonNode cellNode = requestNode.findPath(Key.CELL.key());
-			if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
-			{
-				if (Objects.nonNull(valueNode) && !valueNode.isMissingNode())
-				{
-					CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
-					Cell cell = getOrCreateCell(sheet, cellAddress);
-					if (ValueNode.class.isInstance(valueNode))
-					{
-						if (TextNode.class.isInstance(valueNode))
-						{
-							setRichTextString(cell, valueNode.asText());
-						}
-						else if (NumericNode.class.isInstance(valueNode))
-						{
-							if (BigIntegerNode.class.isInstance(valueNode) || LongNode.class.isInstance(valueNode))
-							{
-								cell.setCellValue(valueNode.bigIntegerValue().longValue());
-							}
-							else if (DoubleNode.class.isInstance(valueNode) || DecimalNode.class.isInstance(valueNode)
-									|| FloatNode.class.isInstance(valueNode))
-							{
-								cell.setCellValue(valueNode.asDouble());
-							}
-							else if (IntNode.class.isInstance(valueNode) || ShortNode.class.isInstance(valueNode))
-							{
-								cell.setCellValue(valueNode.asInt());
-							}
-						}
-						else
-						{
-							result = Fsl.addErrorMessage("invalid_argument 'value'");
-						}
-					}
-					else
-					{
-						result = Fsl.addErrorMessage("invalid_argument 'value'");
-					}
-				}
-				else
-				{
-					result = Fsl.addErrorMessage("missing_argument 'value'");
-				}
-			}
-			else
-			{
-				result = Fsl.addErrorMessage("missing_argument 'cell'");
-			}
-		}
-		else
-		{
-			result = Fsl.addErrorMessage("missing_active_sheet");
-		}
-		return result;
-	}
-	
 	public static boolean setPrintSetup(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
@@ -884,26 +848,6 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	public static boolean setPrintOptions(ObjectNode requestNode, ObjectNode responseNode)
-	{
-		boolean result = true;
-		try
-		{
-			if (ObjectNode.class.isInstance(requestNode.get("bottom_margin")))
-			{
-			}
-			{
-				Sheet sheet = getActiveSheet();
-				sheet.getPrintSetup().setLandscape(false);
-			}
-		}
-		catch (Exception e)
-		{
-			result = Fsl.addErrorMessage(e.getLocalizedMessage());
-		}
-		return result;
-	}
-
 	protected static Sheet getActiveSheet()
 	{
 		Sheet sheet = null;
@@ -1004,64 +948,6 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	public static boolean applyNumberFormat(ObjectNode requestNode, ObjectNode responseNode)
-	{
-		boolean result = true;
-		Sheet sheet = getSheetIfPresent(requestNode);
-		if (Objects.nonNull(sheet))
-		{
-			CellRangeAddress rangeAddress = null;
-			if (Objects.nonNull(requestNode.get(Key.RANGE.key())))
-			{
-				rangeAddress = getCellRangeAddress(requestNode.get(Key.RANGE.key()));
-			}
-			else if (Objects.nonNull(requestNode.get(Key.CELL.key())))
-			{
-				CellAddress cellAddress = getCellAddress(requestNode.get(Key.CELL.key()), Key.CELL.key());
-				rangeAddress = getCellRangeAddress(cellAddress);
-			}
-			if (Objects.nonNull(rangeAddress))
-			{
-				if (Objects.nonNull(requestNode.get(Key.FORMAT.key())))
-				{
-					int index = -1;
-					if (TextNode.class.isInstance(requestNode.get(Key.FORMAT.key())))
-					{
-						String format = TextNode.class.cast(requestNode.get(Key.FORMAT.key())).asText();
-						if (Objects.nonNull(format))
-						{
-							DataFormat dataFormat = sheet.getWorkbook().createDataFormat();
-							index = dataFormat.getFormat(format);
-							formatNumber(sheet, rangeAddress, index);
-						}
-						else
-						{
-							result = Fsl.addErrorMessage("invalid_argument '" + Key.FORMAT.key() + "'");
-						}
-					}
-					else if (IntNode.class.isInstance(requestNode.get(Key.FORMAT.key())))
-					{
-						index = IntNode.class.cast(requestNode.get(Key.FORMAT.key())).asInt();
-						formatNumber(sheet, rangeAddress, index);
-					}
-					else
-					{
-						result = Fsl.addErrorMessage("invalid_argument '" + Key.FORMAT.key() + "'");
-					}
-				}
-				else
-				{
-					result = Fsl.addErrorMessage("missing_argument '" + Key.FORMAT.key() + "'");
-				}
-			}
-			else
-			{
-				result = Fsl.addErrorMessage("missing_argument '" + Key.CELL.key() + "' or '" + Key.RANGE.key() + "'");
-			}
-		}
-		return result;
-	}
-
 	public static boolean applyCellStyles(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		Sheet sheet = getSheetIfPresent(requestNode);
@@ -1099,7 +985,6 @@ public class Xls extends Executor<Xls>
 					if (result)
 					{
 						CellStyle cellStyle = getCellStyle(sheet, m);
-						responseNode.put(Key.INDEX.key(), cellStyle.getIndex());
 						cell.setCellStyle(cellStyle);
 					}
 					else
@@ -1219,60 +1104,6 @@ public class Xls extends Executor<Xls>
 		else
 		{
 			Fsl.addErrorMessage("missing_argument '" + Key.ROTATION.key() + "'");
-		}
-		return result;
-	}
-
-	public static boolean alignHorizontally(ObjectNode requestNode, ObjectNode responseNode)
-	{
-		Sheet sheet = getSheetIfPresent(requestNode);
-		boolean result = Objects.nonNull(sheet);
-		if (result)
-		{
-			CellRangeAddress rangeAddress = null;
-			JsonNode cellNode = requestNode.findPath(Key.CELL.key());
-			JsonNode rangeNode = requestNode.findPath(Key.RANGE.key());
-			if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
-			{
-				CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
-				rangeAddress = getCellRangeAddress(cellAddress);
-			}
-			else if (Objects.nonNull(rangeNode) && !rangeNode.isMissingNode())
-			{
-				rangeAddress = getCellRangeAddress(rangeNode);
-			}
-			if (Objects.nonNull(rangeAddress))
-			{
-				if (Objects.nonNull(requestNode.get(Key.ALIGNMENT.key())))
-				{
-					if (TextNode.class.isInstance(requestNode.get(Key.ALIGNMENT.key())))
-					{
-						String align = TextNode.class.cast(requestNode.get(Key.ALIGNMENT.key())).asText();
-						Key key = Key.valueOf(align.toUpperCase());
-						if (Objects.nonNull(key))
-						{
-							Iterator<CellAddress> cellAddresses = rangeAddress.iterator();
-							while (cellAddresses.hasNext())
-							{
-								CellAddress cellAddress = cellAddresses.next();
-								if (Row.class.isInstance(sheet.getRow(cellAddress.getRow())))
-								{
-									Row row = Row.class.cast(sheet.getRow(cellAddress.getRow()));
-									if (Cell.class.isInstance(row.getCell(cellAddress.getColumn())))
-									{
-										Cell cell = Cell.class.cast(row.getCell(cellAddress.getColumn()));
-										CellUtil.setAlignment(cell, HorizontalAlignment.valueOf(align.toUpperCase()));
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				Fsl.addErrorMessage("missing argument '" + Key.RANGE.key() + "'");
-			}
 		}
 		return result;
 	}
@@ -2611,28 +2442,32 @@ public class Xls extends Executor<Xls>
 		public boolean applyRequestedStyles(ObjectNode requestNode)
 		{
 			boolean result = true;
-			JsonNode halignNode = requestNode.findPath(Key.HORIZONTAL.key());
-			if (Objects.nonNull(halignNode) && !halignNode.isMissingNode())
+			JsonNode alignmentNode = requestNode.findPath(Key.ALIGNMENT.key());
+			if (alignmentNode.isObject())
 			{
-				if (TextNode.class.isInstance(halignNode))
+				JsonNode horizontalNode = alignmentNode.findPath(Key.HORIZONTAL.key());
+				if (horizontalNode.isTextual())
 				{
-					halign = HorizontalAlignment.valueOf(halignNode.asText().toUpperCase());
+					try
+					{
+						halign = HorizontalAlignment.valueOf(horizontalNode.asText().toUpperCase());
+					}
+					catch (Exception e)
+					{
+						result = Fsl.addErrorMessage("invalid argument 'alignment.horizontal'");
+					}
 				}
-				else
+				JsonNode verticalNode = alignmentNode.findPath(Key.VERTICAL.key());
+				if (verticalNode.isTextual())
 				{
-					result = Fsl.addErrorMessage("invalid argument 'horizontal'");
-				}
-			}
-			JsonNode valignNode = requestNode.findPath(Key.VERTICAL.key());
-			if (Objects.nonNull(valignNode) && !valignNode.isMissingNode())
-			{
-				if (TextNode.class.isInstance(valignNode))
-				{
-					valign = VerticalAlignment.valueOf(valignNode.asText().toUpperCase());
-				}
-				else
-				{
-					result = Fsl.addErrorMessage("invalid argument 'vertical'");
+					try
+					{
+						valign = VerticalAlignment.valueOf(verticalNode.asText().toUpperCase());
+					}
+					catch (Exception e)
+					{
+						result = Fsl.addErrorMessage("invalid argument 'alignment.vertical'");
+					}
 				}
 			}
 			JsonNode borderNode = requestNode.findPath(Key.BORDER.key());
@@ -2752,51 +2587,56 @@ public class Xls extends Executor<Xls>
 				}
 			}
 			JsonNode dataFormatNode = requestNode.findPath(Key.DATA_FORMAT.key());
-			if (Objects.nonNull(dataFormatNode) && !dataFormatNode.isMissingNode())
+			if (TextNode.class.isInstance(dataFormatNode))
 			{
-				if (IntNode.class.isInstance(dataFormatNode))
-				{
-					int df = dataFormatNode.asInt();
-					if (df >= Short.MIN_VALUE && df <= Short.MAX_VALUE)
-					{
-						dataFormat = (short) df;
-					}
-					else
-					{
-						result = Fsl.addErrorMessage("invalid argument 'dataFormat'");
-					}
-				}
+				String df = dataFormatNode.asText();
+				int formatIndex = BuiltinFormats.getBuiltinFormat(df);
+				dataFormat = (short) formatIndex;
+				System.out.println();
+//				}
+//				else
+//				{
+//					result = Fsl.addErrorMessage("invalid argument 'dataFormat'");
+//				}
 			}
 			JsonNode bgNode = requestNode.findPath(Key.BACKGROUND.key());
-			if (Objects.nonNull(bgNode) && !bgNode.isMissingNode())
+			if (bgNode.isObject())
 			{
-				if (ObjectNode.class.isInstance(bgNode))
+				JsonNode colorNode = bgNode.findPath(Key.COLOR.key());
+				if (colorNode.isTextual())
 				{
-					JsonNode colorNode = bgNode.findPath(Key.COLOR.key());
-					if (colorNode.isInt())
+					try
 					{
-						bgColor = (short) colorNode.asInt();
+						bgColor = IndexedColors.valueOf(colorNode.asText().toUpperCase()).getIndex();
 					}
-					else
+					catch (Exception e)
 					{
 						result = Fsl.addErrorMessage("invalid argument 'background.color'");
 					}
 				}
+				else
+				{
+					result = Fsl.addErrorMessage("invalid argument 'background.color'");
+				}
 			}
 			JsonNode fgNode = requestNode.findPath(Key.FOREGROUND.key());
-			if (Objects.nonNull(fgNode) && !fgNode.isMissingNode())
+			if (fgNode.isObject())
 			{
-				if (ObjectNode.class.isInstance(fgNode))
+				JsonNode colorNode = fgNode.findPath(Key.COLOR.key());
+				if (colorNode.isTextual())
 				{
-					JsonNode colorNode = fgNode.findPath(Key.COLOR.key());
-					if (colorNode.isInt())
+					try
 					{
-						fgColor = (short) colorNode.asInt();
+						fgColor = IndexedColors.valueOf(colorNode.asText().toUpperCase()).getIndex();
 					}
-					else
+					catch (Exception e)
 					{
 						result = Fsl.addErrorMessage("invalid argument 'foreground.color'");
 					}
+				}
+				else
+				{
+					result = Fsl.addErrorMessage("invalid argument 'foreground.color'");
 				}
 			}
 			JsonNode fillPatternNode = requestNode.findPath(Key.FILL_PATTERN.key());

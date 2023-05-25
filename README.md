@@ -10,7 +10,7 @@ Use: Fsl.execute("Xyz.command", "{}")
 
 - The second parameter has to be a valid json string containing the mandatory and optional parameters for the method as described below. 
 
-- Every call returns a jsonstring with the attributes 'result' ('OK' if successfully, else 'Fehler'. If it returns 'Fehler' then another attribute 'errors' contains a list of error messages describing the errors that occured.
+- Every call returns a jsonstring with the attributes 'result' ('OK' if successfully, else 'Fehler'. Some functions return values. They are described in the respective command. If it returns 'Fehler' then another attribute 'errors' contains a list of error messages describing the errors that occured.
 
 Actually there are the following modules:
 
@@ -19,11 +19,11 @@ This module uses the https://github.com/manuelbl/SwissQRBill library.
 
 *QRBill* has one command 'generate':
 
-As parameter you have to use a json string with following attributes:
+As parameter you have to use a json string with the following attributes:
 
 {"amount":287.30,"currency":"CHF","iban":"CH4431999123000889012","reference":"000000000000000000000000000","message":"Rechnungsnr. 10978 / Auftragsnr. 3987","creditor":{"name":"Schreinerei Habegger & Söhne","address_line_1":"Uetlibergstrasse 138","address_line_2":"8045 Zürich","country":"CH"},"debtor":{"name":"Simon Glarner","address_line_1":"Bächliwis 55","address_line_2":"8184 Bachenbülach","country":"CH"},"format":{"graphics_format":"PDF","output_size":"A4_PORTRAIT_SHEET","language":"DE"}}
 
-Mandatory arguments are: 'amount' (number), 'currency' (String), 'iban' (a valid qriban), 'creditor' with all its parts (name: the name of the creditor; address_line_1: street and streetnumber; address_line_2: zip and city; country: the iso3166 alpha-2 country code, defaults to 'CH')
+Mandatory attributes are: 'amount' (number), 'currency' (String), 'iban' (a valid qriban), 'creditor' with all its parts (name: the name of the creditor; address_line_1: street and streetnumber; address_line_2: zip and city; country: the iso3166 alpha-2 country code, defaults to 'CH')
 
 Below you see an example of the result using the given example above.
 

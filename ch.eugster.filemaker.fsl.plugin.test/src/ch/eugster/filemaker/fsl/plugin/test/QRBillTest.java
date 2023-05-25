@@ -61,12 +61,12 @@ public class QRBillTest
 	@AfterEach
 	public void afterEach()
 	{
-		FileUtils.deleteQuietly(Paths.get(System.getProperty("user.home"), ".fsl", "qrbill.json").toFile());
+		FileUtils.deleteQuietly(Paths.get(System.getProperty("user.home"), ".fsl", "parameters.json").toFile());
 	}
 
 	private void copyConfiguration(String sourcePath) throws IOException
 	{
-		File target = Paths.get(System.getProperty("user.home"), ".fsl", "qrbill.json").toFile();
+		File target = Paths.get(System.getProperty("user.home"), ".fsl", "parameters.json").toFile();
 		if (target.exists())
 		{
 			target.delete();

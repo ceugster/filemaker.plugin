@@ -115,7 +115,11 @@ public class Xls extends Executor<Xls>
 				result = Objects.nonNull(sheet);
 				if (result)
 				{
-					workbook.setActiveSheet(workbook.getSheetIndex(sheet));
+					int sheetIndex = workbook.getSheetIndex(sheet);
+					workbook.setActiveSheet(sheetIndex);
+					responseNode.put(Key.INDEX.key(), sheetIndex);
+					responseNode.put(Key.SHEET.key(), sheet.getSheetName());
+					responseNode.put(Key.WORKBOOK.key(), getActiveWorkbookName());
 				}
 				else
 				{

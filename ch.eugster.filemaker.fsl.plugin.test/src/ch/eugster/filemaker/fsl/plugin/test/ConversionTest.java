@@ -32,7 +32,7 @@ public class ConversionTest
 
 	private static String XML_SOURCE_PATH = "resources/xml/camt.054_P_CH0809000000450010065_1111204750_0_2022121623562233.xml";
 
-	private static String XSD_SOURCE_PATH = "resources/xsd/camt.054.001.04.xsd";
+//	private static String XSD_SOURCE_PATH = "resources/xsd/camt.054.001.04.xsd";
 
 	private static File XML_SOURCE_FILE = new File(XML_SOURCE_PATH);
 	

@@ -26,7 +26,9 @@ import net.codecrete.qrbill.generator.ValidationResult;
  */
 public class QRBill extends Executor<QRBill>
 {
-	public static String result;
+//	private static ObjectMapper mapper = new ObjectMapper();
+//
+//	private static Parameters parameters = loadDefaultParameters();
 
 	public static void generate(JsonNode requestNode, ObjectNode responseNode)
 	{
@@ -139,6 +141,28 @@ public class QRBill extends Executor<QRBill>
 		return Language.valueOf(f.asText());
 	}
 	
+//	private static Parameters loadDefaultParameters()
+//	{
+//		Parameters params = null;
+//		if (Objects.isNull(params))
+//		{
+//			Path cfg = Paths.get(System.getProperty("user.home"), ".fsl", "parameters.json");
+//			File file = cfg.toFile();
+//			if (file.isFile() && file.canRead())
+//			{
+//				try
+//				{
+//					params = mapper.readValue(file, Parameters.class);
+//				}
+//				catch (Exception e)
+//				{
+//					params = new Parameters();
+//				}
+//			}
+//		}
+//		return params;
+//	}
+//	
 	public enum Key
 	{
 		// @formatter:off

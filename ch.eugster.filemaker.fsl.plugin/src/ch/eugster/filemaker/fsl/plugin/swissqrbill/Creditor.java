@@ -12,6 +12,9 @@ public class Creditor
 
 	@JsonProperty("city")
 	private String city;
+	
+	@JsonProperty("country")
+	private String country;
 
 	public String getName()
 	{
@@ -52,7 +55,4 @@ public class Creditor
 	{
 		this.country = country;
 	}
-
-	@JsonProperty("country")
-	private String country;
 }

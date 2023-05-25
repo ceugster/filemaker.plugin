@@ -466,7 +466,7 @@ public class Xls extends Executor<Xls>
 		JsonNode nameNode = requestNode.findPath(Key.WORKBOOK.key());
 		if (nameNode.isTextual())
 		{
-			String name = nameNode.asText();
+			String name = makeGivenPathGeneric(nameNode.asText());
 			Workbook wb = Xls.workbooks.get(name);
 			if (Objects.isNull(wb))
 			{
@@ -635,7 +635,7 @@ public class Xls extends Executor<Xls>
 		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
 		if (workbookNode.isTextual())
 		{
-			wb = workbookNode.asText();
+			wb = makeGivenPathGeneric(workbookNode.asText());
 		}
 		Workbook workbook = null;
 		if (Objects.nonNull(wb))
@@ -720,12 +720,12 @@ public class Xls extends Executor<Xls>
 		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
 		if (workbookNode.isTextual())
 		{
-			wb = workbookNode.asText();
+			wb = makeGivenPathGeneric(workbookNode.asText());
 		}
 		JsonNode targetNode = requestNode.findPath(Key.TARGET.key());
 		if (targetNode.isTextual())
 		{
-			target = targetNode.asText();
+			target = makeGivenPathOSSpecific(targetNode.asText());
 		}
 		Workbook workbook = null;
 		if (Objects.nonNull(wb))
@@ -2175,7 +2175,7 @@ public class Xls extends Executor<Xls>
 				Entry<String, Workbook> entry = iterator.next();
 				if (entry.getValue() == workbook)
 				{
-					result = saveFile(new File(entry.getKey()), workbook);
+					result = saveFile(new File(makeGivenPathOSSpecific(entry.getKey())), workbook);
 				}
 			}
 		}
@@ -2198,7 +2198,7 @@ public class Xls extends Executor<Xls>
 				Entry<String, Workbook> entry = iterator.next();
 				if (entry.getValue() == workbook)
 				{
-					result = saveFile(new File(target), workbook);
+					result = saveFile(new File(makeGivenPathOSSpecific(target)), workbook);
 				}
 			}
 		}
@@ -2374,6 +2374,24 @@ public class Xls extends Executor<Xls>
 		return borderStyle;
 	}
 
+	protected static String makeGivenPathGeneric(String path)
+	{
+		if (System.getProperty("os.name").toLowerCase().contains("win"))
+		{
+			path = path.replace("\\", "/");
+		}
+		return path;
+	}
+	
+	protected static String makeGivenPathOSSpecific(String path)
+	{
+		if (System.getProperty("os.name").toLowerCase().contains("win"))
+		{
+			path = path.replace("/", "\\");
+		}
+		return path;
+	}
+	
 	public enum Key
 	{
 		// @formatter:off

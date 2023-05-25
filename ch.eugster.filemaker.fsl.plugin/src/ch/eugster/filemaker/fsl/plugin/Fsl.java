@@ -68,7 +68,7 @@ public class Fsl<E extends Executor<?>>
 							}
 							catch (Exception e)
 							{
-								addErrorMessage("invalid_module '" + commands[0] + "'");
+								addErrorMessage("invalid module '" + commands[0] + "'");
 							}
 						}
 					}

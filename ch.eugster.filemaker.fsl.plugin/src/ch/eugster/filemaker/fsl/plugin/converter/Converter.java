@@ -47,7 +47,7 @@ public class Converter extends Executor<Converter>
 				}
 				catch (Exception e)
 				{
-					Fsl.addErrorMessage("unknown_source_file '" + Key.XML_SOURCE_FILE.key() + "'");
+					Fsl.addErrorMessage("unknown source file '" + Key.XML_SOURCE_FILE.key() + "'");
 				}
 			}
 		}
@@ -66,19 +66,12 @@ public class Converter extends Executor<Converter>
 				{
 					String pathname = json.asText();
 					Path path = Paths.get(json.asText());
-//					if (Files.isWritable(path))
-//					{
-						Files.write(path, jsonContent.toString().getBytes(), StandardOpenOption.CREATE);
-						responseNode.put(Executor.RESULT, pathname);
-//					}
-//					else
-//					{
-//						Fsl.addErrorMessage("json_target_file_not_writeable '" + Parameter.JSON_TARGET_FILE.key() + "'");
-//					}
+					Files.write(path, jsonContent.toString().getBytes(), StandardOpenOption.CREATE);
+					responseNode.put(Executor.RESULT, pathname);
 				}
 				else
 				{
-					Fsl.addErrorMessage("wrong_variable_type '" + Key.XML_TARGET_FILE.key() + "'");
+					Fsl.addErrorMessage("wrong variable type '" + Key.XML_TARGET_FILE.key() + "'");
 				}
 			}
 			catch (Exception e)
@@ -88,7 +81,7 @@ public class Converter extends Executor<Converter>
 		}
 		else
 		{
-			Fsl.addErrorMessage("invalid_xml_content");
+			Fsl.addErrorMessage("invalid xml content");
 		}
 	}
 

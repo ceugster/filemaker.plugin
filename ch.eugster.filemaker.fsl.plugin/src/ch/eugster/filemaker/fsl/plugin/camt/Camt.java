@@ -167,7 +167,7 @@ public class Camt extends Executor<Camt>
 	public static void extractTags(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		JsonNode pathNode = requestNode.get(Camt.Parameter.XML_FILE.key());
-		if (TextNode.class.isInstance(pathNode))
+		if (pathNode.isTextual())
 		{
 			String path = pathNode.asText();
 	        try { 
@@ -200,6 +200,10 @@ public class Camt extends Executor<Camt>
 	        {
 	            ed.printStackTrace();
 	        }
+		}
+		else
+		{
+			Fsl.addErrorMessage("invalid argument '" + Camt.Parameter.XML_FILE.key() + "'");
 		}
 	}
 

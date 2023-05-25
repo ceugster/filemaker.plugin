@@ -2,6 +2,7 @@ package ch.eugster.filemaker.fsl.plugin.test;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -87,7 +88,7 @@ public class QRBillTest
 		assertEquals(ArrayNode.class, node.getClass());
 		ArrayNode errors = ArrayNode.class.cast(node);
 		assertEquals(1, errors.size());
-		assertEquals("missing_argument 'json'", errors.get(0).asText());
+		assertEquals("invalid command", errors.get(0).asText());
 	}
 
 	@Test
@@ -98,8 +99,43 @@ public class QRBillTest
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.ERROR, resultNode.get(Executor.STATUS).asText());
 		assertEquals(ArrayNode.class, resultNode.get(Executor.ERRORS).getClass());
-		assertEquals(1, resultNode.get(Executor.ERRORS).size());
-		assertEquals("missing_argument 'json'", resultNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals(7, resultNode.get(Executor.ERRORS).size());
+		for (int i = 0; i < resultNode.get(Executor.ERRORS).size(); i++)
+		{
+			String msg = resultNode.get(Executor.ERRORS).get(i).asText();
+			if (msg.equals("field_is_mandatory: 'account'"))
+			{
+				assertTrue(true);
+			}
+			else if (msg.equals("field_is_mandatory: 'creditor.name'"))
+			{
+				assertTrue(true);
+			}
+			else if (msg.equals("field_is_mandatory: 'creditor.postalCode'"))
+			{
+				assertTrue(true);
+			}
+			else if (msg.equals("field_is_mandatory: 'creditor.addressLine2'"))
+			{
+				assertTrue(true);
+			}
+			else if (msg.equals("field_is_mandatory: 'creditor.town'"))
+			{
+				assertTrue(true);
+			}
+			else if (msg.equals("field_is_mandatory: 'creditor.countryCode'"))
+			{
+				assertTrue(true);
+			}
+			else if (msg.equals("field_is_mandatory: 'currency'"))
+			{
+				assertTrue(true);
+			}
+			else
+			{
+				assertTrue(false);
+			}
+		}
 	}
 
 	@Test
@@ -153,8 +189,7 @@ public class QRBillTest
 				assertEquals(errorMessage, "field_is_mandatory: 'creditor.countryCode'");
 			else if (errorMessage.equals("field_is_mandatory: 'currency'"))
 				assertEquals(errorMessage, "field_is_mandatory: 'currency'");
-			else
-				fail();
+			else fail();
 		}
 	}
 
@@ -297,7 +332,9 @@ public class QRBillTest
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.ERROR, resultNode.get(Executor.STATUS).asText());
 		assertEquals(1, resultNode.get(Executor.ERRORS).size());
-		assertEquals("invalid_json_format_parameter 'No enum constant net.codecrete.qrbill.generator.GraphicsFormat.blabla'", resultNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals(
+				"invalid_json_format_parameter 'No enum constant net.codecrete.qrbill.generator.GraphicsFormat.blabla'",
+				resultNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
@@ -322,7 +359,8 @@ public class QRBillTest
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.ERROR, resultNode.get(Executor.STATUS).asText());
 		assertEquals(1, resultNode.get(Executor.ERRORS).size());
-		assertEquals("invalid_json_format_parameter 'No enum constant net.codecrete.qrbill.generator.Language.blabla'", resultNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("invalid_json_format_parameter 'No enum constant net.codecrete.qrbill.generator.Language.blabla'",
+				resultNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
@@ -347,7 +385,9 @@ public class QRBillTest
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.ERROR, resultNode.get(Executor.STATUS).asText());
 		assertEquals(1, resultNode.get(Executor.ERRORS).size());
-		assertEquals("invalid_json_format_parameter 'No enum constant net.codecrete.qrbill.generator.OutputSize.blabla'", resultNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals(
+				"invalid_json_format_parameter 'No enum constant net.codecrete.qrbill.generator.OutputSize.blabla'",
+				resultNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 }

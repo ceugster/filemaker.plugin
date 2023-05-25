@@ -39,7 +39,7 @@ public abstract class Executor<E extends Executor<E>>
 				}
 			}
 		}
-		Fsl.addErrorMessage("invalid_command '" + command + "'");
+		Fsl.addErrorMessage("invalid command '" + command + "'");
 
 	}
 }

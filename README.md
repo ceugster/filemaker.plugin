@@ -6,6 +6,12 @@ Fsl is the main entry for using the functions.
 
 Use: Fsl.execute("Xyz.command", "{}")
 
+The first parameter consists of two parts that are separated by a dot. The first part is the name of the module, in which the method resides, the second one is the name of the method.
+
+The second parameter has to be a valid json string containing the mandatory and optional parameters for the method as described below. 
+
+Every call returns a jsonstring with the attributes 'result' ('OK' if successfully, else 'Fehler'. If it returns 'Fehler' then another attribute 'errors' contains a list of error messages describing the errors that occured.
+
 Actually there are the following modules:
 
 ## QRBill
@@ -30,9 +36,11 @@ List of commands:
 ### "Xls.activateSheet" 
 activates the selected sheet
 
-Mandatory Parameters: Name: "sheet" Values: sheetname (String)
+Mandatory Parameters: Name: "sheet" Values: sheetname (String) or sheetindex (int)
 
 Optional Parameters: Name: workbook Value: name of workbook
+
+returns 'index' Index of sheet, 'sheet' name of Sheet, 'workbook' name of workbook, the sheet belongs to
 
 ### "Xls.activateWorkbook"
 activates the selected workbook

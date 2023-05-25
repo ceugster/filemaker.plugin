@@ -7,16 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
 
-import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.formula.eval.FunctionEval;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellAddress;
-import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -36,8 +33,6 @@ public class XlsCellTest extends XlsTest
 	public void testSetCellsRightByIntegers() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		CellAddress cellAddress = new CellAddress("B2");
-
 		ObjectNode requestNode = MAPPER.createObjectNode();
 		ObjectNode cellNode = requestNode.objectNode();
 		cellNode.put("row", 1);
@@ -62,8 +57,6 @@ public class XlsCellTest extends XlsTest
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
 				.getNumericCellValue(), 0);
-		assertEquals(7, responseNode.get(Key.COL.key()).asInt());
-		assertEquals(1, responseNode.get(Key.ROW.key()).asInt());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
@@ -94,8 +87,6 @@ public class XlsCellTest extends XlsTest
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
 				.getNumericCellValue(), 0);
-		assertEquals(7, responseNode.get(Key.COL.key()).asInt());
-		assertEquals(1, responseNode.get(Key.ROW.key()).asInt());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
@@ -119,8 +110,6 @@ public class XlsCellTest extends XlsTest
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals("Title", Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1)
 				.getCell(1).getStringCellValue());
-		assertEquals(2, responseNode.get(Key.COL.key()).asInt());
-		assertEquals(1, responseNode.get(Key.ROW.key()).asInt());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
@@ -151,8 +140,6 @@ public class XlsCellTest extends XlsTest
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1)
 				.getNumericCellValue(), 0);
-		assertEquals(0, responseNode.get(Key.COL.key()).asInt());
-		assertEquals(2, responseNode.get(Key.ROW.key()).asInt());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
@@ -183,8 +170,6 @@ public class XlsCellTest extends XlsTest
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(24).getCell(8)
 				.getNumericCellValue(), 0);
-		assertEquals(8, responseNode.get(Key.COL.key()).asInt());
-		assertEquals(23, responseNode.get(Key.ROW.key()).asInt());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
@@ -215,8 +200,6 @@ public class XlsCellTest extends XlsTest
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
 				.getNumericCellValue(), 0);
-		assertEquals(10, responseNode.get(Key.COL.key()).asInt());
-		assertEquals(8, responseNode.get(Key.ROW.key()).asInt());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
@@ -249,8 +232,6 @@ public class XlsCellTest extends XlsTest
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
 				.getNumericCellValue(), 0);
-		assertEquals(10, responseNode.get(Key.COL.key()).asInt());
-		assertEquals(8, responseNode.get(Key.ROW.key()).asInt());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
@@ -279,8 +260,6 @@ public class XlsCellTest extends XlsTest
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
 				.getNumericCellValue(), 0);
-		assertEquals(7, responseNode.get(Key.COL.key()).asInt());
-		assertEquals(1, responseNode.get(Key.ROW.key()).asInt());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 

@@ -6,8 +6,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -96,7 +94,7 @@ public class XlsTest extends Xls
 
 		JsonNode responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
-		assertEquals("missing_argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
@@ -112,7 +110,7 @@ public class XlsTest extends Xls
 		JsonNode responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
-		assertEquals("workbook_already_exists", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("workbook 'workbook1.xlsx' already exists", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
@@ -125,7 +123,7 @@ public class XlsTest extends Xls
 		JsonNode responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
-		assertEquals("missing_argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
@@ -141,20 +139,35 @@ public class XlsTest extends Xls
 		JsonNode responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
-		assertEquals("workbook_already_exists", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("workbook 'workbook1.xlsx' already exists", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
 	public void testCreateSheet() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookIfMissing();
+		ObjectNode requestNode = MAPPER.createObjectNode();
+		requestNode.put(Key.SHEET.key(), "Arbeitsblatt");
+
+		String response = Fsl.execute("Xls.createSheet", requestNode.toString());
+
+		JsonNode responseNode = MAPPER.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
+		assertEquals("Arbeitsblatt", responseNode.get(Key.SHEET.key()).asText());
+		assertNull(responseNode.get(Executor.ERRORS));
+	}
+
+	@Test
+	public void testCreateSheetWithoutName() throws JsonMappingException, JsonProcessingException
+	{
+		prepareWorkbookIfMissing();
 
 		String response = Fsl.execute("Xls.createSheet", "{}");
 
 		JsonNode responseNode = MAPPER.readTree(response);
-		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(SHEET0, responseNode.get(Key.SHEET.key()).asText());
-		assertNull(responseNode.get(Executor.ERRORS));
+		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
+		assertEquals(1, responseNode.get(Executor.ERRORS).size());
+		assertEquals("missing argument 'sheet'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
@@ -223,7 +236,7 @@ public class XlsTest extends Xls
 
 		JsonNode responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
-		assertEquals("missing_sheet 'Schmock'", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("missing sheet 'Schmock'", responseNode.get(Executor.ERRORS).get(0).asText());
 
 		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.SHEET.key(), 0);
@@ -247,7 +260,7 @@ public class XlsTest extends Xls
 
 		JsonNode responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
-		assertEquals("missing_argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
 
 		requestNode = MAPPER.createObjectNode();
 		requestNode.put(Key.INDEX.key(), 0);
@@ -256,7 +269,7 @@ public class XlsTest extends Xls
 
 		responseNode = MAPPER.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
-		assertEquals("missing_argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test

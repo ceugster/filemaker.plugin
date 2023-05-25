@@ -6,11 +6,11 @@ Fsl is the main entry for using the functions.
 
 Use: Fsl.execute("Xyz.command", "{}")
 
-The first parameter consists of two parts that are separated by a dot. The first part is the name of the module, in which the method resides, the second one is the name of the method.
+- The first parameter consists of two parts that are separated by a dot. The first part is the name of the module, in which the method resides, the second one is the name of the method.
 
-The second parameter has to be a valid json string containing the mandatory and optional parameters for the method as described below. 
+- The second parameter has to be a valid json string containing the mandatory and optional parameters for the method as described below. 
 
-Every call returns a jsonstring with the attributes 'result' ('OK' if successfully, else 'Fehler'. If it returns 'Fehler' then another attribute 'errors' contains a list of error messages describing the errors that occured.
+- Every call returns a jsonstring with the attributes 'result' ('OK' if successfully, else 'Fehler'. If it returns 'Fehler' then another attribute 'errors' contains a list of error messages describing the errors that occured.
 
 Actually there are the following modules:
 

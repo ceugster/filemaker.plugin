@@ -168,7 +168,7 @@ public class QRBillTest
 		parameters.put(QRBill.Key.REFERENCE.key(), "RF49N73GBST73AKL38ZX");
 		ObjectNode creditor = parameters.putObject("creditor");
 		creditor.put(QRBill.Key.NAME.key(), "Christian Eugster");
-		creditor.put(QRBill.Key.ADDRESS_LINE_1.key(), "Felsenstrasse 7");
+		creditor.put(QRBill.Key.ADDRESS_LINE_1.key(), "Axensteinstrasse 7");
 		creditor.put(QRBill.Key.ADDRESS_LINE_2.key(), "9000 St. Gallen");
 		creditor.put(QRBill.Key.COUNTRY.key(), "CH");
 

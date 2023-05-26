@@ -45,6 +45,7 @@ JSONSetElement ( $request ;
     [ "format.output_size" ; "QR_BILL_EXTRA_SPACE" ; JSONString ] ;
     [ "format.language" ; "DE" ; JSONString ]
 )
+```
 
 Mandatory attributes are: 'amount' (number), 'currency' (String), 'iban' (a valid qriban), 'creditor' with all its parts (name: the name of the creditor; address_line_1: street and streetnumber; address_line_2: zip and city; country: the iso3166 alpha-2 country code, defaults to 'CH')
 

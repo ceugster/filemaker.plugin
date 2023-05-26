@@ -27,7 +27,7 @@ Mandatory attributes are: 'amount' (number), 'currency' (String), 'iban' (a vali
 
 Below you see an example of the result using the given example above.
 
-[QRBill.pdf](https://github.com/ceugster/filemaker.plugin/files/11576070/QRBill.pdf)
+![QRBill](https://github.com/ceugster/filemaker.plugin/assets/1636301/93f77dd1-ab64-464d-b126-54268ae79522)
 
 ## Xls
 Xls provides commands to create an xls file

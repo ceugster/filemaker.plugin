@@ -160,6 +160,27 @@ public class QRBillTest
 	}
 
 	@Test
+	public void testMinimalParametersWithNonQRIban() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectNode parameters = this.mapper.createObjectNode();
+		parameters.put(QRBill.Key.CURRENCY.key(), "CHF");
+		parameters.put(QRBill.Key.IBAN.key(), "CH450023023099999999A");
+		parameters.put(QRBill.Key.REFERENCE.key(), "RF49N73GBST73AKL38ZX");
+		ObjectNode creditor = parameters.putObject("creditor");
+		creditor.put(QRBill.Key.NAME.key(), "Christian Eugster");
+		creditor.put(QRBill.Key.ADDRESS_LINE_1.key(), "Axensteinstrasse 27");
+		creditor.put(QRBill.Key.ADDRESS_LINE_2.key(), "9000 St. Gallen");
+		creditor.put(QRBill.Key.COUNTRY.key(), "CH");
+
+		String result = Fsl.execute("QRBill.generate", parameters.toString());
+
+		JsonNode resultNode = mapper.readTree(result);
+		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
+		assertNotNull(resultNode.get(Executor.RESULT));
+		assertNull(resultNode.get(Executor.ERRORS));
+	}
+
+	@Test
 	public void testMissingAllMandatories() throws JsonMappingException, JsonProcessingException
 	{
 		ObjectNode parameters = this.mapper.createObjectNode();

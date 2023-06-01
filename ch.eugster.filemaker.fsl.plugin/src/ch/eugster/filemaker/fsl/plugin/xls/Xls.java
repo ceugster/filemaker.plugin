@@ -89,10 +89,6 @@ public class Xls extends Executor
 
 	public Workbook activeWorkbook;
 
-	public Xls()
-	{
-		System.out.println(this);
-	}
 	/**
 	 * Activates the sheet with the given name in argument 'sheet'
 	 * 

@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
-import ch.eugster.filemaker.fsl.plugin.Fsl;
 import net.codecrete.qrbill.generator.Address;
 import net.codecrete.qrbill.generator.Bill;
 import net.codecrete.qrbill.generator.BillFormat;
@@ -24,13 +23,13 @@ import net.codecrete.qrbill.generator.ValidationResult;
  * @author christian
  *
  */
-public class QRBill extends Executor<QRBill>
+public class QRBill extends Executor
 {
-//	private static ObjectMapper mapper = new ObjectMapper();
+//	private ObjectMapper mapper = new ObjectMapper();
 //
-//	private static Parameters parameters = loadDefaultParameters();
+//	private Parameters parameters = loadDefaultParameters();
 
-	public static void generate(JsonNode requestNode, ObjectNode responseNode)
+	public void generate(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		try 
 		{
@@ -86,18 +85,18 @@ public class QRBill extends Executor<QRBill>
 				{
 					for (ValidationMessage msg : msgs)
 					{
-						Fsl.addErrorMessage(msg.getMessageKey() + ": '" + msg.getField() + "'");
+						addErrorMessage(responseNode, msg.getMessageKey() + ": '" + msg.getField() + "'");
 					}
 				}
 			}
 		} 
 		catch (Exception e) 
 		{
-			Fsl.addErrorMessage("invalid_json_format_parameter '" + e.getLocalizedMessage() + "'");
+			addErrorMessage(responseNode, "invalid_json_format_parameter '" + e.getLocalizedMessage() + "'");
 		}
 	}
 	
-	private static String checkString(JsonNode requestNode, String key)
+	private String checkString(JsonNode requestNode, String key)
 	{
 		if (Objects.nonNull(requestNode))
 		{
@@ -107,7 +106,7 @@ public class QRBill extends Executor<QRBill>
 		return null;
 	}
 
-	private static Double checkDouble(JsonNode requestNode, String key)
+	private Double checkDouble(JsonNode requestNode, String key)
 	{
 		if (Objects.nonNull(requestNode))
 		{
@@ -117,7 +116,7 @@ public class QRBill extends Executor<QRBill>
 		return null;
 	}
 	
-	private static GraphicsFormat checkGraphicsFormat(JsonNode format)
+	private GraphicsFormat checkGraphicsFormat(JsonNode format)
 	{
 		JsonNode f = format.get(Key.GRAPHICS_FORMAT.key());
 		if (f == null)
@@ -125,7 +124,7 @@ public class QRBill extends Executor<QRBill>
 		return GraphicsFormat.valueOf(f.asText());
 	}
 
-	private static OutputSize checkOutputSize(JsonNode format)
+	private OutputSize checkOutputSize(JsonNode format)
 	{
 		JsonNode f = format.get(Key.OUTPUT_SIZE.key());
 		if (f == null)
@@ -133,7 +132,7 @@ public class QRBill extends Executor<QRBill>
 		return OutputSize.valueOf(f.asText());
 	}
 
-	private static Language checkLanguage(JsonNode format)
+	private Language checkLanguage(JsonNode format)
 	{
 		JsonNode f = format.get(Key.LANGUAGE.key());
 		if (f == null)
@@ -141,7 +140,7 @@ public class QRBill extends Executor<QRBill>
 		return Language.valueOf(f.asText());
 	}
 	
-//	private static Parameters loadDefaultParameters()
+//	private Parameters loadDefaultParameters()
 //	{
 //		Parameters params = null;
 //		if (Objects.isNull(params))

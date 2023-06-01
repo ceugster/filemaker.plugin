@@ -25,13 +25,12 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import ch.eugster.filemaker.fsl.plugin.Executor;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
 
-public class XlsCellStyleTest extends XlsTest
+public final class XlsCellStyleTest extends AbstractXlsTest
 {
 	@Test
 	public void testHorizontalAlignment() throws EncryptedDocumentException, IOException
 	{
-		prepareWorkbookAndSheetIfMissing();
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		Row row = sheet.createRow(1);
 		Cell leftCell = row.createCell(1);
 		leftCell.setCellValue(new XSSFRichTextString("Linksausrichtung"));
@@ -44,70 +43,70 @@ public class XlsCellStyleTest extends XlsTest
 		Cell errorCell = row.createCell(9);
 		errorCell.setCellValue(new XSSFRichTextString("Fehler"));
 		
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "B2");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "B2");
 		ObjectNode alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), HorizontalAlignment.LEFT.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", HorizontalAlignment.LEFT.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 		
 		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "D2");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "D2");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), HorizontalAlignment.CENTER.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", HorizontalAlignment.CENTER.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "F2");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "F2");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), HorizontalAlignment.RIGHT.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", HorizontalAlignment.RIGHT.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "H2");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "H2");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), HorizontalAlignment.DISTRIBUTED.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", HorizontalAlignment.DISTRIBUTED.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "J2");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "J2");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), "gigi");
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", "gigi");
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("invalid argument 'alignment.horizontal'", responseNode.get(Executor.ERRORS).get(0).asText());
 
-		requestNode = MAPPER.createObjectNode();
+		requestNode = mapper.createObjectNode();
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -115,8 +114,7 @@ public class XlsCellStyleTest extends XlsTest
 	@Test
 	public void testHorizontalAlignmentRange() throws EncryptedDocumentException, IOException
 	{
-		prepareWorkbookAndSheetIfMissing();
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		Row row = sheet.createRow(1);
 		Cell leftCell = row.createCell(1);
 		leftCell.setCellValue(new XSSFRichTextString("Linksausrichtung"));
@@ -140,70 +138,70 @@ public class XlsCellStyleTest extends XlsTest
 		errorCell = row.createCell(9);
 		errorCell.setCellValue(new XSSFRichTextString("Fehler"));
 		
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "B2:B4");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("range", "B2:B4");
 		ObjectNode alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), HorizontalAlignment.LEFT.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", HorizontalAlignment.LEFT.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 		
 		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "D2:D4");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "D2:D4");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), HorizontalAlignment.CENTER.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", HorizontalAlignment.CENTER.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "F2:F4");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "F2:F4");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), HorizontalAlignment.RIGHT.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", HorizontalAlignment.RIGHT.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "H2:H4");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "H2:H4");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), HorizontalAlignment.DISTRIBUTED.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", HorizontalAlignment.DISTRIBUTED.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "J2:J4");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "J2:J4");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.HORIZONTAL.key(), "gigi");
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("horizontal", "gigi");
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("invalid argument 'alignment.horizontal'", responseNode.get(Executor.ERRORS).get(0).asText());
 
-		requestNode = MAPPER.createObjectNode();
+		requestNode = mapper.createObjectNode();
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -211,8 +209,7 @@ public class XlsCellStyleTest extends XlsTest
 	@Test
 	public void testVerticalAlignment() throws EncryptedDocumentException, IOException
 	{
-		prepareWorkbookAndSheetIfMissing();
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		Row row = sheet.createRow(1);
 		Cell leftCell = row.createCell(1);
 		leftCell.setCellValue(new XSSFRichTextString("Top"));
@@ -225,70 +222,70 @@ public class XlsCellStyleTest extends XlsTest
 		Cell errorCell = row.createCell(9);
 		errorCell.setCellValue(new XSSFRichTextString("Fehler"));
 		
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "B2");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "B2");
 		ObjectNode alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), VerticalAlignment.TOP.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", VerticalAlignment.TOP.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 		
 		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "D2");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "D2");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), VerticalAlignment.CENTER.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", VerticalAlignment.CENTER.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "F2");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "F2");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), VerticalAlignment.BOTTOM.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", VerticalAlignment.BOTTOM.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "H2");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "H2");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), VerticalAlignment.DISTRIBUTED.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", VerticalAlignment.DISTRIBUTED.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "J2");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "J2");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), "gigi");
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", "gigi");
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("invalid argument 'alignment.vertical'", responseNode.get(Executor.ERRORS).get(0).asText());
 
-		requestNode = MAPPER.createObjectNode();
+		requestNode = mapper.createObjectNode();
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -296,8 +293,7 @@ public class XlsCellStyleTest extends XlsTest
 	@Test
 	public void testVerticalAlignmentRange() throws EncryptedDocumentException, IOException
 	{
-		prepareWorkbookAndSheetIfMissing();
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		Row row = sheet.createRow(1);
 		Cell leftCell = row.createCell(1);
 		leftCell.setCellValue(new XSSFRichTextString("Top"));
@@ -321,70 +317,70 @@ public class XlsCellStyleTest extends XlsTest
 		errorCell = row.createCell(9);
 		errorCell.setCellValue(new XSSFRichTextString("Fehler"));
 		
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "B2:B4");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("range", "B2:B4");
 		ObjectNode alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), VerticalAlignment.TOP.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", VerticalAlignment.TOP.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 		
 		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "D2:D4");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "D2:D4");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), VerticalAlignment.CENTER.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", VerticalAlignment.CENTER.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "F2:F4");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "F2:F4");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), VerticalAlignment.BOTTOM.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", VerticalAlignment.BOTTOM.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "H2:H4");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "H2:H4");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), VerticalAlignment.DISTRIBUTED.name().toLowerCase());
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", VerticalAlignment.DISTRIBUTED.name().toLowerCase());
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "J2:J4");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "J2:J4");
 		alignNode = requestNode.objectNode();
-		alignNode.put(Key.VERTICAL.key(), "gigi");
-		requestNode.set(Key.ALIGNMENT.key(), alignNode);
+		alignNode.put("vertical", "gigi");
+		requestNode.set("alignment", alignNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("invalid argument 'alignment.vertical'", responseNode.get(Executor.ERRORS).get(0).asText());
 
-		requestNode = MAPPER.createObjectNode();
+		requestNode = mapper.createObjectNode();
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -394,85 +390,85 @@ public class XlsCellStyleTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "B2");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "B2");
 		ObjectNode borderNode = requestNode.objectNode();
 		ObjectNode styleNode = borderNode.objectNode();
 		TextNode node = styleNode.textNode(BorderStyle.DOTTED.name());
-		styleNode.set(Key.BOTTOM.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("bottom", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "D4");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "D4");
 		borderNode = requestNode.objectNode();
 		styleNode = borderNode.objectNode();
 		node = styleNode.textNode(BorderStyle.THICK.name());
-		styleNode.set(Key.LEFT.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("left", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "F6");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "F6");
 		borderNode = requestNode.objectNode();
 		styleNode = borderNode.objectNode();
 		node = styleNode.textNode(BorderStyle.DASH_DOT.name());
-		styleNode.set(Key.RIGHT.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("right", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "H8");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "H8");
 		borderNode = requestNode.objectNode();
 		styleNode = borderNode.objectNode();
 		node = styleNode.textNode(BorderStyle.DASH_DOT.name());
-		styleNode.set(Key.RIGHT.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("right", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "J10");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "J10");
 		borderNode = requestNode.objectNode();
 		styleNode = borderNode.objectNode();
 		node = styleNode.textNode("gigi");
-		styleNode.set(Key.TOP.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("top", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("invalid argument 'border.style.top'", responseNode.get(Executor.ERRORS).get(0).asText());
 
-		requestNode = MAPPER.createObjectNode();
+		requestNode = mapper.createObjectNode();
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -482,85 +478,85 @@ public class XlsCellStyleTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "B2:C3");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("range", "B2:C3");
 		ObjectNode borderNode = requestNode.objectNode();
 		ObjectNode styleNode = borderNode.objectNode();
 		TextNode node = styleNode.textNode(BorderStyle.DOTTED.name());
-		styleNode.set(Key.BOTTOM.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("bottom", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "E5:F6");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "E5:F6");
 		borderNode = requestNode.objectNode();
 		styleNode = borderNode.objectNode();
 		node = styleNode.textNode(BorderStyle.THICK.name());
-		styleNode.set(Key.LEFT.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("left", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "H8:I9");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "H8:I9");
 		borderNode = requestNode.objectNode();
 		styleNode = borderNode.objectNode();
 		node = styleNode.textNode(BorderStyle.DASH_DOT.name());
-		styleNode.set(Key.RIGHT.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("right", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "K11:L12");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "K11:L12");
 		borderNode = requestNode.objectNode();
 		styleNode = borderNode.objectNode();
 		node = styleNode.textNode(BorderStyle.DASH_DOT.name());
-		styleNode.set(Key.RIGHT.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("right", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "N14:O15");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "N14:O15");
 		borderNode = requestNode.objectNode();
 		styleNode = borderNode.objectNode();
 		node = styleNode.textNode("gigi");
-		styleNode.set(Key.TOP.key(), node);
-		borderNode.set(Key.STYLE.key(), styleNode);
-		requestNode.set(Key.BORDER.key(), borderNode);
+		styleNode.set("top", node);
+		borderNode.set("style", styleNode);
+		requestNode.set("border", borderNode);
 
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("invalid argument 'border.style.top'", responseNode.get(Executor.ERRORS).get(0).asText());
 
-		requestNode = MAPPER.createObjectNode();
+		requestNode = mapper.createObjectNode();
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -569,8 +565,7 @@ public class XlsCellStyleTest extends XlsTest
 	public void testDataFormatNumber() throws JsonMappingException, JsonProcessingException
 	{
 		String workbook = "./targets/dataFormatNumber.xlsx";
-		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Row row = sheet.createRow(0);
 		Cell cell = row.createCell(0);
 		cell.setCellValue(12.666);
@@ -593,68 +588,68 @@ public class XlsCellStyleTest extends XlsTest
 		cell = row.createCell(2);
 		cell.setCellValue(1000.3);
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "A1");
-		requestNode.put(Key.DATA_FORMAT.key(), "0.00");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "A1");
+		requestNode.put("data_format", "0.00");
 		
 		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 		
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "B1:C1");
-		requestNode.put(Key.DATA_FORMAT.key(), "0.00");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "B1:C1");
+		requestNode.put("data_format", "0.00");
 		
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 		
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "A2");
-		requestNode.put(Key.DATA_FORMAT.key(), "#,##0.00");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "A2");
+		requestNode.put("data_format", "#,##0.00");
 		
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 		
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "B2:C2");
-		requestNode.put(Key.DATA_FORMAT.key(), "#,##0.00");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "B2:C2");
+		requestNode.put("data_format", "#,##0.00");
 		
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 		
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "A3");
-		requestNode.put(Key.DATA_FORMAT.key(), "#,##0");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "A3");
+		requestNode.put("data_format", "#,##0");
 		
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 		
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "B3:C3");
-		requestNode.put(Key.DATA_FORMAT.key(), "#,##0");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "B3:C3");
+		requestNode.put("data_format", "#,##0");
 		
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 		
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 	
@@ -662,8 +657,7 @@ public class XlsCellStyleTest extends XlsTest
 	public void testDataFormatTime() throws JsonMappingException, JsonProcessingException
 	{
 		String workbook = "./targets/dataFormatTime.xlsx";
-		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Row row = sheet.createRow(0);
 		Cell cell = row.createCell(0);
 		cell.setCellValue("1:25");
@@ -674,89 +668,89 @@ public class XlsCellStyleTest extends XlsTest
 		cell = row.createCell(3);
 		cell.setCellValue("21.10.1954 1:25");
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "A1");
-		requestNode.put(Key.DATA_FORMAT.key(), "h:mm");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "A1");
+		requestNode.put("data_format", "h:mm");
 		
 		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 		
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "B1");
-		requestNode.put(Key.DATA_FORMAT.key(), "h:mm");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "B1");
+		requestNode.put("data_format", "h:mm");
 		
 		response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 		
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 	
 	@Test
 	public void testBackground() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing("./targets/background.xlsx", SHEET0);
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing("./targets/background.xlsx", SHEET0);
 		Row row = sheet.createRow(0);
 		Cell cell = row.createCell(0);
 		cell.setCellValue(new XSSFRichTextString("Das ist eine Testzelle"));
 		cell = row.createCell(1);
 		cell.setCellValue(new XSSFRichTextString("Das ist eine zweite Testzelle"));
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "A1");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "A1");
 		ObjectNode backgroundNode = requestNode.objectNode();
-		backgroundNode.put(Key.COLOR.key(), IndexedColors.RED.name());
-		requestNode.set(Key.BACKGROUND.key(), backgroundNode);
+		backgroundNode.put("color", IndexedColors.RED.name());
+		requestNode.set("background", backgroundNode);
+		
 		String response = Fsl.execute("Xls.applyCellStyles", requestNode.toString());
 		
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "./targets/background.xlsx");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", "./targets/background.xlsx");
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 	
 	@Test
 	public void testAutoSizeColumns() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing("autoSizeColumn.xlsx", SHEET0);
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing("autoSizeColumn.xlsx", SHEET0);
+		
 		Row row = sheet.createRow(0);
 		Cell cell = row.createCell(0);
 		cell.setCellValue(new XSSFRichTextString("Das ist eine Testzelle"));
 		cell = row.createCell(1);
 		cell.setCellValue(new XSSFRichTextString("Das ist eine zweite Testzelle"));
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "A1");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "A1");
 		
 		String response = Fsl.execute("Xls.autoSizeColumns", requestNode.toString());
 		
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.RANGE.key(), "A1:B1");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("range", "A1:B1");
 		
 		response = Fsl.execute("Xls.autoSizeColumns", requestNode.toString());
 		
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "./targets/autoSizeColumn.xlsx");
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", "./targets/autoSizeColumn.xlsx");
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 
@@ -764,24 +758,24 @@ public class XlsCellStyleTest extends XlsTest
 	public void testRotation() throws JsonMappingException, JsonProcessingException
 	{
 		String workbook = "./targets/rotate.xlsx";
-		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
+		
 		Row row = sheet.createRow(0);
 		Cell cell = row.createCell(0);
 		cell.setCellValue(new XSSFRichTextString("Das ist eine Testzelle"));
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.ROTATION.key(), 90);
-		requestNode.put(Key.CELL.key(), "A1");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("rotation", 90);
+		requestNode.put("cell", "A1");
 		
 		String response = Fsl.execute("Xls.rotateCells", requestNode.toString());
 		
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 	}
 	

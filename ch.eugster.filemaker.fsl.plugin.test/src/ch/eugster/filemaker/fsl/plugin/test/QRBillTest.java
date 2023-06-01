@@ -88,7 +88,7 @@ public class QRBillTest
 		assertEquals(ArrayNode.class, node.getClass());
 		ArrayNode errors = ArrayNode.class.cast(node);
 		assertEquals(1, errors.size());
-		assertEquals("invalid command", errors.get(0).asText());
+		assertEquals("invalid command 'InvalidCommand'", errors.get(0).asText());
 	}
 
 	@Test
@@ -99,43 +99,8 @@ public class QRBillTest
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.ERROR, resultNode.get(Executor.STATUS).asText());
 		assertEquals(ArrayNode.class, resultNode.get(Executor.ERRORS).getClass());
-		assertEquals(7, resultNode.get(Executor.ERRORS).size());
-		for (int i = 0; i < resultNode.get(Executor.ERRORS).size(); i++)
-		{
-			String msg = resultNode.get(Executor.ERRORS).get(i).asText();
-			if (msg.equals("field_is_mandatory: 'account'"))
-			{
-				assertTrue(true);
-			}
-			else if (msg.equals("field_is_mandatory: 'creditor.name'"))
-			{
-				assertTrue(true);
-			}
-			else if (msg.equals("field_is_mandatory: 'creditor.postalCode'"))
-			{
-				assertTrue(true);
-			}
-			else if (msg.equals("field_is_mandatory: 'creditor.addressLine2'"))
-			{
-				assertTrue(true);
-			}
-			else if (msg.equals("field_is_mandatory: 'creditor.town'"))
-			{
-				assertTrue(true);
-			}
-			else if (msg.equals("field_is_mandatory: 'creditor.countryCode'"))
-			{
-				assertTrue(true);
-			}
-			else if (msg.equals("field_is_mandatory: 'currency'"))
-			{
-				assertTrue(true);
-			}
-			else
-			{
-				assertTrue(false);
-			}
-		}
+		assertEquals(1, resultNode.get(Executor.ERRORS).size());
+		assertEquals("invalid argument 'null'", resultNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test

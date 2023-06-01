@@ -15,11 +15,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import ch.eugster.filemaker.fsl.plugin.Executor;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
 
-public class Pdf extends Executor<Pdf>
+public class Pdf extends Executor
 {
-	private static PDDocument document;
+	private PDDocument document;
 	
-	public static void getDocumentInfo(JsonNode requestNode, ObjectNode responseNode)
+	public void getDocumentInfo(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		JsonNode node = requestNode.get("content");
 		if (Objects.nonNull(node))
@@ -55,12 +55,12 @@ public class Pdf extends Executor<Pdf>
 			}
 			catch (Exception e) 
 			{
-				Fsl.addErrorMessage(e.getLocalizedMessage());
+				addErrorMessage(responseNode, e.getLocalizedMessage());
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing_paramenter 'content'");
+			addErrorMessage(responseNode, "missing_paramenter 'content'");
 		}
 	}
 }

@@ -7,36 +7,28 @@ import java.io.OutputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.Set;
 import java.util.logging.LogManager;
 
 import org.reflections.Reflections;
-import org.reflections.scanners.Scanners;
-import org.reflections.util.ConfigurationBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-public class Fsl<E extends Executor<?>>
+public class Fsl
 {
-	private static ObjectNode REQUEST_NODE;
-	
-	private static ObjectNode RESPONSE_NODE;
-	
-	private static Map<String, Executor<?>> EXECUTORS = new HashMap<String, Executor<?>>();
+	private static Map<String, Executor> executors = new HashMap<String, Executor>();
 
-	private static ObjectMapper MAPPER = new ObjectMapper();
+	private static ObjectMapper mapper = new ObjectMapper();
 
-	private static Reflections REFLECTIONS = new Reflections(
-			new ConfigurationBuilder().forPackage("ch.eugster.filemaker.fsl.plugin").addScanners(Scanners.SubTypes));
+	private static Reflections reflections = new Reflections("ch.eugster.filemaker.fsl.plugin");
 
 	private static Logger logger = LoggerFactory.getLogger(Fsl.class);
 	
@@ -45,95 +37,59 @@ public class Fsl<E extends Executor<?>>
 	public static String execute(String command, String parameters)
 	{
 		initializeLogging();
-		
-		Fsl.RESPONSE_NODE = MAPPER.createObjectNode();
-		if (Objects.nonNull(command) && !command.trim().isEmpty())
+
+		logger.info("Build argument node");
+		ObjectNode requestNode = null;
+		ObjectNode responseNode = mapper.createObjectNode();
+		try
 		{
-			String[] commands = command.split("[.]");
-			if (commands.length == 2)
+			requestNode = ObjectNode.class.cast(mapper.readTree(parameters));
+			if (Objects.nonNull(command) && !command.trim().isEmpty())
 			{
-				Executor<?> executor = EXECUTORS.get(commands[0]);
-				if (Objects.isNull(executor))
+				String[] commandParts = command.split("[.]");
+				if (commandParts.length == 2)
 				{
-					@SuppressWarnings("rawtypes")
-					Set<Class<? extends Executor>> classes = REFLECTIONS.getSubTypesOf(Executor.class);
-					for (@SuppressWarnings("rawtypes")
-					Class<? extends Executor> clazz : classes)
+					logger.info("Get or create executor '{}'", commandParts[0]);
+					Executor executor = getExecutor(commandParts[0].trim());
+					if (Objects.nonNull(executor))
 					{
-						if (clazz.getSimpleName().equals(commands[0]))
-						{
-							try
-							{
-								EXECUTORS.put(clazz.getSimpleName(), clazz.getConstructor().newInstance());
-							}
-							catch (Exception e)
-							{
-								addErrorMessage("invalid module '" + commands[0] + "'");
-							}
-						}
+						logger.info("Execute '" + commandParts[1] + "'");
+						executor.execute(commandParts[1].trim(), requestNode, responseNode);
 					}
-					executor = EXECUTORS.get(commands[0]);
-				}
-				if (Objects.isNull(executor))
-				{
-					addErrorMessage("missing module '" + commands[0] + "'");
+					else
+					{
+						logger.error("Invalid module '" + commandParts[0] + "'");
+						addErrorMessage(responseNode, "invalid module '" + commandParts[0] + "'");
+					}
 				}
 				else
 				{
-					if (Objects.isNull(parameters))
-					{
-						parameters = "{}";
-					}
-					try
-					{
-						JsonNode node = MAPPER.readTree(parameters);
-						if (ObjectNode.class.isInstance(node))
-						{
-							Fsl.REQUEST_NODE = ObjectNode.class.cast(node);
-							try
-							{
-								executor.execute(commands[1], REQUEST_NODE, RESPONSE_NODE);
-							}
-							catch (Exception e)
-							{
-								Fsl.addErrorMessage("invalid command '" + commands[1] + "' (not found)");
-							}
-						}
-						else
-						{
-							Fsl.addErrorMessage("invalid json parameter (must be a valid json string)");
-						}
-					}
-					catch (Exception e)
-					{
-						Fsl.addErrorMessage("invalid json parameter (must be a valid json string)");
-					}
+					logger.error("invalid command '{}'", command);
+					addErrorMessage(responseNode, "invalid command '" + command + "'");
 				}
 			}
 			else
 			{
-				addErrorMessage("invalid command");
+				logger.error("Missing command");
+				addErrorMessage(responseNode, "missing command");
 			}
 		}
-		else
+		catch (Exception e)
 		{
-			Fsl.addErrorMessage("missing command");
+			logger.error("An error occurred while building the argument node ({})", e.getLocalizedMessage());
+			addErrorMessage(responseNode, "invalid argument '" + parameters + "'");
 		}
-		return RESPONSE_NODE.put(Executor.STATUS, Objects.isNull(RESPONSE_NODE.get(Executor.ERRORS)) ? Executor.OK : Executor.ERROR).toString();
+
+		return responseNode.put(Executor.STATUS, Objects.isNull(responseNode.get(Executor.ERRORS)) ? Executor.OK : Executor.ERROR).toString();
 	}
 	
-	public static boolean hasErrorMessages()
+	public static boolean addErrorMessage(ObjectNode responseNode, String message)
 	{
-		return Objects.isNull(Fsl.RESPONSE_NODE.get(Executor.ERRORS));
-	}
-	
-	public static boolean addErrorMessage(String message)
-	{
-		ArrayNode errors = ArrayNode.class.cast(Fsl.RESPONSE_NODE.get(Executor.ERRORS));
+		ArrayNode errors = ArrayNode.class.cast(responseNode.get(Executor.ERRORS));
 		if (Objects.isNull(errors))
 		{
-			errors = Fsl.RESPONSE_NODE.arrayNode();
-			Fsl.RESPONSE_NODE.set(Executor.ERRORS, errors);
+			errors = responseNode.arrayNode();
+			responseNode.set(Executor.ERRORS, errors);
 		}
 		if (errors.findValuesAsText(message).size() == 0)
 		{
@@ -147,6 +103,33 @@ public class Fsl<E extends Executor<?>>
 		logger.atLevel(level).log(message);
 	}
 	
+	public static Executor getExecutor(String executorName)
+	{
+		Executor executor = null;
+		executor = executors.get(executorName);
+		if (Objects.isNull(executor))
+		{
+			try
+			{
+				Iterator<Class<? extends Executor>> clazzes = reflections.getSubTypesOf(Executor.class).iterator();
+				while (clazzes.hasNext())
+				{
+					Class<? extends Executor> clazz = clazzes.next();
+					if (clazz.getSimpleName().equals(executorName))
+					{
+						executor = clazz.getConstructor().newInstance();
+						executors.put(executorName, executor);
+						break;
+					}
+				}
+			}
+			catch (Exception e)
+			{
+			}
+		}
+		return executor;
+	}
+
 	private static void initializeLogging()
 	{
 		Path cfgPath = Paths.get(System.getProperty("user.home"), ".fsl", "fsl-log.cfg");
@@ -212,4 +195,5 @@ public class Fsl<E extends Executor<?>>
 			}
 		}
 	}
+	
 }

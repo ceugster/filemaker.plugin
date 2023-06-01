@@ -5,65 +5,27 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
 
-import org.apache.poi.EncryptedDocumentException;
-import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
-import ch.eugster.filemaker.fsl.plugin.xls.Xls;
 
-public class XlsTest extends Xls
+public final class XlsTest extends AbstractXlsTest
 {
-	protected static ObjectMapper MAPPER = new ObjectMapper();
-
-	protected static final String WORKBOOK_1 = "./targets/workbook1.xlsx";
-
-	@BeforeAll
-	public static void beforeAll()
-	{
-	}
-
-	@BeforeEach
-	public void beforeEach()
-	{
-		releaseAllWorkbooks();
-	}
-
-	@AfterAll
-	public static void afterAll()
-	{
-		releaseWorkbooks(MAPPER.createObjectNode(), MAPPER.createObjectNode());
-	}
-
-	@AfterEach
-	public void afterEach()
-	{
-		releaseWorkbook(MAPPER.createObjectNode(), MAPPER.createObjectNode());
-	}
-
 	@Test
 	public void testCallableMethods() throws Exception
 	{
 		String response = Fsl.execute("Xls.getCallableMethods", "{}");
-
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		ArrayNode methods = ArrayNode.class.cast(responseNode.get("methods"));
 		for (int i = 0; i < methods.size(); i++)
@@ -75,12 +37,12 @@ public class XlsTest extends Xls
 	@Test
 	public void testCreateWorkbook() throws Exception
 	{
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", WORKBOOK_1);
 
 		String result = Fsl.execute("Xls.createWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(result);
+		JsonNode responseNode = mapper.readTree(result);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -88,11 +50,11 @@ public class XlsTest extends Xls
 	@Test
 	public void testCreateWorkbookWithoutName() throws Exception
 	{
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 
 		String response = Fsl.execute("Xls.createWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
@@ -100,14 +62,14 @@ public class XlsTest extends Xls
 	@Test
 	public void testCreateWorkbookWhenAlreadyExisting() throws Exception
 	{
-		Xls.workbooks.put(WORKBOOK_1, new XSSFWorkbook());
+		xls.workbooks.put(WORKBOOK_1, new XSSFWorkbook());
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", WORKBOOK_1);
 
 		String response = Fsl.execute("Xls.createWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("workbook 'workbook1.xlsx' already exists", responseNode.get(Executor.ERRORS).get(0).asText());
@@ -116,11 +78,11 @@ public class XlsTest extends Xls
 	@Test
 	public void testCreateAndActivateWorkbookWithoutName() throws Exception
 	{
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 
 		String response = Fsl.execute("Xls.createAndActivateWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
@@ -129,14 +91,14 @@ public class XlsTest extends Xls
 	@Test
 	public void testCreateAndActivateWorkbookAlreadyExistingWorkbook() throws Exception
 	{
-		Xls.workbooks.put(WORKBOOK_1, new XSSFWorkbook());
+		xls.workbooks.put(WORKBOOK_1, new XSSFWorkbook());
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", WORKBOOK_1);
 
 		String response = Fsl.execute("Xls.createAndActivateWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("workbook 'workbook1.xlsx' already exists", responseNode.get(Executor.ERRORS).get(0).asText());
@@ -146,14 +108,14 @@ public class XlsTest extends Xls
 	public void testCreateSheet() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.SHEET.key(), "Arbeitsblatt");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("sheet", "Arbeitsblatt");
 
 		String response = Fsl.execute("Xls.createSheet", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals("Arbeitsblatt", responseNode.get(Key.SHEET.key()).asText());
+		assertEquals("Arbeitsblatt", responseNode.get("sheet").asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
@@ -164,7 +126,7 @@ public class XlsTest extends Xls
 
 		String response = Fsl.execute("Xls.createSheet", "{}");
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("missing argument 'sheet'", responseNode.get(Executor.ERRORS).get(0).asText());
@@ -174,12 +136,12 @@ public class XlsTest extends Xls
 	public void testCreateSheetAlreadyExisting() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.SHEET.key(), SHEET0);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("sheet", SHEET0);
 
 		String response = Fsl.execute("Xls.createSheet", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals("sheet 'Sheet0' already exists", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
@@ -188,12 +150,12 @@ public class XlsTest extends Xls
 	public void testActivateSheetByIndex() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.SHEET.key(), 0);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("sheet", 0);
 
 		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -202,12 +164,12 @@ public class XlsTest extends Xls
 	public void testActivateSheetByName() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.SHEET.key(), SHEET0);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("sheet", SHEET0);
 
 		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -216,11 +178,11 @@ public class XlsTest extends Xls
 	public void testActivateSheetWithoutParameter() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 
 		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals("missing_argument 'sheet'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
@@ -229,21 +191,21 @@ public class XlsTest extends Xls
 	public void testActivateNotExistingSheet() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.SHEET.key(), "Schmock");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("sheet", "Schmock");
 
 		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals("missing sheet 'Schmock'", responseNode.get(Executor.ERRORS).get(0).asText());
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.SHEET.key(), 0);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("sheet", 0);
 
 		response = Fsl.execute("Xls.activateSheet", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals("missing sheet '0'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
@@ -251,23 +213,21 @@ public class XlsTest extends Xls
 	@Test
 	public void testActivateSheetWithoutWorkbook() throws JsonMappingException, JsonProcessingException
 	{
-		releaseWorkbook(MAPPER.createObjectNode(), MAPPER.createObjectNode());
-
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.SHEET.key(), SHEET0);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("sheet", SHEET0);
 
 		String response = Fsl.execute("Xls.activateSheet", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.INDEX.key(), 0);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("index", 0);
 
 		response = Fsl.execute("Xls.activateSheet", requestNode.toString());
 
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
@@ -276,11 +236,11 @@ public class XlsTest extends Xls
 	public void testSaveActiveWorkbook() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 
 		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -288,11 +248,11 @@ public class XlsTest extends Xls
 	@Test
 	public void testSaveActiveWorkbookNotExisting() throws JsonMappingException, JsonProcessingException
 	{
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 
 		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
@@ -302,12 +262,12 @@ public class XlsTest extends Xls
 	public void testSaveNamedWorkbook() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", WORKBOOK_1);
 		
 		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -316,12 +276,12 @@ public class XlsTest extends Xls
 	public void testSaveNamedWorkbookNotExisting() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "gigi");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", "gigi");
 		
 		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("invalid argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
@@ -331,12 +291,12 @@ public class XlsTest extends Xls
 	public void testSaveWorkbookToTarget() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.TARGET.key(), WORKBOOK_1);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("target", WORKBOOK_1);
 		
 		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -344,12 +304,12 @@ public class XlsTest extends Xls
 	@Test
 	public void testSaveNotExistingWorkbookToTarget() throws JsonMappingException, JsonProcessingException
 	{
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.TARGET.key(), WORKBOOK_1);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("target", WORKBOOK_1);
 		
 		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 		
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("missing argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
@@ -359,13 +319,13 @@ public class XlsTest extends Xls
 	public void testSaveNamedWorkbookToTarget() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), WORKBOOK_1);
-		requestNode.put(Key.TARGET.key(), WORKBOOK_1);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", WORKBOOK_1);
+		requestNode.put("target", WORKBOOK_1);
 		
 		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -374,13 +334,13 @@ public class XlsTest extends Xls
 	public void testSaveNamedNotExistingWorkbookToTarget() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), "gigi");
-		requestNode.put(Key.TARGET.key(), WORKBOOK_1);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", "gigi");
+		requestNode.put("target", WORKBOOK_1);
 		
 		String response = Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
 		assertEquals("invalid argument 'workbook'", responseNode.get(Executor.ERRORS).get(0).asText());
@@ -391,10 +351,10 @@ public class XlsTest extends Xls
 	{
 		String workbook = "./targets/test.xlsx";
 		prepareWorkbookIfMissing(workbook);
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		String result = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		JsonNode resultNode = MAPPER.readTree(result);
+		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
 		assertTrue(new File(workbook).exists());
 	}
@@ -404,9 +364,9 @@ public class XlsTest extends Xls
 	{
 		String workbook = "./targets/test.xlsx";
 		prepareWorkbookIfMissing(workbook);
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		String result = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		JsonNode resultNode = MAPPER.readTree(result);
+		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
 		assertTrue(new File(workbook).exists());
 	}
@@ -416,81 +376,51 @@ public class XlsTest extends Xls
 	{
 		String workbook = "./targets/TestSetHeaderFooter.xlsx";
 		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.LEFT.key(), "Header links");
-		requestNode.put(Key.CENTER.key(), "Header Mitte");
-		requestNode.put(Key.RIGHT.key(), "Header rechts");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("left", "Header links");
+		requestNode.put("center", "Header Mitte");
+		requestNode.put("right", "Header rechts");
 
 		String response = Fsl.execute("Xls.setHeaders", requestNode.toString());
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals("Header links",
-				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getHeader().getLeft());
-		assertEquals("Header Mitte",
-				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getHeader().getCenter());
-		assertEquals("Header rechts",
-				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getHeader().getRight());
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.LEFT.key(), "Footer links");
-		requestNode.put(Key.CENTER.key(), "Footer Mitte");
-		requestNode.put(Key.RIGHT.key(), "Footer rechts");
+		Workbook wb = xls.getActiveWorkbook();
+		assertEquals("Header links",
+				wb.getSheetAt(wb.getActiveSheetIndex()).getHeader().getLeft());
+		assertEquals("Header Mitte",
+				wb.getSheetAt(wb.getActiveSheetIndex()).getHeader().getCenter());
+		assertEquals("Header rechts",
+				wb.getSheetAt(wb.getActiveSheetIndex()).getHeader().getRight());
+
+		requestNode = mapper.createObjectNode();
+		requestNode.put("left", "Footer links");
+		requestNode.put("center", "Footer Mitte");
+		requestNode.put("right", "Footer rechts");
 
 		response = Fsl.execute("Xls.setFooters", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertEquals("Footer links",
-				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getFooter().getLeft());
+				wb.getSheetAt(wb.getActiveSheetIndex()).getFooter().getLeft());
 		assertEquals("Footer Mitte",
-				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getFooter().getCenter());
+				wb.getSheetAt(wb.getActiveSheetIndex()).getFooter().getCenter());
 		assertEquals("Footer rechts",
-				Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getFooter().getRight());
+				wb.getSheetAt(wb.getActiveSheetIndex()).getFooter().getRight());
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		String result = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		JsonNode resultNode = MAPPER.readTree(result);
+		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
 		assertTrue(new File(workbook).exists());
 	}
 
-	protected static void openExistingWorkbook(String path) throws EncryptedDocumentException, IOException
+	@Test
+	public void testJSONFormatting() throws JsonMappingException, JsonProcessingException
 	{
-		File file = new File(path);
-		Workbook workbook = XSSFWorkbook.class.cast(WorkbookFactory.create(file));
-		Xls.workbooks.put(path, workbook);
-		Xls.activeWorkbook = workbook;
+		String value = "{\"amount\":287.30,\"currency\":\"CHF\",\"iban\":\"CH4431999123000889012\",\"reference\":\"000000000000000000000000000\",\"message\":\"Rechnungsnr. 10978 / Auftragsnr. 3987\",\"creditor\":{\"name\":\"Schreinerei Habegger & Söhne\",\"address_line_1\":\"Uetlibergstrasse 138\",\"address_line_2\":\"8045 Zürich\",\"country\":\"CH\"},\"debtor\":{\"name\":\"Simon Glarner\",\"address_line_1\":\"Bächliwis 55\",\"address_line_2\":\"8184 Bachenbülach\",\"country\":\"CH\"},\"format\":{\"graphics_format\":\"PDF\",\"output_size\":\"A4_PORTRAIT_SHEET\",\"language\":\"DE\"}}";
+		JsonNode json = mapper.readTree(value);
+		System.out.println(json.toPrettyString());
 	}
-
-	protected String prepareWorkbookIfMissing()
-	{
-		return prepareWorkbookIfMissing(WORKBOOK_1);
-	}
-
-	protected String prepareWorkbookIfMissing(String workbook)
-	{
-		Xls.activeWorkbook = new XSSFWorkbook();
-		Xls.workbooks.put(workbook, Xls.activeWorkbook);
-		return workbook;
-	}
-
-	protected String prepareWorkbookAndSheetIfMissing()
-	{
-		return prepareWorkbookAndSheetIfMissing(WORKBOOK_1, SHEET0);
-	}
-
-	protected String prepareWorkbookAndSheetIfMissing(String workbook, String sheetName)
-	{
-		workbook = prepareWorkbookIfMissing(workbook);
-		Sheet sheet = Xls.activeWorkbook.createSheet(sheetName);
-		Xls.activeWorkbook.setActiveSheet(Xls.activeWorkbook.getSheetIndex(sheet));
-		return workbook;
-	}
-
-	protected void releaseAllWorkbooks()
-	{
-		Xls.workbooks.clear();
-		Xls.activeWorkbook = null;
-	}
-
 }

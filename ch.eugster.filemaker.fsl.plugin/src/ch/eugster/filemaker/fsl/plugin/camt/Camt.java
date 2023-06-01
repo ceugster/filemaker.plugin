@@ -25,13 +25,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.prowidesoftware.swift.model.mx.AbstractMX;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
-import ch.eugster.filemaker.fsl.plugin.Fsl;
 
-public class Camt extends Executor<Camt>
+public class Camt extends Executor
 {
-	protected static final String IDENTIFIER_KEY = "identifier";
+	protected final String IDENTIFIER_KEY = "identifier";
 	
-	public static void parse(JsonNode requestNode, ObjectNode responseNode)
+	public void parse(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		JsonNode source = requestNode.get(Parameter.XML_FILE.key());
 		if (Objects.nonNull(source) && source.isTextual())
@@ -47,12 +46,12 @@ public class Camt extends Executor<Camt>
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing argument 'xml_file' or 'xml_content'");
+				addErrorMessage(responseNode, "missing argument 'xml_file' or 'xml_content'");
 			}
 		}
 	}
 
-	public static void parseFile(JsonNode requestNode, ObjectNode responseNode)
+	public void parseFile(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		JsonNode source = requestNode.get(Parameter.XML_FILE.key());
 		if (Objects.nonNull(source) && source.isTextual())
@@ -72,51 +71,51 @@ public class Camt extends Executor<Camt>
 						line = br.readLine();
 					}
 					br.close();
-					String[] result = jsonify(builder.toString());
+					String[] result = jsonify(responseNode, builder.toString());
 					responseNode.put(IDENTIFIER_KEY, result[0]);
 					responseNode.put(Executor.RESULT, result[1]);
 				}
 				catch (Exception e)
 				{
-					Fsl.addErrorMessage("missing file '" + Parameter.XML_FILE.key() + "'");
+					addErrorMessage(responseNode, "missing file '" + Parameter.XML_FILE.key() + "'");
 				}
 			}
 			else
 			{
-				Fsl.addErrorMessage("invalid argument '" + Parameter.XML_FILE.key() + "'");
+				addErrorMessage(responseNode, "invalid argument '" + Parameter.XML_FILE.key() + "'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("invalid argument '" + Parameter.XML_FILE.key() + "'");
+			addErrorMessage(responseNode, "invalid argument '" + Parameter.XML_FILE.key() + "'");
 		}
 	}
 	
-	public static void parseContent(JsonNode requestNode, ObjectNode responseNode)
+	public void parseContent(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		JsonNode source = requestNode.get(Parameter.XML_CONTENT.key());
 		if (Objects.nonNull(source) && source.isTextual())
 		{
 			try
 			{
-				String[] result = jsonify(source.asText());
+				String[] result = jsonify(responseNode, source.asText());
 				responseNode.put(IDENTIFIER_KEY, result[0]);
 				responseNode.put(Executor.RESULT, result[1]);
 			}
 			catch (Exception e)
 			{
-				Fsl.addErrorMessage("wrong_parameter_type 'xml_file_path_name'");
+				addErrorMessage(responseNode, "wrong_parameter_type 'xml_file_path_name'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("wrong_parameter_type 'xml_file_path_name'");
+			addErrorMessage(responseNode, "wrong_parameter_type 'xml_file_path_name'");
 		}
 	}
 	
-	public static void extract(JsonNode requestNode, ObjectNode responseNode) throws JsonMappingException, JsonProcessingException
+	public void extract(ObjectNode requestNode, ObjectNode responseNode) throws JsonMappingException, JsonProcessingException
 	{
-		Camt.parse(requestNode, responseNode);
+		parse(requestNode, responseNode);
 		if (!Objects.isNull(responseNode.get(Executor.RESULT)))
 		{
 			String content = responseNode.get(Executor.RESULT).asText();
@@ -163,7 +162,7 @@ public class Camt extends Executor<Camt>
 		}
 	}
 	
-	public static void extractTags(ObjectNode requestNode, ObjectNode responseNode)
+	public void extractTags(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		JsonNode pathNode = requestNode.get(Camt.Parameter.XML_FILE.key());
 		if (pathNode.isTextual())
@@ -202,11 +201,11 @@ public class Camt extends Executor<Camt>
 		}
 		else
 		{
-			Fsl.addErrorMessage("invalid argument '" + Camt.Parameter.XML_FILE.key() + "'");
+			addErrorMessage(responseNode, "invalid argument '" + Camt.Parameter.XML_FILE.key() + "'");
 		}
 	}
 
-	private static String[] jsonify(String content)
+	private String[] jsonify(ObjectNode responseNode, String content)
 	{
 		String[] result = null;
 		AbstractMX mx = AbstractMX.parse(content);
@@ -218,7 +217,7 @@ public class Camt extends Executor<Camt>
 		}
 		else
 		{
-			Fsl.addErrorMessage("invalid format '" + content + "'");
+			addErrorMessage(responseNode, "invalid format '" + content + "'");
 		}
 		return result;
 	}

@@ -2,6 +2,7 @@ package ch.eugster.filemaker.fsl.plugin.xls;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -70,7 +71,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
-import ch.eugster.filemaker.fsl.plugin.Fsl;
 
 /**
  * 
@@ -79,16 +79,20 @@ import ch.eugster.filemaker.fsl.plugin.Fsl;
  * @author christian
  *
  */
-public class Xls extends Executor<Xls>
+public class Xls extends Executor
 {
-	public static ObjectMapper MAPPER = new ObjectMapper();
+	public static final String SHEET0 = "Sheet0";
 
-	public static String SHEET0 = "Sheet0";
+	public static ObjectMapper mapper = new ObjectMapper();
 
-	public static Map<String, Workbook> workbooks = new HashMap<String, Workbook>();
+	public Map<String, Workbook> workbooks = new HashMap<String, Workbook>();
 
-	public static Workbook activeWorkbook;
+	public Workbook activeWorkbook;
 
+	public Xls()
+	{
+		System.out.println(this);
+	}
 	/**
 	 * Activates the sheet with the given name in argument 'sheet'
 	 * 
@@ -100,10 +104,10 @@ public class Xls extends Executor<Xls>
 	 *                     string array 'errors' containing error messages
 	 * @return true if the sheet has been activated, else false
 	 */
-	public static boolean activateSheet(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean activateSheet(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
-		Workbook workbook = getWorkbookIfPresent(requestNode);
+		Workbook workbook = getWorkbookIfPresent(requestNode, responseNode);
 		result = Objects.nonNull(workbook);
 		if (result)
 		{
@@ -111,7 +115,7 @@ public class Xls extends Executor<Xls>
 			if (result)
 			{
 				JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
-				Sheet sheet = findSheet(workbook, sheetNode);
+				Sheet sheet = findSheet(responseNode, workbook, sheetNode);
 				result = Objects.nonNull(sheet);
 				if (result)
 				{
@@ -119,11 +123,11 @@ public class Xls extends Executor<Xls>
 					workbook.setActiveSheet(sheetIndex);
 					responseNode.put(Key.INDEX.key(), sheetIndex);
 					responseNode.put(Key.SHEET.key(), sheet.getSheetName());
-					responseNode.put(Key.WORKBOOK.key(), getActiveWorkbookName());
+					responseNode.put(Key.WORKBOOK.key(), getActiveWorkbookName(responseNode));
 				}
 				else
 				{
-					result = Fsl.addErrorMessage("missing sheet '" + sheetNode.asText() + "'");
+					result = addErrorMessage(responseNode, "missing sheet '" + sheetNode.asText() + "'");
 				}
 			}
 		}
@@ -139,33 +143,33 @@ public class Xls extends Executor<Xls>
 	 *                     string array 'errors' containing error messages
 	 * @return true if workbook has been activated, else false
 	 */
-	public static boolean activateWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean activateWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
 		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
 		if (workbookNode.isTextual())
 		{
 			String name = workbookNode.asText();
-			Workbook workbook = Xls.workbooks.get(name);
+			Workbook workbook = workbooks.get(name);
 			if (Objects.nonNull(workbook))
 			{
-				if (Xls.activeWorkbook != workbook)
+				if (activeWorkbook != workbook)
 				{
-					Xls.activeWorkbook = workbook;
+					activeWorkbook = workbook;
 				}
 			}
 			else
 			{
-				result = Fsl.addErrorMessage("missing_workbook '" + Key.WORKBOOK.key() + "'");
+				result = addErrorMessage(responseNode, "missing_workbook '" + Key.WORKBOOK.key() + "'");
 			}
 		}
 		else if (workbookNode.isMissingNode())
 		{
-			result = Fsl.addErrorMessage("missing argument '" + Key.WORKBOOK.key() + "'");
+			result = addErrorMessage(responseNode, "missing argument '" + Key.WORKBOOK.key() + "'");
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("invalid argument '" + Key.WORKBOOK.key() + "'");
+			result = addErrorMessage(responseNode, "invalid argument '" + Key.WORKBOOK.key() + "'");
 		}
 		return result;
 	}
@@ -184,20 +188,20 @@ public class Xls extends Executor<Xls>
 	 *                     error messages
 	 * @return true if an active sheet is present, else false
 	 */
-	public static boolean activeSheetPresent(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean activeSheetPresent(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = activeSheetPresent();
 		if (result)
 		{
-			Sheet sheet = getActiveSheet();
-			responseNode.put(Key.INDEX.key(), Xls.activeWorkbook.getSheetIndex(sheet));
+			Sheet sheet = getActiveSheet(responseNode);
+			responseNode.put(Key.INDEX.key(), activeWorkbook.getSheetIndex(sheet));
 			responseNode.put(Key.SHEET.key(), sheet.getSheetName());
-			responseNode.put(Key.WORKBOOK.key(), getActiveWorkbookName());
+			responseNode.put(Key.WORKBOOK.key(), getActiveWorkbookName(responseNode));
 
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("no active sheet present");
+			result = addErrorMessage(responseNode, "no active sheet present");
 		}
 		return result;
 	}
@@ -214,9 +218,9 @@ public class Xls extends Executor<Xls>
 	 *                     and a string array 'errors' containing error messages
 	 * @return true if an active sheet is present, else false
 	 */
-	public static boolean activeWorkbookPresent(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean activeWorkbookPresent(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		boolean result = Objects.nonNull(Xls.activeWorkbook);
+		boolean result = Objects.nonNull(activeWorkbook);
 		if (result)
 		{
 			ObjectNode workbookNode = null;
@@ -260,25 +264,25 @@ public class Xls extends Executor<Xls>
 	 *                     string array 'errors' containing error messages
 	 * @return true if successfully copied, else false
 	 */
-	public static boolean copy(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean copy(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
 		JsonNode sourceNode = requestNode.findPath(Key.SOURCE.key());
-		Sheet sourceSheet = getSheetIfPresent(sourceNode);
+		Sheet sourceSheet = getSheetIfPresent(requestNode, responseNode);
 		result = Objects.nonNull(sourceSheet);
 		if (result)
 		{
-			CellRangeAddress sourceRangeAddress = getSourceRangeAddress(sourceNode);
-			result = validateRangeAddress(sourceSheet.getWorkbook().getSpreadsheetVersion(), sourceRangeAddress);
+			CellRangeAddress sourceRangeAddress = getSourceRangeAddress(responseNode, sourceNode);
+			result = validateRangeAddress(responseNode, sourceSheet.getWorkbook().getSpreadsheetVersion(), sourceRangeAddress);
 			if (result)
 			{
 				JsonNode targetNode = requestNode.findPath(Key.TARGET.key());
-				Sheet targetSheet = getSheetIfPresent(targetNode);
+				Sheet targetSheet = getSheetIfPresent(requestNode, responseNode);
 				result = Objects.nonNull(targetSheet);
 				if (result)
 				{
-					CellRangeAddress targetRangeAddress = getTargetRangeAddress(targetNode);
-					result = validateRangeAddress(targetSheet.getWorkbook().getSpreadsheetVersion(),
+					CellRangeAddress targetRangeAddress = getTargetRangeAddress(responseNode, targetNode);
+					result = validateRangeAddress(responseNode, targetSheet.getWorkbook().getSpreadsheetVersion(),
 							targetRangeAddress);
 					if (result)
 					{
@@ -287,7 +291,7 @@ public class Xls extends Executor<Xls>
 							result = !sourceRangeAddress.intersects(targetRangeAddress);
 							if (!result)
 							{
-								return Fsl.addErrorMessage("source range and target range must not intersect");
+								return addErrorMessage(responseNode, "source range and target range must not intersect");
 							}
 						}
 						if (sourceRangeAddress.getNumberOfCells() == 1)
@@ -309,7 +313,7 @@ public class Xls extends Executor<Xls>
 										{
 											String copiedFormula = copyFormula(sourceSheet, sourceCell.getCellFormula(),
 													rowDiff, colDiff);
-											Cell targetCell = getOrCreateCell(targetSheet, targetAddress);
+											Cell targetCell = getOrCreateCell(responseNode, targetSheet, targetAddress);
 											targetCell.setCellFormula(copiedFormula);
 										}
 										else
@@ -366,7 +370,7 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("source and target range dimensions must not differ");
+							result = addErrorMessage(responseNode, "source and target range dimensions must not differ");
 						}
 					}
 				}
@@ -385,12 +389,12 @@ public class Xls extends Executor<Xls>
 	 * @return true if the sheet has been created and activated successfully, else
 	 *         false
 	 */
-	public static boolean createAndActivateSheet(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean createAndActivateSheet(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		boolean result = Xls.createSheet(requestNode, responseNode);
+		boolean result = createSheet(requestNode, responseNode);
 		if (result)
 		{
-			result = Xls.activateSheet(requestNode, responseNode);
+			result = activateSheet(requestNode, responseNode);
 		}
 		return result;
 	}
@@ -404,7 +408,7 @@ public class Xls extends Executor<Xls>
 	 * @return true if the workbook has been created and activated successfully,
 	 *         else false
 	 */
-	public static boolean createAndActivateWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean createAndActivateWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = createWorkbook(requestNode, responseNode);
 		if (result)
@@ -428,28 +432,28 @@ public class Xls extends Executor<Xls>
 	 *                     'errors' containing error messages
 	 * @return true if the sheet has been created successfully, else false
 	 */
-	public static boolean createSheet(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean createSheet(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
-		Workbook workbook = getWorkbookIfPresent(requestNode);
+		Workbook workbook = getWorkbookIfPresent(requestNode, responseNode);
 		result = Objects.nonNull(workbook);
 		if (result)
 		{
 			JsonNode sheetNode = requestNode.findPath(Key.SHEET.key());
 			if (sheetNode.isTextual())
 			{
-				Sheet sheet = createSheet(workbook, sheetNode);
+				Sheet sheet = createSheet(responseNode, workbook, sheetNode);
 				responseNode.put(Key.INDEX.key(), workbook.getSheetIndex(sheet));
 				responseNode.put(Key.SHEET.key(), sheet.getSheetName());
-				responseNode.put(Key.WORKBOOK.key(), getWorkbookName(workbook));
+				responseNode.put(Key.WORKBOOK.key(), getWorkbookName(responseNode, workbook));
 			}
 			else if (sheetNode.isMissingNode())
 			{
-				result = Fsl.addErrorMessage("missing argument '" + Key.SHEET.key() + "'");
+				result = addErrorMessage(responseNode, "missing argument '" + Key.SHEET.key() + "'");
 			}
 			else
 			{
-				result = Fsl.addErrorMessage("invalid argument '" + Key.SHEET.key() + "'");
+				result = addErrorMessage(responseNode, "invalid argument '" + Key.SHEET.key() + "'");
 			}
 		}
 		return result;
@@ -464,31 +468,31 @@ public class Xls extends Executor<Xls>
 	 *                     string array 'errors' containing error messages
 	 * @return true if the workbook has been created successfully, else false
 	 */
-	public static boolean createWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean createWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
 		JsonNode nameNode = requestNode.findPath(Key.WORKBOOK.key());
 		if (nameNode.isTextual())
 		{
-			String name = makeGivenPathGeneric(nameNode.asText());
-			Workbook wb = Xls.workbooks.get(name);
+			String name = nameNode.asText();
+			Workbook wb = workbooks.get(name);
 			if (Objects.isNull(wb))
 			{
-				wb = createWorkbook(name);
+				wb = createWorkbook(responseNode, name);
 			}
 			else
 			{
 				File file = new File(nameNode.asText());
-				result = Fsl.addErrorMessage("workbook '" + file.getName() + "' already exists");
+				result = addErrorMessage(responseNode, "workbook '" + file.getName() + "' already exists");
 			}
 		}
 		else if (nameNode.isMissingNode())
 		{
-			result = Fsl.addErrorMessage("missing argument '" + Key.WORKBOOK.key() + "'");
+			result = addErrorMessage(responseNode, "missing argument '" + Key.WORKBOOK.key() + "'");
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("invalid argument '" + Key.WORKBOOK.key() + "'");
+			result = addErrorMessage(responseNode, "invalid argument '" + Key.WORKBOOK.key() + "'");
 		}
 		return result;
 	}
@@ -505,19 +509,19 @@ public class Xls extends Executor<Xls>
 	 *                     containing error messages
 	 * @return true if active sheet present, else false
 	 */
-	public static boolean getActiveSheet(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean getActiveSheet(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = activeSheetPresent();
 		if (result)
 		{
-			int sheetIndex = Xls.activeWorkbook.getActiveSheetIndex();
+			int sheetIndex = activeWorkbook.getActiveSheetIndex();
 			responseNode.put(Key.INDEX.key(), sheetIndex);
-			responseNode.put(Key.SHEET.key(), Xls.activeWorkbook.getSheetAt(sheetIndex).getSheetName());
-			responseNode.put(Key.WORKBOOK.key(), getActiveWorkbookName());
+			responseNode.put(Key.SHEET.key(), activeWorkbook.getSheetAt(sheetIndex).getSheetName());
+			responseNode.put(Key.WORKBOOK.key(), getActiveWorkbookName(responseNode));
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("no active sheet present");
+			result = addErrorMessage(responseNode, "no active sheet present");
 		}
 		return result;
 	}
@@ -531,15 +535,15 @@ public class Xls extends Executor<Xls>
 	 *                     array 'errors' containing error messages
 	 * @return true if active workbook present, else false
 	 */
-	public static boolean getActiveWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean getActiveWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = false;
-		Set<Entry<String, Workbook>> entrySet = Xls.workbooks.entrySet();
+		Set<Entry<String, Workbook>> entrySet = workbooks.entrySet();
 		Iterator<Entry<String, Workbook>> iterator = entrySet.iterator();
 		while (iterator.hasNext())
 		{
 			Entry<String, Workbook> entry = iterator.next();
-			if (entry.getValue() == Xls.activeWorkbook)
+			if (entry.getValue() == activeWorkbook)
 			{
 				responseNode.put("name", entry.getKey());
 				result = true;
@@ -548,7 +552,7 @@ public class Xls extends Executor<Xls>
 		}
 		if (!result)
 		{
-			result = Fsl.addErrorMessage("no active workbook spresent");
+			result = addErrorMessage(responseNode, "no active workbook spresent");
 		}
 		return result;
 	}
@@ -562,7 +566,7 @@ public class Xls extends Executor<Xls>
 	 *                     a string array 'errors' containing error messages
 	 * @return true if successully, else false
 	 */
-	public static boolean getCallableMethods(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean getCallableMethods(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		List<String> callableMethods = getCallableMethods();
 		ArrayNode methods = responseNode.arrayNode();
@@ -585,9 +589,9 @@ public class Xls extends Executor<Xls>
 	 *                     error messages
 	 * @return true if successful, else false
 	 */
-	public static boolean getSheets(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean getSheets(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		Workbook workbook = getWorkbookIfPresent(requestNode);
+		Workbook workbook = getWorkbookIfPresent(requestNode, responseNode);
 		boolean result = Objects.nonNull(workbook);
 		if (result)
 		{
@@ -613,7 +617,7 @@ public class Xls extends Executor<Xls>
 	 *                     string array 'errors' containing error messages
 	 * @return true if successfully, else false
 	 */
-	public static boolean getWorkbookNames(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean getWorkbookNames(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		ArrayNode workbookNames = responseNode.arrayNode();
 		Set<String> keys = workbooks.keySet();
@@ -631,7 +635,7 @@ public class Xls extends Executor<Xls>
 	 *                     string array 'errors' containing error messages
 	 * @return true if successfully, else false
 	 */
-	public static boolean releaseWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean releaseWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
 		String wb = null;
@@ -639,20 +643,28 @@ public class Xls extends Executor<Xls>
 		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
 		if (workbookNode.isTextual())
 		{
-			wb = makeGivenPathGeneric(workbookNode.asText());
+			wb = workbookNode.asText();
 		}
 		Workbook workbook = null;
 		if (Objects.nonNull(wb))
 		{
-			workbook = workbooks.remove(wb);
-			if (workbook == activeWorkbook)
+			try
 			{
-				activeWorkbook = null;
+				workbook = workbooks.remove(wb);
+				workbook.close();
+				if (workbook == activeWorkbook)
+				{
+					activeWorkbook = null;
+				}
+			}
+			catch (IOException e)
+			{
+				addErrorMessage(responseNode, "workbook could no be closed");
 			}
 		}
 		else
 		{
-			workbook = Xls.activeWorkbook;
+			workbook = activeWorkbook;
 			Set<Entry<String, Workbook>> entries = workbooks.entrySet();
 			Iterator<Entry<String, Workbook>> iterator = entries.iterator();
 			while (iterator.hasNext())
@@ -661,7 +673,7 @@ public class Xls extends Executor<Xls>
 				if (entry.getValue() == workbook)
 				{
 					workbook = workbooks.remove(entry.getKey());
-					Xls.activeWorkbook = null;
+					activeWorkbook = null;
 					break;
 				}
 			}
@@ -677,10 +689,24 @@ public class Xls extends Executor<Xls>
 	 *                     string array 'errors' containing error messages
 	 * @return true if successfully, else false
 	 */
-	public static boolean releaseWorkbooks(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean releaseWorkbooks(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		Xls.workbooks.clear();
-		Xls.activeWorkbook = null;
+		Set<Entry<String, Workbook>> entries = workbooks.entrySet();
+		Iterator<Entry<String, Workbook>> iterator = entries.iterator();
+		while (iterator.hasNext())
+		{
+			Entry<String, Workbook> entry = iterator.next();
+			try
+			{
+				entry.getValue().close();
+			}
+			catch (IOException e)
+			{
+				
+			}
+		}
+		workbooks.clear();
+		activeWorkbook = null;
 		return true;
 	}
 
@@ -692,7 +718,7 @@ public class Xls extends Executor<Xls>
 	 *                     string array 'errors' containing error messages
 	 * @return true if successfully, else false
 	 */
-	public static boolean saveAndReleaseWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean saveAndReleaseWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = saveWorkbook(requestNode, responseNode);
 		if (result)
@@ -715,68 +741,47 @@ public class Xls extends Executor<Xls>
 	 *                     string array 'errors' containing error messages
 	 * @return true if successfully, else false
 	 */
-	public static boolean saveWorkbook(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean saveWorkbook(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
-		String target = null;
-		String wb = null;
-
-		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
-		if (workbookNode.isTextual())
+		Workbook workbook = getWorkbookIfPresent(requestNode, responseNode);
+		result = Objects.nonNull(workbook);
+		if (result)
 		{
-			wb = makeGivenPathGeneric(workbookNode.asText());
-		}
-		JsonNode targetNode = requestNode.findPath(Key.TARGET.key());
-		if (targetNode.isTextual())
-		{
-			target = makeGivenPathOSSpecific(targetNode.asText());
-		}
-		Workbook workbook = null;
-		if (Objects.nonNull(wb))
-		{
-			workbook = workbooks.get(wb);
-			if (Objects.nonNull(workbook))
+			String wb = getWorkbookName(requestNode, workbook);
+			if (Objects.nonNull(wb))
 			{
-				if (Objects.nonNull(target))
+				workbook = workbooks.get(wb);
+				if (Objects.nonNull(workbook))
 				{
-					result = saveWorkbookAs(workbook, target);
+					JsonNode targetNode = requestNode.findPath(Key.TARGET.key());
+					if (targetNode.isTextual())
+					{
+						String target = targetNode.asText();
+						result = saveWorkbookAs(responseNode, workbook, target);
+					}
+					else
+					{
+						result = saveWorkbook(responseNode, workbook);
+					}
 				}
 				else
 				{
-					result = saveWorkbook(workbook);
+					result = addErrorMessage(responseNode, "invalid argument '" + Key.WORKBOOK.key() + "'");
 				}
 			}
 			else
 			{
-				result = Fsl.addErrorMessage("invalid argument '" + Key.WORKBOOK.key() + "'");
-			}
-		}
-		else
-		{
-			workbook = Xls.activeWorkbook;
-			if (Objects.nonNull(workbook))
-			{
-				if (Objects.nonNull(target))
-				{
-					result = saveWorkbookAs(workbook, target);
-				}
-				else
-				{
-					result = saveWorkbook(workbook);
-				}
-			}
-			else
-			{
-				result = Fsl.addErrorMessage("missing argument '" + Key.WORKBOOK.key() + "'");
+				result = addErrorMessage(responseNode, "invalid argument '" + Key.TARGET.key() + "'");
 			}
 		}
 		return result;
 	}
 
-	public static boolean setCells(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean setCells(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
-		Sheet sheet = getSheetIfPresent(requestNode);
+		Sheet sheet = getSheetIfPresent(requestNode, responseNode);
 		result = Objects.nonNull(sheet);
 		if (result)
 		{
@@ -784,11 +789,11 @@ public class Xls extends Executor<Xls>
 			JsonNode valuesNode = requestNode.findPath(Key.VALUES.key());
 			if (cellNode.isMissingNode())
 			{
-				result = Fsl.addErrorMessage("missing argument '" + Key.CELL.key() + "'");
+				result = addErrorMessage(responseNode, "missing argument '" + Key.CELL.key() + "'");
 			}
 			else if (valuesNode.isMissingNode())
 			{
-				result = Fsl.addErrorMessage("missing argument '" + Key.VALUES.key() + "'");
+				result = addErrorMessage(responseNode, "missing argument '" + Key.VALUES.key() + "'");
 			}
 			else if (valuesNode.isArray())
 			{
@@ -797,11 +802,11 @@ public class Xls extends Executor<Xls>
 				{
 					if (cellNode.size() == valuesArrayNode.size())
 					{
-						result = setCells(sheet, ArrayNode.class.cast(cellNode), valuesArrayNode);
+						result = setCells(responseNode, sheet, ArrayNode.class.cast(cellNode), valuesArrayNode);
 					}
 					else
 					{
-						result = Fsl.addErrorMessage("size of 'cell' array does not equal to size of 'values' array");
+						result = addErrorMessage(responseNode, "size of 'cell' array does not equal to size of 'values' array");
 					}
 				}
 				else
@@ -816,7 +821,7 @@ public class Xls extends Executor<Xls>
 						}
 						catch (Exception e)
 						{
-							result = Fsl.addErrorMessage("invalid argument 'direction'");
+							result = addErrorMessage(responseNode, "invalid argument 'direction'");
 						}
 					}
 					else if (directionNode.isMissingNode())
@@ -824,42 +829,42 @@ public class Xls extends Executor<Xls>
 					}
 					else
 					{
-						result = Fsl.addErrorMessage("invalid argument 'direction'");
+						result = addErrorMessage(responseNode, "invalid argument 'direction'");
 					}
 					if (result)
 					{
 						if (cellNode.isTextual())
 						{
-							setCells(sheet, TextNode.class.cast(cellNode), valuesArrayNode, direction);
+							setCells(responseNode, sheet, TextNode.class.cast(cellNode), valuesArrayNode, direction);
 						}
 						else if (cellNode.isObject())
 						{
-							setCells(sheet, ObjectNode.class.cast(cellNode), valuesArrayNode, direction);
+							setCells(responseNode, sheet, ObjectNode.class.cast(cellNode), valuesArrayNode, direction);
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("invalid argument '" + Key.CELL.key() + "'");
+							result = addErrorMessage(responseNode, "invalid argument '" + Key.CELL.key() + "'");
 						}
 					}
 				}
 			}
 			else
 			{
-				result = Fsl.addErrorMessage("invalid argument '" + Key.VALUES.key() + "'");
+				result = addErrorMessage(responseNode, "invalid argument '" + Key.VALUES.key() + "'");
 			}
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("missing_argument '" + Key.SHEET.key() + "'");
+			result = addErrorMessage(responseNode, "missing_argument '" + Key.SHEET.key() + "'");
 		}
 		return result;
 	}
 
-	public static boolean setPrintSetup(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean setPrintSetup(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = true;
 
-		Sheet sheet = getSheetIfPresent(requestNode);
+		Sheet sheet = getSheetIfPresent(requestNode, responseNode);
 		if (Objects.nonNull(sheet))
 		{
 			JsonNode orientationNode = requestNode.findPath(Key.ORIENTATION.key());
@@ -872,7 +877,7 @@ public class Xls extends Executor<Xls>
 				}
 				catch (Exception e)
 				{
-					result = Fsl.addErrorMessage("invalid argument 'orientation'");
+					result = addErrorMessage(responseNode, "invalid argument 'orientation'");
 				}
 			}
 			switch (orientation)
@@ -907,9 +912,9 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	public static void setHeaders(ObjectNode requestNode, ObjectNode responseNode)
+	public void setHeaders(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		Sheet sheet = getSheetIfPresent(requestNode);
+		Sheet sheet = getSheetIfPresent(requestNode, responseNode);
 		if (Objects.nonNull(sheet))
 		{
 			Header header = sheet.getHeader();
@@ -934,9 +939,9 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	public static void setFooters(ObjectNode requestNode, ObjectNode responseNode)
+	public void setFooters(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		Sheet sheet = getSheetIfPresent(requestNode);
+		Sheet sheet = getSheetIfPresent(requestNode, responseNode);
 		if (Objects.nonNull(sheet))
 		{
 			Footer footer = sheet.getFooter();
@@ -961,56 +966,56 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	protected static Sheet getActiveSheet()
+	protected Sheet getActiveSheet(ObjectNode responseNode)
 	{
 		Sheet sheet = null;
 		if (activeSheetPresent())
 		{
-			sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+			sheet = activeWorkbook.getSheetAt(activeWorkbook.getActiveSheetIndex());
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing_active_sheet");
+			addErrorMessage(responseNode, "missing_active_sheet");
 		}
 		return sheet;
 	}
 
-	protected static boolean activateSheet(Sheet sheet)
+	protected boolean activateSheet(Sheet sheet)
 	{
 		boolean result = activateWorkbook(sheet.getWorkbook());
 		if (result)
 		{
-			Xls.activeWorkbook.setActiveSheet(Xls.activeWorkbook.getSheetIndex(sheet));
+			activeWorkbook.setActiveSheet(activeWorkbook.getSheetIndex(sheet));
 		}
 		return result;
 	}
 
-	protected static boolean activateWorkbook(Workbook workbook)
+	protected boolean activateWorkbook(Workbook workbook)
 	{
 		boolean result = Objects.nonNull(workbook);
 		if (result)
 		{
-			if (workbook != Xls.activeWorkbook)
+			if (workbook != activeWorkbook)
 			{
-				Xls.activeWorkbook = workbook;
+				activeWorkbook = workbook;
 			}
 		}
 		return result;
 	}
 
-	protected static boolean activeSheetPresent()
+	protected boolean activeSheetPresent()
 	{
-		boolean present = Objects.nonNull(Xls.activeWorkbook);
+		boolean present = Objects.nonNull(activeWorkbook);
 		if (present)
 		{
-			present = Xls.activeWorkbook.getActiveSheetIndex() > -1;
+			present = activeWorkbook.getActiveSheetIndex() > -1;
 		}
 		return present;
 	}
 
-	public static boolean applyFontStyles(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean applyFontStyles(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		Sheet sheet = getSheetIfPresent(requestNode);
+		Sheet sheet = getSheetIfPresent(requestNode, responseNode);
 		boolean result = Objects.nonNull(sheet);
 		if (result)
 		{
@@ -1018,19 +1023,19 @@ public class Xls extends Executor<Xls>
 			JsonNode cellNode = requestNode.findPath(Key.CELL.key());
 			if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
 			{
-				CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
-				rangeAddress = getCellRangeAddress(cellAddress);
+				CellAddress cellAddress = getCellAddress(responseNode, cellNode, Key.CELL.key());
+				rangeAddress = getCellRangeAddress(responseNode, cellAddress);
 			}
 			else
 			{
 				JsonNode rangeNode = requestNode.findPath(Key.RANGE.key());
 				if (Objects.nonNull(rangeNode) && !rangeNode.isMissingNode())
 				{
-					rangeAddress = getCellRangeAddress(rangeNode);
+					rangeAddress = getCellRangeAddress(responseNode, rangeNode);
 				}
 				else
 				{
-					result = Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
+					result = addErrorMessage(responseNode, "missing_argument '" + Key.RANGE.key() + "'");
 				}
 			}
 			if (result && Objects.nonNull(rangeAddress))
@@ -1039,13 +1044,13 @@ public class Xls extends Executor<Xls>
 				while (cellAddresses.hasNext())
 				{
 					CellAddress cellAddress = cellAddresses.next();
-					Cell cell = getOrCreateCell(sheet, cellAddress);
+					Cell cell = getOrCreateCell(responseNode, sheet, cellAddress);
 					CellStyle cellStyle = cell.getCellStyle();
 					MergedCellStyle mcs = new MergedCellStyle(cellStyle);
 					int fontIndex = cellStyle.getFontIndex();
 					Font font = sheet.getWorkbook().getFontAt(fontIndex);
 					MergedFont m = new MergedFont(font);
-					m.applyRequestedFontStyles(requestNode);
+					m.applyRequestedFontStyles(requestNode, responseNode);
 					font = getFont(sheet, m);
 					if (font.getIndex() != fontIndex)
 					{
@@ -1061,9 +1066,9 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	public static boolean applyCellStyles(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean applyCellStyles(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		Sheet sheet = getSheetIfPresent(requestNode);
+		Sheet sheet = getSheetIfPresent(requestNode, responseNode);
 		boolean result = Objects.nonNull(sheet);
 		if (result)
 		{
@@ -1071,19 +1076,19 @@ public class Xls extends Executor<Xls>
 			JsonNode cellNode = requestNode.findPath(Key.CELL.key());
 			if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
 			{
-				CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
-				rangeAddress = getCellRangeAddress(cellAddress);
+				CellAddress cellAddress = getCellAddress(responseNode, cellNode, Key.CELL.key());
+				rangeAddress = getCellRangeAddress(responseNode, cellAddress);
 			}
 			else
 			{
 				JsonNode rangeNode = requestNode.findPath(Key.RANGE.key());
 				if (Objects.nonNull(rangeNode) && !rangeNode.isMissingNode())
 				{
-					rangeAddress = getCellRangeAddress(rangeNode);
+					rangeAddress = getCellRangeAddress(responseNode, rangeNode);
 				}
 				else
 				{
-					result = Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
+					result = addErrorMessage(responseNode, "missing_argument '" + Key.RANGE.key() + "'");
 				}
 			}
 			if (result && Objects.nonNull(rangeAddress))
@@ -1092,9 +1097,9 @@ public class Xls extends Executor<Xls>
 				while (cellAddresses.hasNext())
 				{
 					CellAddress cellAddress = cellAddresses.next();
-					Cell cell = getOrCreateCell(sheet, cellAddress);
+					Cell cell = getOrCreateCell(responseNode, sheet, cellAddress);
 					MergedCellStyle m = new MergedCellStyle(cell.getCellStyle());
-					result = m.applyRequestedStyles(requestNode);
+					result = m.applyRequestedStyles(requestNode, responseNode);
 					if (result)
 					{
 						CellStyle cellStyle = getCellStyle(sheet, m);
@@ -1110,9 +1115,9 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	public static boolean autoSizeColumns(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean autoSizeColumns(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		Sheet sheet = getSheetIfPresent(requestNode);
+		Sheet sheet = getSheetIfPresent(requestNode, responseNode);
 		boolean result = Objects.nonNull(sheet);
 		if (result)
 		{
@@ -1120,10 +1125,10 @@ public class Xls extends Executor<Xls>
 			JsonNode rangeNode = requestNode.findPath(Key.RANGE.key());
 			if (Objects.nonNull(rangeNode) && !rangeNode.isMissingNode())
 			{
-				cellRangeAddress = getCellRangeAddress(rangeNode);
+				cellRangeAddress = getCellRangeAddress(responseNode, rangeNode);
 				if (Objects.isNull(cellRangeAddress))
 				{
-					Fsl.addErrorMessage("invalid argument '" + Key.RANGE.key());
+					addErrorMessage(responseNode, "invalid argument '" + Key.RANGE.key());
 				}
 			}
 			else
@@ -1131,19 +1136,19 @@ public class Xls extends Executor<Xls>
 				JsonNode cellNode = requestNode.findPath(Key.CELL.key());
 				if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
 				{
-					CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
+					CellAddress cellAddress = getCellAddress(responseNode, cellNode, Key.CELL.key());
 					if (Objects.nonNull(cellAddress))
 					{
-						cellRangeAddress = getCellRangeAddress(cellAddress);
+						cellRangeAddress = getCellRangeAddress(responseNode, cellAddress);
 					}
 					else
 					{
-						Fsl.addErrorMessage("invalid argument '" + Key.CELL.key());
+						addErrorMessage(responseNode, "invalid argument '" + Key.CELL.key());
 					}
 				}
 				else
 				{
-					Fsl.addErrorMessage("missing argument one of '" + Key.RANGE.key() + "', '" + Key.CELL.key() + "'");
+					addErrorMessage(responseNode, "missing argument one of '" + Key.RANGE.key() + "', '" + Key.CELL.key() + "'");
 				}
 			}
 			result = Objects.nonNull(cellRangeAddress);
@@ -1160,13 +1165,13 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	public static boolean rotateCells(ObjectNode requestNode, ObjectNode responseNode)
+	public boolean rotateCells(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		boolean result = IntNode.class.isInstance(requestNode.get(Key.ROTATION.key()));
 		if (result)
 		{
 			int rotation = IntNode.class.cast(requestNode.get(Key.ROTATION.key())).asInt();
-			Sheet sheet = getSheetIfPresent(requestNode);
+			Sheet sheet = getSheetIfPresent(requestNode, responseNode);
 			if (Objects.nonNull(sheet))
 			{
 				CellRangeAddress rangeAddress = null;
@@ -1174,16 +1179,16 @@ public class Xls extends Executor<Xls>
 				JsonNode rangeNode = requestNode.findPath(Key.RANGE.key());
 				if (Objects.nonNull(cellNode))
 				{
-					CellAddress cellAddress = getCellAddress(cellNode, Key.CELL.key());
-					rangeAddress = getCellRangeAddress(cellAddress);
+					CellAddress cellAddress = getCellAddress(responseNode, cellNode, Key.CELL.key());
+					rangeAddress = getCellRangeAddress(responseNode, cellAddress);
 				}
 				else if (Objects.nonNull(rangeNode))
 				{
-					rangeAddress = getCellRangeAddress(rangeNode);
+					rangeAddress = getCellRangeAddress(responseNode, rangeNode);
 				}
 				else
 				{
-					Fsl.addErrorMessage("missing argument '" + Key.RANGE.key() + "'");
+					addErrorMessage(responseNode, "missing argument '" + Key.RANGE.key() + "'");
 				}
 				if (Objects.nonNull(rangeAddress))
 				{
@@ -1206,22 +1211,22 @@ public class Xls extends Executor<Xls>
 				}
 				else
 				{
-					Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
+					addErrorMessage(responseNode, "missing_argument '" + Key.RANGE.key() + "'");
 				}
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing_argument '" + Key.SHEET.key() + "'");
+				addErrorMessage(responseNode, "missing_argument '" + Key.SHEET.key() + "'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing_argument '" + Key.ROTATION.key() + "'");
+			addErrorMessage(responseNode, "missing_argument '" + Key.ROTATION.key() + "'");
 		}
 		return result;
 	}
 
-	protected static Sheet createSheet(Workbook workbook, JsonNode sheetNode)
+	protected Sheet createSheet(ObjectNode responseNode, Workbook workbook, JsonNode sheetNode)
 	{
 		Sheet sheet = null;
 		if (Objects.nonNull(workbook))
@@ -1235,81 +1240,81 @@ public class Xls extends Executor<Xls>
 				}
 				else
 				{
-					Fsl.addErrorMessage("sheet '" + sheetNode.asText() + "' already exists");
+					addErrorMessage(responseNode, "sheet '" + sheetNode.asText() + "' already exists");
 				}
 			}
 			else if (Objects.isNull(sheetNode) || sheetNode.isMissingNode())
 			{
-				Fsl.addErrorMessage("missing argument 'sheet'");
+				addErrorMessage(responseNode, "missing argument 'sheet'");
 			}
 			else
 			{
-				Fsl.addErrorMessage("invalid argument 'sheet'");
+				addErrorMessage(responseNode, "invalid argument 'sheet'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing workbook");
+			addErrorMessage(responseNode, "missing workbook");
 		}
 		return sheet;
 	}
 
-	protected static boolean setCells(Sheet sheet, TextNode cellNode, ArrayNode valuesNode, Direction direction)
+	protected boolean setCells(ObjectNode responseNode, Sheet sheet, TextNode cellNode, ArrayNode valuesNode, Direction direction)
 	{
 		boolean result = true;
 		try
 		{
-			CellAddress cellAddress = getCellAddress(cellNode.asText());
-			result = setCells(sheet, cellAddress, valuesNode, direction);
+			CellAddress cellAddress = getCellAddress(responseNode, cellNode.asText());
+			result = setCells(responseNode, sheet, cellAddress, valuesNode, direction);
 		}
 		catch (Exception e)
 		{
-			result = Fsl.addErrorMessage("invalid argument '" + cellNode.asText() + "'");
+			result = addErrorMessage(responseNode, "invalid argument '" + cellNode.asText() + "'");
 		}
 		return result;
 	}
 
-	protected static boolean setCells(Sheet sheet, ObjectNode cellNode, ArrayNode valuesNode, Direction direction)
+	protected boolean setCells(ObjectNode responseNode, Sheet sheet, ObjectNode cellNode, ArrayNode valuesNode, Direction direction)
 	{
 		boolean result = true;
 		try
 		{
-			CellAddress cellAddress = getCellAddress(cellNode);
-			result = setCells(sheet, cellAddress, valuesNode, direction);
+			CellAddress cellAddress = getCellAddress(responseNode, cellNode);
+			result = setCells(responseNode, sheet, cellAddress, valuesNode, direction);
 		}
 		catch (Exception e)
 		{
-			result = Fsl.addErrorMessage("invalid argument '" + cellNode.asText() + "'");
+			result = addErrorMessage(responseNode, "invalid argument '" + cellNode.asText() + "'");
 		}
 		return result;
 	}
 
-	protected static boolean setCells(Sheet sheet, ArrayNode cellNode, ArrayNode valuesNode)
+	protected boolean setCells(ObjectNode responseNode, Sheet sheet, ArrayNode cellNode, ArrayNode valuesNode)
 	{
 		boolean result = true;
 		for (int i = 0; i < cellNode.size(); i++)
 		{
-			CellAddress cellAddress = getCellAddress(cellNode.get(i), Key.CELL.key());
+			CellAddress cellAddress = getCellAddress(responseNode, cellNode.get(i), Key.CELL.key());
 			JsonNode valueNode = valuesNode.get(i);
-			result = setCell(sheet, cellAddress, valueNode);
+			result = setCell(responseNode, sheet, cellAddress, valueNode);
 
 		}
 		return result;
 	}
 
-	protected static boolean setCells(Sheet sheet, CellAddress cellAddress, ArrayNode valuesNode, Direction direction)
+	protected boolean setCells(ObjectNode responseNode, Sheet sheet, CellAddress cellAddress, ArrayNode valuesNode, Direction direction)
 	{
 		boolean result = Objects.nonNull(cellAddress);
 		if (result)
 		{
 			if (valuesNode.size() > 0)
 			{
-				if (direction.validRange(cellAddress, valuesNode.size()))
+				if (direction.validRange(responseNode, sheet.getWorkbook(), cellAddress, valuesNode.size()))
 				{
 					for (int i = 0; i < valuesNode.size(); i++)
 					{
 						JsonNode valueNode = valuesNode.get(i);
-						result = setCell(sheet, cellAddress, valueNode);
+						result = setCell(responseNode, sheet, cellAddress, valueNode);
 						if (result)
 						{
 							cellAddress = direction.nextIndex(cellAddress);
@@ -1323,17 +1328,17 @@ public class Xls extends Executor<Xls>
 			}
 			else
 			{
-				result = Fsl.addErrorMessage("invalid_argument '" + Key.VALUES.key() + "'");
+				result = addErrorMessage(responseNode, "invalid_argument '" + Key.VALUES.key() + "'");
 			}
 		}
 		return result;
 	}
 
-	protected static boolean setCell(Sheet sheet, CellAddress cellAddress, JsonNode valueNode)
+	protected boolean setCell(ObjectNode responseNode, Sheet sheet, CellAddress cellAddress, JsonNode valueNode)
 	{
 		boolean result = true;
 		JsonNodeType nodeType = valueNode.getNodeType();
-		Cell cell = getOrCreateCell(sheet, cellAddress);
+		Cell cell = getOrCreateCell(responseNode, sheet, cellAddress);
 		if (nodeType.equals(JsonNodeType.NUMBER))
 		{
 			cell.setCellValue(valueNode.asDouble());
@@ -1380,14 +1385,14 @@ public class Xls extends Executor<Xls>
 							try
 							{
 								cell.setCellFormula(valueNode.asText());
-								FormulaEvaluator evaluator = Xls.activeWorkbook.getCreationHelper()
+								FormulaEvaluator evaluator = activeWorkbook.getCreationHelper()
 										.createFormulaEvaluator();
 								CellType cellType = evaluator.evaluateFormulaCell(cell);
 								System.out.println(cellType);
 							}
 							catch (FormulaParseException fpe)
 							{
-								setRichTextString(cell, valueNode.asText());
+								setRichTextString(responseNode, cell, valueNode.asText());
 							}
 						}
 					}
@@ -1406,28 +1411,28 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	protected static Workbook createWorkbook(String name)
+	protected Workbook createWorkbook(ObjectNode responseNode, String name)
 	{
 		Workbook workbook = null;
 		if (!name.trim().isEmpty())
 		{
 			if (name.endsWith(".xls"))
 			{
-				Xls.workbooks.put(name, new HSSFWorkbook());
+				workbooks.put(name, new HSSFWorkbook());
 			}
 			else
 			{
-				Xls.workbooks.put(name, new XSSFWorkbook());
+				workbooks.put(name, new XSSFWorkbook());
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("invalid_argument '" + Key.WORKBOOK.key() + "'");
+			addErrorMessage(responseNode, "invalid_argument '" + Key.WORKBOOK.key() + "'");
 		}
 		return workbook;
 	}
 
-	protected static void setRichTextString(Cell cell, String value)
+	protected void setRichTextString(ObjectNode responseNode, Cell cell, String value)
 	{
 		if (XSSFCell.class.isInstance(cell))
 		{
@@ -1439,10 +1444,10 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	protected static List<String> getCallableMethods()
+	protected List<String> getCallableMethods()
 	{
 		List<String> callableMethods = new ArrayList<String>();
-		Method[] methods = Xls.class.getDeclaredMethods();
+		Method[] methods = this.getClass().getDeclaredMethods();
 		for (Method method : methods)
 		{
 			if (Modifier.isPublic(method.getModifiers()))
@@ -1460,7 +1465,7 @@ public class Xls extends Executor<Xls>
 					}
 					if (equals)
 					{
-						callableMethods.add(Xls.class.getSimpleName() + "." + method.getName());
+						callableMethods.add(this.getClass().getSimpleName() + "." + method.getName());
 					}
 				}
 			}
@@ -1468,7 +1473,7 @@ public class Xls extends Executor<Xls>
 		return callableMethods;
 	}
 
-	protected static CellAddress getCellAddress(int row, int col)
+	protected CellAddress getCellAddress(ObjectNode responseNode, int row, int col)
 	{
 		CellAddress cellAddress = null;
 		try
@@ -1477,34 +1482,34 @@ public class Xls extends Executor<Xls>
 		}
 		catch (Exception e)
 		{
-			Fsl.addErrorMessage("invalid_argument '" + " + Key.CELL.key() + " + "'");
+			addErrorMessage(responseNode, "invalid_argument '" + " + Key.CELL.key() + " + "'");
 		}
 		return cellAddress;
 	}
 
-	protected static CellAddress getCellAddress(JsonNode cellNode, String key)
+	protected CellAddress getCellAddress(ObjectNode responseNode, JsonNode cellNode, String key)
 	{
 		CellAddress cellAddress = null;
 		if (cellNode.isTextual())
 		{
-			cellAddress = getCellAddress(cellNode.asText());
+			cellAddress = getCellAddress(responseNode, cellNode.asText());
 		}
 		else if (cellNode.isObject())
 		{
-			cellAddress = getCellAddress(ObjectNode.class.cast(cellNode));
+			cellAddress = getCellAddress(responseNode, ObjectNode.class.cast(cellNode));
 		}
 		else if (Objects.isNull(cellNode) || cellNode.isMissingNode())
 		{
-			Fsl.addErrorMessage("missing argument '" + key + "'");
+			addErrorMessage(responseNode, "missing argument '" + key + "'");
 		}
 		else
 		{
-			Fsl.addErrorMessage("invalid argument '" + key + "'");
+			addErrorMessage(responseNode, "invalid argument '" + key + "'");
 		}
 		return cellAddress;
 	}
 
-	protected static CellAddress getCellAddress(String cell)
+	protected CellAddress getCellAddress(ObjectNode responseNode, String cell)
 	{
 		CellAddress cellAddress = null;
 		try
@@ -1513,12 +1518,12 @@ public class Xls extends Executor<Xls>
 		}
 		catch (Exception e)
 		{
-			Fsl.addErrorMessage("invalid cell address '" + cell + "'");
+			addErrorMessage(responseNode, "invalid cell address '" + cell + "'");
 		}
 		return cellAddress;
 	}
 
-	protected static CellAddress getCellAddress(ObjectNode cellNode)
+	protected CellAddress getCellAddress(ObjectNode responseNode, ObjectNode cellNode)
 	{
 		CellAddress cellAddress = null;
 		if (Objects.nonNull(cellNode) && !cellNode.isMissingNode())
@@ -1535,35 +1540,35 @@ public class Xls extends Executor<Xls>
 				}
 				else if (colNode.isMissingNode())
 				{
-					Fsl.addErrorMessage("missing argument '" + Key.COL.key());
+					addErrorMessage(responseNode, "missing argument '" + Key.COL.key());
 				}
 				else
 				{
-					Fsl.addErrorMessage("invalid argument '" + Key.COL.key());
+					addErrorMessage(responseNode, "invalid argument '" + Key.COL.key());
 				}
 			}
 			else if (rowNode.isMissingNode())
 			{
-				Fsl.addErrorMessage("missing argument '" + Key.ROW.key());
+				addErrorMessage(responseNode, "missing argument '" + Key.ROW.key());
 			}
 			else
 			{
-				Fsl.addErrorMessage("invalid argument '" + Key.ROW.key());
+				addErrorMessage(responseNode, "invalid argument '" + Key.ROW.key());
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing argument '" + Key.CELL.key());
+			addErrorMessage(responseNode, "missing argument '" + Key.CELL.key());
 		}
 		return cellAddress;
 	}
 
-	protected static CellRangeAddress getCellRangeAddress(CellAddress address)
+	protected CellRangeAddress getCellRangeAddress(ObjectNode responseNode, CellAddress address)
 	{
-		return getCellRangeAddress(address, address);
+		return getCellRangeAddress(responseNode, address, address);
 	}
 
-	protected static CellRangeAddress getCellRangeAddress(CellAddress topLeftAddress, CellAddress bottomRightAddress)
+	protected CellRangeAddress getCellRangeAddress(ObjectNode responseNode, CellAddress topLeftAddress, CellAddress bottomRightAddress)
 	{
 		CellRangeAddress cellRangeAddress = null;
 		if (Objects.nonNull(topLeftAddress))
@@ -1578,48 +1583,48 @@ public class Xls extends Executor<Xls>
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing bottom right values");
+				addErrorMessage(responseNode, "missing bottom right values");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing top left values");
+			addErrorMessage(responseNode, "missing top left values");
 		}
 		return cellRangeAddress;
 	}
 
-	protected static CellRangeAddress getCellRangeAddress(int topRow, int bottomRow, int leftCol, int rightCol)
+	protected CellRangeAddress getCellRangeAddress(int topRow, int bottomRow, int leftCol, int rightCol)
 	{
 		return new CellRangeAddress(Math.min(topRow, bottomRow), Math.max(topRow, bottomRow),
 				Math.min(leftCol, rightCol), Math.max(leftCol, rightCol));
 	}
 
-	protected static CellRangeAddress getCellRangeAddress(JsonNode rangeNode)
+	protected CellRangeAddress getCellRangeAddress(ObjectNode responseNode, JsonNode rangeNode)
 	{
 		CellRangeAddress rangeAddress = null;
 		if (Objects.nonNull(rangeNode) && !rangeNode.isMissingNode())
 		{
 			if (rangeNode.isTextual())
 			{
-				rangeAddress = getCellRangeAddress(rangeNode.asText());
+				rangeAddress = getCellRangeAddress(responseNode, rangeNode.asText());
 			}
 			else if (rangeNode.isObject())
 			{
-				rangeAddress = getCellRangeAddress(ObjectNode.class.cast(rangeNode));
+				rangeAddress = getCellRangeAddress(responseNode, ObjectNode.class.cast(rangeNode));
 			}
 			else
 			{
-				Fsl.addErrorMessage("invalid argument '" + Key.RANGE.key() + "'");
+				addErrorMessage(responseNode, "invalid argument '" + Key.RANGE.key() + "'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing argument '" + Key.RANGE.key() + "'");
+			addErrorMessage(responseNode, "missing argument '" + Key.RANGE.key() + "'");
 		}
 		return rangeAddress;
 	}
 
-	protected static CellRangeAddress getCellRangeAddress(String range)
+	protected CellRangeAddress getCellRangeAddress(ObjectNode responseNode, String range)
 	{
 		CellRangeAddress rangeAddress = null;
 		if (Objects.nonNull(range))
@@ -1632,35 +1637,35 @@ public class Xls extends Executor<Xls>
 					case 1:
 					{
 						CellAddress address = new CellAddress(cells[0]);
-						rangeAddress = getCellRangeAddress(address, address);
+						rangeAddress = getCellRangeAddress(responseNode, address, address);
 						break;
 					}
 					case 2:
 					{
 						CellAddress topLeftAddress = new CellAddress(cells[0]);
 						CellAddress bottomRightAddress = new CellAddress(cells[1]);
-						rangeAddress = getCellRangeAddress(topLeftAddress, bottomRightAddress);
+						rangeAddress = getCellRangeAddress(responseNode, topLeftAddress, bottomRightAddress);
 						break;
 					}
 					default:
 					{
-						Fsl.addErrorMessage("invalid_argument '" + Key.RANGE.key() + "'");
+						addErrorMessage(responseNode, "invalid_argument '" + Key.RANGE.key() + "'");
 					}
 				}
 			}
 			catch (Exception e)
 			{
-				Fsl.addErrorMessage("invalid_argument '" + Key.RANGE.key() + "'");
+				addErrorMessage(responseNode, "invalid_argument '" + Key.RANGE.key() + "'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("invalid_argument '" + Key.RANGE.key() + "'");
+			addErrorMessage(responseNode, "invalid_argument '" + Key.RANGE.key() + "'");
 		}
 		return rangeAddress;
 	}
 
-	protected static CellRangeAddress getCellRangeAddress(ObjectNode rangeNode)
+	protected CellRangeAddress getCellRangeAddress(ObjectNode responseNode, ObjectNode rangeNode)
 	{
 		CellRangeAddress cellRangeAddress = null;
 		if (Objects.nonNull(rangeNode))
@@ -1670,10 +1675,10 @@ public class Xls extends Executor<Xls>
 			JsonNode topLeftNode = rangeNode.get(Key.TOP_LEFT.key());
 			if (Objects.nonNull(topLeftNode) && !topLeftNode.isMissingNode())
 			{
-				topLeftAddress = getCellAddress(topLeftNode, Key.TOP_LEFT.key());
+				topLeftAddress = getCellAddress(responseNode, topLeftNode, Key.TOP_LEFT.key());
 				if (Objects.isNull(topLeftAddress))
 				{
-					Fsl.addErrorMessage("invalid argument '" + Key.TOP_LEFT.key() + "'");
+					addErrorMessage(responseNode, "invalid argument '" + Key.TOP_LEFT.key() + "'");
 				}
 			}
 			else
@@ -1694,22 +1699,22 @@ public class Xls extends Executor<Xls>
 							}
 							else
 							{
-								Fsl.addErrorMessage("invalid argument '" + Key.LEFT.key() + "'");
+								addErrorMessage(responseNode, "invalid argument '" + Key.LEFT.key() + "'");
 							}
 						}
 						else
 						{
-							Fsl.addErrorMessage("missing argument '" + Key.LEFT.key() + "'");
+							addErrorMessage(responseNode, "missing argument '" + Key.LEFT.key() + "'");
 						}
 					}
 					else
 					{
-						Fsl.addErrorMessage("invalid argument '" + Key.TOP.key() + "'");
+						addErrorMessage(responseNode, "invalid argument '" + Key.TOP.key() + "'");
 					}
 				}
 				else
 				{
-					Fsl.addErrorMessage("missing argument '" + Key.TOP.key() + "'");
+					addErrorMessage(responseNode, "missing argument '" + Key.TOP.key() + "'");
 				}
 			}
 			if (Objects.nonNull(topLeftAddress))
@@ -1717,10 +1722,10 @@ public class Xls extends Executor<Xls>
 				JsonNode bottomRightNode = rangeNode.get(Key.BOTTOM_RIGHT.key());
 				if (Objects.nonNull(bottomRightNode) && !bottomRightNode.isMissingNode())
 				{
-					bottomRightAddress = getCellAddress(bottomRightNode, Key.BOTTOM_RIGHT.key());
+					bottomRightAddress = getCellAddress(responseNode, bottomRightNode, Key.BOTTOM_RIGHT.key());
 					if (Objects.isNull(bottomRightAddress))
 					{
-						Fsl.addErrorMessage("invalid argument '" + Key.BOTTOM_RIGHT.key() + "'");
+						addErrorMessage(responseNode, "invalid argument '" + Key.BOTTOM_RIGHT.key() + "'");
 					}
 				}
 				else
@@ -1741,22 +1746,22 @@ public class Xls extends Executor<Xls>
 								}
 								else
 								{
-									Fsl.addErrorMessage("invalid argument '" + Key.RIGHT.key() + "'");
+									addErrorMessage(responseNode, "invalid argument '" + Key.RIGHT.key() + "'");
 								}
 							}
 							else
 							{
-								Fsl.addErrorMessage("missing argument '" + Key.RIGHT.key() + "'");
+								addErrorMessage(responseNode, "missing argument '" + Key.RIGHT.key() + "'");
 							}
 						}
 						else
 						{
-							Fsl.addErrorMessage("invalid argument '" + Key.BOTTOM.key() + "'");
+							addErrorMessage(responseNode, "invalid argument '" + Key.BOTTOM.key() + "'");
 						}
 					}
 					else
 					{
-						Fsl.addErrorMessage("missing argument '" + Key.BOTTOM.key() + "'");
+						addErrorMessage(responseNode, "missing argument '" + Key.BOTTOM.key() + "'");
 					}
 				}
 			}
@@ -1764,47 +1769,47 @@ public class Xls extends Executor<Xls>
 			{
 				if (Objects.nonNull(bottomRightAddress))
 				{
-					cellRangeAddress = getCellRangeAddress(topLeftAddress, bottomRightAddress);
+					cellRangeAddress = getCellRangeAddress(responseNode, topLeftAddress, bottomRightAddress);
 				}
 				else
 				{
-					Fsl.addErrorMessage("missing argument '" + Key.BOTTOM_RIGHT.key() + "'");
+					addErrorMessage(responseNode, "missing argument '" + Key.BOTTOM_RIGHT.key() + "'");
 				}
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing argument '" + Key.TOP_LEFT.key() + "'");
+				addErrorMessage(responseNode, "missing argument '" + Key.TOP_LEFT.key() + "'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
+			addErrorMessage(responseNode, "missing_argument '" + Key.RANGE.key() + "'");
 		}
 		return cellRangeAddress;
 	}
 
-	protected static Cell getOrCreateCell(Sheet sheet, CellAddress cellAddress)
+	protected Cell getOrCreateCell(ObjectNode responseNode, Sheet sheet, CellAddress cellAddress)
 	{
 		Cell cell = null;
 		Row row = null;
 		if (isWithinSheetRange(cellAddress))
 		{
-			row = getOrCreateRow(sheet, cellAddress);
+			row = getOrCreateRow(responseNode, sheet, cellAddress);
 			cell = getOrCreateCell(row, cellAddress.getColumn());
 		}
 		else
 		{
-			Fsl.addErrorMessage("celladdress_out_of_range");
+			addErrorMessage(responseNode, "celladdress_out_of_range");
 		}
 		return cell;
 	}
 
-	protected static Cell getOrCreateCell(Sheet sheet, String address)
+	protected Cell getOrCreateCell(ObjectNode responseNode, Sheet sheet, String address)
 	{
-		return getOrCreateCell(sheet, new CellAddress(address));
+		return getOrCreateCell(responseNode, sheet, new CellAddress(address));
 	}
 
-	protected static Cell getOrCreateCell(Row row, int columnIndex)
+	protected Cell getOrCreateCell(Row row, int columnIndex)
 	{
 		Cell cell = null;
 		if (Objects.nonNull(row))
@@ -1818,7 +1823,7 @@ public class Xls extends Executor<Xls>
 		return cell;
 	}
 
-	protected static Row getOrCreateRow(Sheet sheet, CellAddress cellAddress)
+	protected Row getOrCreateRow(ObjectNode responseNode, Sheet sheet, CellAddress cellAddress)
 	{
 		Row row = null;
 		if (Objects.nonNull(sheet))
@@ -1835,7 +1840,7 @@ public class Xls extends Executor<Xls>
 		return row;
 	}
 
-	protected static Row getOrCreateRow(Sheet sheet, int rowIndex)
+	protected Row getOrCreateRow(Sheet sheet, int rowIndex)
 	{
 		Row row = null;
 		if (Objects.nonNull(sheet))
@@ -1852,37 +1857,40 @@ public class Xls extends Executor<Xls>
 		return row;
 	}
 
-	protected static Workbook getWorkbookIfPresent(JsonNode parentNode)
+	protected Workbook getWorkbookIfPresent(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		Workbook workbook = null;
-		JsonNode workbookNode = parentNode.findPath(Key.WORKBOOK.key());
+		JsonNode workbookNode = requestNode.findPath(Key.WORKBOOK.key());
 		if (workbookNode.isTextual())
 		{
-			workbook = Xls.workbooks.get(workbookNode.asText());
+			workbook = workbooks.get(workbookNode.asText());
+			if (Objects.isNull(workbook))
+			{
+				addErrorMessage(responseNode, "invalid argument '" + Key.WORKBOOK.key() + "'");
+			}
 		}
 		else if (workbookNode.isMissingNode())
 		{
-			if (Objects.nonNull(Xls.activeWorkbook))
+			if (Objects.nonNull(this.activeWorkbook))
 			{
-				workbook = Xls.activeWorkbook;
+				workbook = activeWorkbook;
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing argument '" + Key.WORKBOOK.key() + "'");
+				addErrorMessage(responseNode, "missing argument '" + Key.WORKBOOK.key() + "'");
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("invalid argument '" + Key.WORKBOOK.key() + "'");
+			addErrorMessage(responseNode, "invalid argument '" + Key.WORKBOOK.key() + "'");
 		}
 		return workbook;
 	}
 
-	protected static Sheet getSheetIfPresent(JsonNode parentNode)
+	protected Sheet getSheetIfPresent(ObjectNode parentNode, ObjectNode responseNode)
 	{
 		Sheet sheet = null;
-		JsonNode workbookNode = parentNode.findPath(Key.WORKBOOK.key());
-		Workbook workbook = getWorkbookIfPresent(workbookNode);
+		Workbook workbook = getWorkbookIfPresent(parentNode, responseNode);
 		if (Objects.nonNull(workbook))
 		{
 			JsonNode sheetNode = parentNode.findPath(Key.SHEET.key());
@@ -1898,7 +1906,7 @@ public class Xls extends Executor<Xls>
 				}
 				else
 				{
-					Fsl.addErrorMessage("invalid_argument '" + Key.SHEET.key() + "'");
+					addErrorMessage(responseNode, "invalid_argument '" + Key.SHEET.key() + "'");
 				}
 			}
 			else
@@ -1909,7 +1917,7 @@ public class Xls extends Executor<Xls>
 		return sheet;
 	}
 
-	protected static Sheet findSheet(Workbook workbook, JsonNode sheetNode)
+	protected Sheet findSheet(ObjectNode responseNode, Workbook workbook, JsonNode sheetNode)
 	{
 		Sheet sheet = null;
 		if (Objects.nonNull(workbook))
@@ -1929,54 +1937,54 @@ public class Xls extends Executor<Xls>
 					}
 					else
 					{
-						Fsl.addErrorMessage("missing sheet '" + sheetIndex + "'");
+						addErrorMessage(responseNode, "missing sheet '" + sheetIndex + "'");
 					}
 				}
 				else
 				{
-					Fsl.addErrorMessage("invalid_argument '" + Key.SHEET.key() + "'");
+					addErrorMessage(responseNode, "invalid_argument '" + Key.SHEET.key() + "'");
 				}
 			}
 			else
 			{
-				Fsl.addErrorMessage("missing_argument '" + Key.SHEET.key() + "'");
+				addErrorMessage(responseNode, "missing_argument '" + Key.SHEET.key() + "'");
 			}
 		}
 		return sheet;
 	}
 
-	protected static boolean isWithinSheetRange(CellRangeAddress cellRangeAddress)
+	protected boolean isWithinSheetRange(CellRangeAddress cellRangeAddress)
 	{
 		CellAddress firstAddress = new CellAddress(cellRangeAddress.getFirstRow(), cellRangeAddress.getFirstColumn());
 		CellAddress lastAddress = new CellAddress(cellRangeAddress.getLastRow(), cellRangeAddress.getLastColumn());
 		return isWithinSheetRange(firstAddress) && isWithinSheetRange(lastAddress);
 	}
 
-	protected static boolean isWithinSheetRange(CellAddress cellAddress)
+	protected boolean isWithinSheetRange(CellAddress cellAddress)
 	{
 		return cellAddress.getRow() > -1
-				&& cellAddress.getRow() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxRows()
+				&& cellAddress.getRow() < activeWorkbook.getSpreadsheetVersion().getMaxRows()
 				&& cellAddress.getColumn() > -1
-				&& cellAddress.getColumn() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxColumns();
+				&& cellAddress.getColumn() < activeWorkbook.getSpreadsheetVersion().getMaxColumns();
 	}
 
-	protected static boolean isWithinSheetRange(Cell cell)
+	protected boolean isWithinSheetRange(Cell cell)
 	{
 		return isWithinSheetRange(new CellAddress(cell));
 	}
 
-	protected static boolean isWithinSheetRange(Row row)
+	protected boolean isWithinSheetRange(Row row)
 	{
-		return row.getRowNum() < Xls.activeWorkbook.getSpreadsheetVersion().getMaxRows();
+		return row.getRowNum() < activeWorkbook.getSpreadsheetVersion().getMaxRows();
 	}
 
-	protected static void releaseWorkbooks()
+	protected void releaseWorkbooks()
 	{
-		Xls.workbooks.clear();
-		Xls.activeWorkbook = null;
+		workbooks.clear();
+		activeWorkbook = null;
 	}
 
-	protected static SpreadsheetVersion getVersion()
+	protected SpreadsheetVersion getVersion()
 	{
 		SpreadsheetVersion version = null;
 		if (workbooks.size() > 0)
@@ -1986,7 +1994,7 @@ public class Xls extends Executor<Xls>
 		return version;
 	}
 
-	protected static FormulaParsingWorkbook getFormulaParsingWorkbook(Sheet sheet)
+	protected FormulaParsingWorkbook getFormulaParsingWorkbook(Sheet sheet)
 	{
 		FormulaParsingWorkbook workbookWrapper = null;
 		if (XSSFSheet.class.isInstance(sheet))
@@ -2000,7 +2008,7 @@ public class Xls extends Executor<Xls>
 		return workbookWrapper;
 	}
 
-	protected static FormulaRenderingWorkbook getFormulaRenderingWorkbook(Sheet sheet)
+	protected FormulaRenderingWorkbook getFormulaRenderingWorkbook(Sheet sheet)
 	{
 		FormulaRenderingWorkbook workbookWrapper = null;
 		if (XSSFSheet.class.isInstance(sheet))
@@ -2014,12 +2022,12 @@ public class Xls extends Executor<Xls>
 		return workbookWrapper;
 	}
 
-	protected static JsonNode findNode(ObjectNode requestNode, String name)
+	protected JsonNode findNode(ObjectNode requestNode, String name)
 	{
 		return requestNode.findParent(name);
 	}
 
-	protected static void copyCell(Cell sourceCell, Cell targetCell)
+	protected void copyCell(Cell sourceCell, Cell targetCell)
 	{
 		CellType cellType = sourceCell.getCellType();
 		switch (cellType)
@@ -2047,7 +2055,7 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	protected static String copyFormula(Sheet sheet, String formula, int rowDiff, int colDiff)
+	protected String copyFormula(Sheet sheet, String formula, int rowDiff, int colDiff)
 	{
 		FormulaParsingWorkbook workbookWrapper = getFormulaParsingWorkbook(sheet);
 		Ptg[] ptgs = FormulaParser.parse(formula, workbookWrapper, FormulaType.CELL,
@@ -2092,53 +2100,53 @@ public class Xls extends Executor<Xls>
 		return formula;
 	}
 
-	protected static CellRangeAddress getSourceRangeAddress(JsonNode sourceNode)
+	protected CellRangeAddress getSourceRangeAddress(ObjectNode responseNode, JsonNode sourceNode)
 	{
 		CellRangeAddress rangeAddress = null;
 		if (Objects.nonNull(sourceNode) && !sourceNode.isMissingNode())
 		{
-			rangeAddress = getCellRangeAddress(sourceNode);
+			rangeAddress = getCellRangeAddress(responseNode, sourceNode);
 			if (Objects.isNull(rangeAddress))
 			{
-				CellAddress cellAddress = getCellAddress(sourceNode, Key.CELL.key());
-				rangeAddress = getCellRangeAddress(cellAddress);
+				CellAddress cellAddress = getCellAddress(responseNode, sourceNode, Key.CELL.key());
+				rangeAddress = getCellRangeAddress(responseNode, cellAddress);
 				if (Objects.isNull(rangeAddress))
 				{
-					Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
+					addErrorMessage(responseNode, "missing_argument '" + Key.RANGE.key() + "'");
 				}
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing_argument '" + Key.SOURCE.key() + "'");
+			addErrorMessage(responseNode, "missing_argument '" + Key.SOURCE.key() + "'");
 		}
 		return rangeAddress;
 	}
 
-	protected static CellRangeAddress getTargetRangeAddress(JsonNode targetNode)
+	protected CellRangeAddress getTargetRangeAddress(ObjectNode responseNode, JsonNode targetNode)
 	{
 		CellRangeAddress rangeAddress = null;
 		if (Objects.nonNull(targetNode))
 		{
-			rangeAddress = getCellRangeAddress(targetNode);
+			rangeAddress = getCellRangeAddress(responseNode, targetNode);
 			if (Objects.isNull(rangeAddress))
 			{
-				CellAddress cellAddress = getCellAddress(targetNode, Key.CELL.key());
-				rangeAddress = getCellRangeAddress(cellAddress);
+				CellAddress cellAddress = getCellAddress(responseNode, targetNode, Key.CELL.key());
+				rangeAddress = getCellRangeAddress(responseNode, cellAddress);
 				if (Objects.isNull(rangeAddress))
 				{
-					Fsl.addErrorMessage("missing_argument '" + Key.RANGE.key() + "'");
+					addErrorMessage(responseNode, "missing_argument '" + Key.RANGE.key() + "'");
 				}
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("missing_argument '" + Key.TARGET.key() + "'");
+			addErrorMessage(responseNode, "missing_argument '" + Key.TARGET.key() + "'");
 		}
 		return rangeAddress;
 	}
 
-	protected static boolean saveFile(File file, Workbook workbook)
+	protected boolean saveFile(ObjectNode responseNode, File file, Workbook workbook)
 	{
 		boolean result = true;
 		OutputStream os = null;
@@ -2149,7 +2157,7 @@ public class Xls extends Executor<Xls>
 		}
 		catch (Exception e)
 		{
-			result = Fsl.addErrorMessage(e.getLocalizedMessage());
+			result = addErrorMessage(responseNode, e.getLocalizedMessage());
 		}
 		finally
 		{
@@ -2167,7 +2175,7 @@ public class Xls extends Executor<Xls>
 		return result;
 	}
 
-	protected static boolean saveWorkbook(Workbook workbook)
+	protected boolean saveWorkbook(ObjectNode responseNode, Workbook workbook)
 	{
 		boolean result = false;
 		if (Objects.nonNull(workbook))
@@ -2179,18 +2187,18 @@ public class Xls extends Executor<Xls>
 				Entry<String, Workbook> entry = iterator.next();
 				if (entry.getValue() == workbook)
 				{
-					result = saveFile(new File(makeGivenPathOSSpecific(entry.getKey())), workbook);
+					result = saveFile(responseNode, new File(entry.getKey()), workbook);
 				}
 			}
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("missing argument '" + Key.WORKBOOK.key() + "'");
+			result = addErrorMessage(responseNode, "missing argument '" + Key.WORKBOOK.key() + "'");
 		}
 		return result;
 	}
 
-	protected static boolean saveWorkbookAs(Workbook workbook, String target)
+	protected boolean saveWorkbookAs(ObjectNode responseNode, Workbook workbook, String target)
 	{
 		boolean result = false;
 		if (Objects.nonNull(workbook))
@@ -2202,18 +2210,19 @@ public class Xls extends Executor<Xls>
 				Entry<String, Workbook> entry = iterator.next();
 				if (entry.getValue() == workbook)
 				{
-					result = saveFile(new File(makeGivenPathOSSpecific(target)), workbook);
+					result = saveFile(responseNode, new File(target), workbook);
+					break;
 				}
 			}
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("missing argument '" + Key.WORKBOOK.key() + "'");
+			result = addErrorMessage(responseNode, "missing argument '" + Key.WORKBOOK.key() + "'");
 		}
 		return result;
 	}
 
-	protected static CellStyle getCellStyle(Sheet sheet, MergedCellStyle m)
+	protected CellStyle getCellStyle(Sheet sheet, MergedCellStyle m)
 	{
 		CellStyle cellStyle = null;
 		for (int i = 0; i < sheet.getWorkbook().getNumCellStyles(); i++)
@@ -2241,40 +2250,40 @@ public class Xls extends Executor<Xls>
 		return cellStyle;
 	}
 
-	protected static Sheet setSheet(String name)
+//	protected Sheet setSheet(ObjectNode requestNode, ObjectNode responseNode, String name)
+//	{
+//		Sheet sheet = getSheetIfPresent(requestNode, responseNode);
+//		if (Objects.nonNull(name))
+//		{
+//			if (Objects.nonNull(activeWorkbook))
+//			{
+//				sheet = activeWorkbook.getSheet(name);
+//				if (Objects.isNull(sheet))
+//				{
+//					addErrorMessage(responseNode, "missing sheet '" + Key.NAME.key() + "'");
+//				}
+//			}
+//			else
+//			{
+//				addErrorMessage(responseNode, "missing argument 'workbook'");
+//			}
+//		}
+//		else
+//		{
+//			addErrorMessage(responseNode, "missing argument'" + Key.SHEET.key() + "'");
+//		}
+//		return sheet;
+//	}
+
+	protected String getActiveWorkbookName(ObjectNode responseNode)
 	{
-		Sheet sheet = null;
-		if (Objects.nonNull(name))
-		{
-			if (Objects.nonNull(Xls.activeWorkbook))
-			{
-				sheet = Xls.activeWorkbook.getSheet(name);
-				if (Objects.isNull(sheet))
-				{
-					Fsl.addErrorMessage("missing sheet '" + Key.NAME.key() + "'");
-				}
-			}
-			else
-			{
-				Fsl.addErrorMessage("missing argument 'workbook'");
-			}
-		}
-		else
-		{
-			Fsl.addErrorMessage("missing argument'" + Key.SHEET.key() + "'");
-		}
-		return sheet;
+		return getWorkbookName(responseNode, activeWorkbook);
 	}
 
-	protected static String getActiveWorkbookName()
-	{
-		return getWorkbookName(Xls.activeWorkbook);
-	}
-
-	protected static String getWorkbookName(Workbook workbook)
+	protected String getWorkbookName(ObjectNode responseNode, Workbook workbook)
 	{
 		String name = null;
-		Set<Entry<String, Workbook>> entrySet = Xls.workbooks.entrySet();
+		Set<Entry<String, Workbook>> entrySet = workbooks.entrySet();
 		Iterator<Entry<String, Workbook>> iterator = entrySet.iterator();
 		while (iterator.hasNext())
 		{
@@ -2287,12 +2296,12 @@ public class Xls extends Executor<Xls>
 		}
 		if (Objects.isNull(name))
 		{
-			Fsl.addErrorMessage("missing workbook");
+			addErrorMessage(responseNode, "missing workbook");
 		}
 		return name;
 	}
 
-	protected static boolean validateRangeAddress(SpreadsheetVersion spreadsheetVersion,
+	protected boolean validateRangeAddress(ObjectNode responseNode, SpreadsheetVersion spreadsheetVersion,
 			CellRangeAddress cellRangeAddress)
 	{
 		boolean result = true;
@@ -2304,17 +2313,17 @@ public class Xls extends Executor<Xls>
 			}
 			catch (IllegalArgumentException e)
 			{
-				result = Fsl.addErrorMessage("invalid range");
+				result = addErrorMessage(responseNode, "invalid range");
 			}
 		}
 		else
 		{
-			result = Fsl.addErrorMessage("missing range");
+			result = addErrorMessage(responseNode, "missing range");
 		}
 		return result;
 	}
 
-	protected static CellRangeAddress getCellRangeAddress(CellRange<Cell> cellRange)
+	protected CellRangeAddress getCellRangeAddress(CellRange<Cell> cellRange)
 	{
 		int top = cellRange.getTopLeftCell().getRowIndex();
 		int left = cellRange.getTopLeftCell().getColumnIndex();
@@ -2335,7 +2344,7 @@ public class Xls extends Executor<Xls>
 		return true;
 	}
 
-	protected static Font getFont(Sheet sheet, MergedFont m)
+	protected Font getFont(Sheet sheet, MergedFont m)
 	{
 		Font font = null;
 		for (int i = 0; i < sheet.getWorkbook().getNumberOfFonts(); i++)
@@ -2365,7 +2374,7 @@ public class Xls extends Executor<Xls>
 		return font;
 	}
 
-	protected static BorderStyle valueOfBorderStyle(String borderStyleName)
+	protected BorderStyle valueOfBorderStyle(String borderStyleName)
 	{
 		BorderStyle borderStyle = null;
 		try
@@ -2378,22 +2387,27 @@ public class Xls extends Executor<Xls>
 		return borderStyle;
 	}
 
-	protected static String makeGivenPathGeneric(String path)
-	{
-		if (System.getProperty("os.name").toLowerCase().contains("win"))
-		{
-			path = path.replace("\\", "/");
-		}
-		return path;
-	}
+//	protected String makeGivenPathGeneric(String path)
+//	{
+//		if (System.getProperty("os.name").toLowerCase().contains("win"))
+//		{
+//			path = path.replace("\\", "/");
+//		}
+//		return path;
+//	}
+//	
+//	protected String makeGivenPathOSSpecific(String path)
+//	{
+//		if (System.getProperty("os.name").toLowerCase().contains("win"))
+//		{
+//			path = path.replace("/", "\\");
+//		}
+//		return path;
+//	}
 	
-	protected static String makeGivenPathOSSpecific(String path)
+	public Workbook getActiveWorkbook()
 	{
-		if (System.getProperty("os.name").toLowerCase().contains("win"))
-		{
-			path = path.replace("/", "\\");
-		}
-		return path;
+		return this.activeWorkbook;
 	}
 	
 	public enum Key
@@ -2463,7 +2477,7 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	protected enum Direction
+	public enum Direction
 	{
 		DOWN("down"), LEFT("left"), RIGHT("right"), UP("up"), DEFAULT("right");
 
@@ -2498,7 +2512,7 @@ public class Xls extends Executor<Xls>
 			}
 		}
 
-		public boolean validRange(CellAddress cellAddress, int numberOfCells)
+		public boolean validRange(ObjectNode responseNode, Workbook workbook, CellAddress cellAddress, int numberOfCells)
 		{
 			switch (this)
 			{
@@ -2507,17 +2521,17 @@ public class Xls extends Executor<Xls>
 					boolean valid = cellAddress.getColumn() - numberOfCells + 1 < 0 ? false : true;
 					if (!valid)
 					{
-						Fsl.addErrorMessage("minimal_horizontal_cell_position exceeds sheet's extent negatively");
+						addErrorMessage(responseNode, "minimal_horizontal_cell_position exceeds sheet's extent negatively");
 					}
 					return valid;
 				}
 				case RIGHT:
 				{
-					boolean valid = cellAddress.getColumn() + numberOfCells - 1 > Xls.activeWorkbook
+					boolean valid = cellAddress.getColumn() + numberOfCells - 1 > workbook
 							.getSpreadsheetVersion().getLastColumnIndex() ? false : true;
 					if (!valid)
 					{
-						Fsl.addErrorMessage("maximal_horizontal_cell_position exceeds sheet's extent positively");
+						addErrorMessage(responseNode, "maximal_horizontal_cell_position exceeds sheet's extent positively");
 					}
 					return valid;
 				}
@@ -2526,31 +2540,42 @@ public class Xls extends Executor<Xls>
 					boolean valid = cellAddress.getRow() - numberOfCells + 1 < 0 ? false : true;
 					if (!valid)
 					{
-						Fsl.addErrorMessage("minimal_vertical_cell_position exceeds sheet's extent negatively");
+						addErrorMessage(responseNode, "minimal_vertical_cell_position exceeds sheet's extent negatively");
 					}
 					return valid;
 				}
 				case DOWN:
 				{
-					boolean valid = cellAddress.getRow() + numberOfCells - 1 > Xls.activeWorkbook
+					boolean valid = cellAddress.getRow() + numberOfCells - 1 > workbook
 							.getSpreadsheetVersion().getLastRowIndex() ? false : true;
 					if (!valid)
 					{
-						Fsl.addErrorMessage("maximal_vertical_cell_position exceeds sheet's extent positively");
+						addErrorMessage(responseNode, "maximal_vertical_cell_position exceeds sheet's extent positively");
 					}
 					return valid;
 				}
 				case DEFAULT:
 				{
-					return Direction.RIGHT.validRange(cellAddress, numberOfCells);
+					return Direction.RIGHT.validRange(responseNode, workbook, cellAddress, numberOfCells);
 				}
 				default:
 					return false;
 			}
 		}
+		
+		private void addErrorMessage(ObjectNode responseNode, String message)
+		{
+			ArrayNode errors = ArrayNode.class.cast(responseNode.get(Executor.ERRORS));
+			if (Objects.isNull(errors))
+			{
+				errors = responseNode.arrayNode();
+				responseNode.set(Executor.ERRORS, errors);
+			}
+			errors.add(message);
+		}
 	}
 
-	static class MergedFont
+	class MergedFont
 	{
 		String name;
 		Short size;
@@ -2585,7 +2610,7 @@ public class Xls extends Executor<Xls>
 			font.setColor(color);
 		}
 
-		public void applyRequestedFontStyles(ObjectNode requestNode)
+		public void applyRequestedFontStyles(ObjectNode requestNode, ObjectNode responseNode)
 		{
 			JsonNode nameNode = requestNode.findPath(Key.NAME.key());
 			if (nameNode.isTextual())
@@ -2602,7 +2627,7 @@ public class Xls extends Executor<Xls>
 				}
 				else
 				{
-					Fsl.addErrorMessage("invalid argument 'size'");
+					addErrorMessage(responseNode, "invalid argument 'size'");
 				}
 			}
 			JsonNode boldNode = requestNode.findPath(Key.BOLD.key());
@@ -2625,7 +2650,7 @@ public class Xls extends Executor<Xls>
 				}
 				else
 				{
-					Fsl.addErrorMessage("invalid argument 'underline'");
+					addErrorMessage(responseNode, "invalid argument 'underline'");
 				}
 			}
 			JsonNode strikeOutNode = requestNode.findPath(Key.STRIKE_OUT.key());
@@ -2643,7 +2668,7 @@ public class Xls extends Executor<Xls>
 				}
 				else
 				{
-					Fsl.addErrorMessage("invalid argument 'type_offset'");
+					addErrorMessage(responseNode, "invalid argument 'type_offset'");
 				}
 			}
 			JsonNode colorNode = requestNode.findPath(Key.COLOR.key());
@@ -2656,7 +2681,7 @@ public class Xls extends Executor<Xls>
 				}
 				else
 				{
-					Fsl.addErrorMessage("invalid argument 'color'");
+					addErrorMessage(responseNode, "invalid argument 'color'");
 				}
 			}
 		}
@@ -2702,7 +2727,7 @@ public class Xls extends Executor<Xls>
 		}
 	}
 
-	static class MergedCellStyle
+	class MergedCellStyle
 	{
 		private HorizontalAlignment halign;
 		private VerticalAlignment valign;
@@ -2765,7 +2790,7 @@ public class Xls extends Executor<Xls>
 
 		}
 
-		public boolean applyRequestedStyles(ObjectNode requestNode)
+		public boolean applyRequestedStyles(ObjectNode requestNode, ObjectNode responseNode)
 		{
 			boolean result = true;
 			JsonNode alignmentNode = requestNode.findPath(Key.ALIGNMENT.key());
@@ -2780,7 +2805,7 @@ public class Xls extends Executor<Xls>
 					}
 					catch (Exception e)
 					{
-						result = Fsl.addErrorMessage("invalid argument 'alignment.horizontal'");
+						result = addErrorMessage(responseNode, "invalid argument 'alignment.horizontal'");
 					}
 				}
 				JsonNode verticalNode = alignmentNode.findPath(Key.VERTICAL.key());
@@ -2792,7 +2817,7 @@ public class Xls extends Executor<Xls>
 					}
 					catch (Exception e)
 					{
-						result = Fsl.addErrorMessage("invalid argument 'alignment.vertical'");
+						result = addErrorMessage(responseNode, "invalid argument 'alignment.vertical'");
 					}
 				}
 			}
@@ -2812,7 +2837,7 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("invalid argument 'border.style.bottom'");
+							result = addErrorMessage(responseNode, "invalid argument 'border.style.bottom'");
 						}
 					}
 					JsonNode leftNode = styleNode.findPath(Key.LEFT.key());
@@ -2825,7 +2850,7 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("invalid argument 'border.style.left'");
+							result = addErrorMessage(responseNode, "invalid argument 'border.style.left'");
 						}
 					}
 					JsonNode rightNode = styleNode.findPath(Key.RIGHT.key());
@@ -2838,7 +2863,7 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("invalid argument 'border.style.right'");
+							result = addErrorMessage(responseNode, "invalid argument 'border.style.right'");
 						}
 					}
 					JsonNode topNode = styleNode.findPath(Key.TOP.key());
@@ -2851,7 +2876,7 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("invalid argument 'border.style.top'");
+							result = addErrorMessage(responseNode, "invalid argument 'border.style.top'");
 						}
 					}
 				}
@@ -2868,7 +2893,7 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("invalid argument 'border.color.bottom'");
+							result = addErrorMessage(responseNode, "invalid argument 'border.color.bottom'");
 						}
 					}
 					JsonNode leftNode = colorNode.findPath(Key.LEFT.key());
@@ -2881,7 +2906,7 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("invalid argument 'border.color.left'");
+							result = addErrorMessage(responseNode, "invalid argument 'border.color.left'");
 						}
 					}
 					JsonNode rightNode = colorNode.findPath(Key.RIGHT.key());
@@ -2894,7 +2919,7 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("invalid argument 'border.color.right'");
+							result = addErrorMessage(responseNode, "invalid argument 'border.color.right'");
 						}
 					}
 					JsonNode topNode = colorNode.findPath(Key.TOP.key());
@@ -2907,7 +2932,7 @@ public class Xls extends Executor<Xls>
 						}
 						else
 						{
-							result = Fsl.addErrorMessage("invalid argument 'border.color.top'");
+							result = addErrorMessage(responseNode, "invalid argument 'border.color.top'");
 						}
 					}
 				}
@@ -2922,7 +2947,7 @@ public class Xls extends Executor<Xls>
 //				}
 //				else
 //				{
-//					result = Fsl.addErrorMessage("invalid argument 'dataFormat'");
+//					result = addErrorMessage(responseNode, "invalid argument 'dataFormat'");
 //				}
 			}
 			JsonNode bgNode = requestNode.findPath(Key.BACKGROUND.key());
@@ -2937,12 +2962,12 @@ public class Xls extends Executor<Xls>
 					}
 					catch (Exception e)
 					{
-						result = Fsl.addErrorMessage("invalid argument 'background.color'");
+						result = addErrorMessage(responseNode, "invalid argument 'background.color'");
 					}
 				}
 				else
 				{
-					result = Fsl.addErrorMessage("invalid argument 'background.color'");
+					result = addErrorMessage(responseNode, "invalid argument 'background.color'");
 				}
 			}
 			JsonNode fgNode = requestNode.findPath(Key.FOREGROUND.key());
@@ -2957,12 +2982,12 @@ public class Xls extends Executor<Xls>
 					}
 					catch (Exception e)
 					{
-						result = Fsl.addErrorMessage("invalid argument 'foreground.color'");
+						result = addErrorMessage(responseNode, "invalid argument 'foreground.color'");
 					}
 				}
 				else
 				{
-					result = Fsl.addErrorMessage("invalid argument 'foreground.color'");
+					result = addErrorMessage(responseNode, "invalid argument 'foreground.color'");
 				}
 			}
 			JsonNode fillPatternNode = requestNode.findPath(Key.FILL_PATTERN.key());
@@ -2976,7 +3001,7 @@ public class Xls extends Executor<Xls>
 					}
 					catch (Exception e)
 					{
-						result = Fsl.addErrorMessage("invalid argument '" + Key.FILL_PATTERN.key() + "'");
+						result = addErrorMessage(responseNode, "invalid argument '" + Key.FILL_PATTERN.key() + "'");
 					}
 				}
 			}
@@ -2989,7 +3014,7 @@ public class Xls extends Executor<Xls>
 				}
 				else
 				{
-					result = Fsl.addErrorMessage("invalid argument 'font'");
+					result = addErrorMessage(responseNode, "invalid argument 'font'");
 				}
 			}
 			JsonNode shrinkToFitNode = requestNode.findPath(Key.SHRINK_TO_FIT.key());

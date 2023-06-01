@@ -113,7 +113,7 @@ public class ConversionTest
 		assertEquals(Executor.ERROR, resultNode.get(Executor.STATUS).asText());
 		assertEquals(ArrayNode.class, resultNode.get(Executor.ERRORS).getClass());
 		assertEquals(1, resultNode.get(Executor.ERRORS).size());
-		assertEquals("invalid xml content", resultNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("invalid argument 'null'", resultNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
@@ -122,7 +122,7 @@ public class ConversionTest
 		String result = Fsl.execute("Converter.convertXmlToJson", "0");
 		JsonNode responseNode = mapper.readTree(result);
 		assertEquals("Fehler", responseNode.get(Executor.STATUS).asText());
-		assertEquals("invalid json parameter (must be a valid json string)", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("invalid argument '0'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test

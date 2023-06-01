@@ -12,9 +12,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
-import ch.eugster.filemaker.fsl.plugin.Fsl;
 
-public class Converter extends Executor<Converter>
+public class Converter extends Executor
 {
 	/**
 	 * Converts xml String to Json String
@@ -24,11 +23,11 @@ public class Converter extends Executor<Converter>
 	 * 
 	 * @returns json or pathname
 	 */
-	public static void convertXmlToJson(JsonNode requestNode, ObjectNode responseNode)
+	public void convertXmlToJson(ObjectNode requestNode, ObjectNode responseNode)
 	{
 		String xmlContent = null;
-		JsonNode xml = requestNode.get(Key.XML_CONTENT.key());
-		if (Objects.nonNull(xml) && xml.isTextual()) 
+		JsonNode xml = requestNode.findPath(Key.XML_CONTENT.key());
+		if (xml.isTextual()) 
 		{
 			xmlContent = xml.asText();
 		}
@@ -47,7 +46,7 @@ public class Converter extends Executor<Converter>
 				}
 				catch (Exception e)
 				{
-					Fsl.addErrorMessage("unknown source file '" + Key.XML_SOURCE_FILE.key() + "'");
+					addErrorMessage(responseNode, "unknown source file '" + Key.XML_SOURCE_FILE.key() + "'");
 				}
 			}
 		}
@@ -71,21 +70,21 @@ public class Converter extends Executor<Converter>
 				}
 				else
 				{
-					Fsl.addErrorMessage("wrong variable type '" + Key.XML_TARGET_FILE.key() + "'");
+					addErrorMessage(responseNode, "wrong variable type '" + Key.XML_TARGET_FILE.key() + "'");
 				}
 			}
 			catch (Exception e)
 			{
-				Fsl.addErrorMessage(e.getLocalizedMessage());
+				addErrorMessage(responseNode, e.getLocalizedMessage());
 			}
 		}
 		else
 		{
-			Fsl.addErrorMessage("invalid xml content");
+			addErrorMessage(responseNode, "invalid xml content");
 		}
 	}
 
-	public static void convertWordToPdf(Object[] parameters)
+	public void convertWordToPdf(Object[] parameters)
 	{
 //		InputStream source = new File(String.valueOf(parameters[0])); 
 //		OutputStream target = new File(String.valueOf(parameters[1]));

@@ -40,7 +40,7 @@ public class FslTest
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
 		assertEquals(1, responseNode.get(Executor.ERRORS).size());
-		assertEquals("invalid command", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("invalid command 'Schmock'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
@@ -60,6 +60,6 @@ public class FslTest
 		JsonNode resultNode = mapper.readTree(result);
 		assertEquals(Executor.ERROR, resultNode.get(Executor.STATUS).asText());
 		assertEquals(1, resultNode.get(Executor.ERRORS).size());
-		assertEquals("missing module 'Schmock'", resultNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("invalid module 'Schmock'", resultNode.get(Executor.ERRORS).get(0).asText());
 	}
 }

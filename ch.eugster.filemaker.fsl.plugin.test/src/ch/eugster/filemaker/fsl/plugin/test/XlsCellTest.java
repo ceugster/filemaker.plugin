@@ -7,13 +7,25 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
 
+import org.apache.poi.hssf.usermodel.HSSFEvaluationWorkbook;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.ss.formula.FormulaParser;
+import org.apache.poi.ss.formula.FormulaParsingWorkbook;
+import org.apache.poi.ss.formula.FormulaRenderer;
+import org.apache.poi.ss.formula.FormulaRenderingWorkbook;
+import org.apache.poi.ss.formula.FormulaType;
 import org.apache.poi.ss.formula.eval.FunctionEval;
+import org.apache.poi.ss.formula.ptg.AreaPtgBase;
+import org.apache.poi.ss.formula.ptg.Ptg;
+import org.apache.poi.ss.formula.ptg.RefPtgBase;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellAddress;
+import org.apache.poi.xssf.usermodel.XSSFEvaluationWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -27,18 +39,18 @@ import ch.eugster.filemaker.fsl.plugin.Executor;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
 import ch.eugster.filemaker.fsl.plugin.xls.Xls;
 
-public class XlsCellTest extends XlsTest
+public final class XlsCellTest extends AbstractXlsTest
 {
 	@Test
 	public void testSetCellsRightByIntegers() throws JsonMappingException, JsonProcessingException
 	{
 		prepareWorkbookAndSheetIfMissing();
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		ObjectNode cellNode = requestNode.objectNode();
 		cellNode.put("row", 1);
 		cellNode.put("col", 1);
-		requestNode.set(Key.CELL.key(), cellNode);
-		TextNode directionNode = requestNode.textNode(Direction.RIGHT.direction());
+		requestNode.set("cell", cellNode);
+		TextNode directionNode = requestNode.textNode("right");
 		requestNode.set("direction", directionNode);
 
 		ArrayNode valuesNode = requestNode.arrayNode();
@@ -53,9 +65,10 @@ public class XlsCellTest extends XlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
+		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
 				.getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -65,10 +78,10 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("B2");
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
-		requestNode.set(Key.CELL.key(), startNode);
-		TextNode directionNode = requestNode.textNode(Direction.RIGHT.direction());
+		requestNode.set("cell", startNode);
+		TextNode directionNode = requestNode.textNode("right");
 		requestNode.set("direction", directionNode);
 
 		ArrayNode valuesNode = requestNode.arrayNode();
@@ -83,9 +96,10 @@ public class XlsCellTest extends XlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
+		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
 				.getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -95,9 +109,9 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("B2");
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode firstNode = requestNode.textNode(cellAddress.formatAsString());
-		requestNode.set(Key.CELL.key(), firstNode);
+		requestNode.set("cell", firstNode);
 
 		ArrayNode valuesNode = requestNode.arrayNode();
 		valuesNode.add("Title");
@@ -106,9 +120,10 @@ public class XlsCellTest extends XlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals("Title", Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1)
+		assertEquals("Title", xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(1)
 				.getCell(1).getStringCellValue());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -118,9 +133,9 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("G3");
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
-		requestNode.set(Key.CELL.key(), startNode);
+		requestNode.set("cell", startNode);
 		TextNode directionNode = requestNode.textNode("left");
 		requestNode.set("direction", directionNode);
 
@@ -136,9 +151,10 @@ public class XlsCellTest extends XlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1)
+		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1)
 				.getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -148,10 +164,10 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("I30");
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
-		requestNode.set(Key.CELL.key(), startNode);
-		TextNode directionNode = requestNode.textNode(Direction.UP.direction());
+		requestNode.set("cell", startNode);
+		TextNode directionNode = requestNode.textNode("up");
 		requestNode.set("direction", directionNode);
 
 		ArrayNode valuesNode = requestNode.arrayNode();
@@ -166,9 +182,10 @@ public class XlsCellTest extends XlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(24).getCell(8)
+		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(24).getCell(8)
 				.getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -178,10 +195,10 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("K3");
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
-		requestNode.set(Key.CELL.key(), startNode);
-		TextNode directionNode = requestNode.textNode(Direction.DOWN.direction());
+		requestNode.set("cell", startNode);
+		TextNode directionNode = requestNode.textNode("down");
 		requestNode.set("direction", directionNode);
 
 		ArrayNode valuesNode = requestNode.arrayNode();
@@ -196,9 +213,10 @@ public class XlsCellTest extends XlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
+		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
 				.getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -208,12 +226,12 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("K3");
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		ObjectNode cellNode = requestNode.objectNode();
-		cellNode.put(Key.ROW.key(), cellAddress.getRow());
-		cellNode.put(Key.COL.key(), cellAddress.getColumn());
-		requestNode.set(Key.CELL.key(), cellNode);
-		TextNode directionNode = requestNode.textNode(Direction.DOWN.direction());
+		cellNode.put("row", cellAddress.getRow());
+		cellNode.put("col", cellAddress.getColumn());
+		requestNode.set("cell", cellNode);
+		TextNode directionNode = requestNode.textNode("down");
 		requestNode.set("direction", directionNode);
 
 		ArrayNode valuesNode = requestNode.arrayNode();
@@ -228,9 +246,10 @@ public class XlsCellTest extends XlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
+		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
 				.getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -240,9 +259,9 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("B2");
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
-		requestNode.set(Key.CELL.key(), startNode);
+		requestNode.set("cell", startNode);
 
 		ArrayNode valuesNode = requestNode.arrayNode();
 		valuesNode.add("Title");
@@ -256,9 +275,10 @@ public class XlsCellTest extends XlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
+		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
 				.getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -266,9 +286,10 @@ public class XlsCellTest extends XlsTest
 	@Test
 	public void testCopyFormula()
 	{
+		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		String workbook = "./targets/copyFormula.xlsx";
 		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		Sheet sheet = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex());
+		Sheet sheet = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex());
 		Row row = sheet.createRow(2);
 		Cell cell = row.createCell(2);
 		cell.setCellValue(1D);
@@ -334,8 +355,8 @@ public class XlsCellTest extends XlsTest
 				}
 			}
 		}
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
 	}
 	
@@ -344,21 +365,21 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "A1");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "A1");
 		ArrayNode valuesNode = requestNode.arrayNode();
 		valuesNode.add("12:33");
-		requestNode.set(Key.VALUES.key(), valuesNode);
+		requestNode.set("values", valuesNode);
 		
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
+		requestNode = mapper.createObjectNode();
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
@@ -367,21 +388,21 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "A1");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "A1");
 		ArrayNode valuesNode = requestNode.arrayNode();
 		valuesNode.add("21.10.1954");
-		requestNode.set(Key.VALUES.key(), valuesNode);
+		requestNode.set("values", valuesNode);
 		
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
+		requestNode = mapper.createObjectNode();
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
@@ -390,21 +411,21 @@ public class XlsCellTest extends XlsTest
 	{
 		prepareWorkbookAndSheetIfMissing();
 		
-		ObjectNode requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.CELL.key(), "A1");
+		ObjectNode requestNode = mapper.createObjectNode();
+		requestNode.put("cell", "A1");
 		ArrayNode valuesNode = requestNode.arrayNode();
 		valuesNode.add("21.10.1954 10:31");
-		requestNode.set(Key.VALUES.key(), valuesNode);
+		requestNode.set("values", valuesNode);
 		
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertNull(responseNode.get(Executor.ERRORS));
 		
-		requestNode = MAPPER.createObjectNode();
+		requestNode = mapper.createObjectNode();
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
@@ -412,8 +433,7 @@ public class XlsCellTest extends XlsTest
 	public void testCopySingleFormulaCellToSingleCell() throws IOException
 	{
 		String workbook = "./targets/CopySingleFormulaCell.xlsx";
-		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Row row0 = sheet.createRow(0);
 		Cell cell = row0.createCell(0);
 		cell.setCellValue(23.5);
@@ -428,25 +448,25 @@ public class XlsCellTest extends XlsTest
 		cell = row1.createCell(1);
 		cell.setCellValue(12.5);
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode sourceNode = requestNode.textNode("A3");
-		requestNode.set(Key.SOURCE.key(), sourceNode);
+		requestNode.set("source", sourceNode);
 
 		TextNode targetNode = requestNode.textNode("B3");
-		requestNode.set(Key.TARGET.key(), targetNode);
+		requestNode.set("target", targetNode);
 
 		String response = Fsl.execute("Xls.copy", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
-		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
+		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		FormulaEvaluator formulaEval = xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
@@ -454,8 +474,7 @@ public class XlsCellTest extends XlsTest
 	public void testCopySingleFormulaCellToMultipleCells() throws IOException
 	{
 		String workbook = "./targets/CopySingleCellMultipleCells.xlsx";
-		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Row row0 = sheet.createRow(0);
 		Cell cell = row0.createCell(0);
 		cell.setCellValue(23.5);
@@ -474,27 +493,27 @@ public class XlsCellTest extends XlsTest
 		cell = row1.createCell(2);
 		cell.setCellFormula("B3");
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode sourceNode = requestNode.textNode("A3");
-		requestNode.set(Key.SOURCE.key(), sourceNode);
+		requestNode.set("source", sourceNode);
 
 		TextNode targetNode = requestNode.textNode("B3:C3");
-		requestNode.set(Key.TARGET.key(), targetNode);
+		requestNode.set("target", targetNode);
 
 		String response = Fsl.execute("Xls.copy", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
-		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		FormulaEvaluator formulaEval = xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
+		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
-		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		Fsl.execute("Xls.saveAndReleaseWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
@@ -502,8 +521,7 @@ public class XlsCellTest extends XlsTest
 	public void testCopySingleFormulaCellToMultipleCellsWithAddresses() throws IOException
 	{
 		String workbook = "./targets/testCopySingleFormulaCellToMultipleCellsWithAddresses.xlsx";
-		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Row row0 = sheet.createRow(0);
 		Cell cell = row0.createCell(0);
 		cell.setCellValue(23.5);
@@ -522,31 +540,31 @@ public class XlsCellTest extends XlsTest
 		cell = row1.createCell(2);
 		cell.setCellFormula("B3");
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		ObjectNode sourceNode = requestNode.objectNode();
-		sourceNode.put(Key.TOP_LEFT.key(), "A3");
-		sourceNode.put(Key.BOTTOM_RIGHT.key(), "A3");
-		requestNode.set(Key.SOURCE.key(), sourceNode);
+		sourceNode.put("top_left", "A3");
+		sourceNode.put("bottom_right", "A3");
+		requestNode.set("source", sourceNode);
 
 		ObjectNode targetNode = requestNode.objectNode();
-		targetNode.put(Key.TOP_LEFT.key(), "B3");
-		targetNode.put(Key.BOTTOM_RIGHT.key(), "C3");
-		requestNode.set(Key.TARGET.key(), targetNode);
+		targetNode.put("top_left", "B3");
+		targetNode.put("bottom_right", "C3");
+		requestNode.set("target", targetNode);
 
 		String response = Fsl.execute("Xls.copy", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
-		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		FormulaEvaluator formulaEval = xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
+		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
-		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
 		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
@@ -554,8 +572,7 @@ public class XlsCellTest extends XlsTest
 	public void testCopySingleFormulaCellToMultipleCellsWithInts() throws IOException
 	{
 		String workbook = "./targets/testCopySingleFormulaCellToMultipleCellsWithInts.xlsx";
-		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		Sheet sheet = getActiveSheet();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Row row0 = sheet.createRow(0);
 		Cell cell = row0.createCell(0);
 		cell.setCellValue(23.5);
@@ -574,35 +591,35 @@ public class XlsCellTest extends XlsTest
 		cell = row1.createCell(2);
 		cell.setCellFormula("B3");
 
-		ObjectNode requestNode = MAPPER.createObjectNode();
+		ObjectNode requestNode = mapper.createObjectNode();
 		ObjectNode sourceNode = requestNode.objectNode();
-		sourceNode.put(Key.TOP.key(), 2);
-		sourceNode.put(Key.LEFT.key(), 0);
-		sourceNode.put(Key.BOTTOM.key(), 2);
-		sourceNode.put(Key.RIGHT.key(), 0);
-		requestNode.set(Key.SOURCE.key(), sourceNode);
+		sourceNode.put("top", 2);
+		sourceNode.put("left", 0);
+		sourceNode.put("bottom", 2);
+		sourceNode.put("right", 0);
+		requestNode.set("source", sourceNode);
 
 		ObjectNode targetNode = requestNode.objectNode();
-		targetNode.put(Key.TOP.key(), 2);
-		targetNode.put(Key.LEFT.key(), 1);
-		targetNode.put(Key.BOTTOM.key(), 2);
-		targetNode.put(Key.RIGHT.key(), 2);
-		requestNode.set(Key.TARGET.key(), targetNode);
+		targetNode.put("top", 2);
+		targetNode.put("left", 1);
+		targetNode.put("bottom", 2);
+		targetNode.put("right", 2);
+		requestNode.set("target", targetNode);
 
 		String response = Fsl.execute("Xls.copy", requestNode.toString());
 
-		JsonNode responseNode = MAPPER.readTree(response);
+		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		FormulaEvaluator formulaEval = Xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
-		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		FormulaEvaluator formulaEval = xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
+		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
-		cell = Xls.activeWorkbook.getSheetAt(Xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
 		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
-		requestNode = MAPPER.createObjectNode();
-		requestNode.put(Key.WORKBOOK.key(), workbook);
+		requestNode = mapper.createObjectNode();
+		requestNode.put("workbook", workbook);
 		Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		responseNode = MAPPER.readTree(response);
+		responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 	}
 
@@ -633,6 +650,79 @@ public class XlsCellTest extends XlsTest
 			}
 		}
 		assertFalse(true);
+	}
+
+	protected String copyFormula(Sheet sheet, String formula, int rowDiff, int colDiff)
+	{
+		FormulaParsingWorkbook workbookWrapper = getFormulaParsingWorkbook(sheet);
+		Ptg[] ptgs = FormulaParser.parse(formula, workbookWrapper, FormulaType.CELL,
+				sheet.getWorkbook().getSheetIndex(sheet));
+		for (int i = 0; i < ptgs.length; i++)
+		{
+			if (ptgs[i] instanceof RefPtgBase)
+			{ // base class for cell references
+				RefPtgBase ref = (RefPtgBase) ptgs[i];
+				if (ref.isRowRelative())
+				{
+					ref.setRow(ref.getRow() + rowDiff);
+				}
+				if (ref.isColRelative())
+				{
+					ref.setColumn(ref.getColumn() + colDiff);
+				}
+			}
+			else if (ptgs[i] instanceof AreaPtgBase)
+			{ // base class for range references
+				AreaPtgBase ref = (AreaPtgBase) ptgs[i];
+				if (ref.isFirstColRelative())
+				{
+					ref.setFirstColumn(ref.getFirstColumn() + colDiff);
+				}
+				if (ref.isLastColRelative())
+				{
+					ref.setLastColumn(ref.getLastColumn() + colDiff);
+				}
+				if (ref.isFirstRowRelative())
+				{
+					ref.setFirstRow(ref.getFirstRow() + rowDiff);
+				}
+				if (ref.isLastRowRelative())
+				{
+					ref.setLastRow(ref.getLastRow() + rowDiff);
+				}
+			}
+		}
+
+		formula = FormulaRenderer.toFormulaString(getFormulaRenderingWorkbook(sheet), ptgs);
+		return formula;
+	}
+
+	protected FormulaParsingWorkbook getFormulaParsingWorkbook(Sheet sheet)
+	{
+		FormulaParsingWorkbook workbookWrapper = null;
+		if (XSSFSheet.class.isInstance(sheet))
+		{
+			workbookWrapper = XSSFEvaluationWorkbook.create(XSSFSheet.class.cast(sheet).getWorkbook());
+		}
+		else
+		{
+			workbookWrapper = HSSFEvaluationWorkbook.create(HSSFSheet.class.cast(sheet).getWorkbook());
+		}
+		return workbookWrapper;
+	}
+
+	protected FormulaRenderingWorkbook getFormulaRenderingWorkbook(Sheet sheet)
+	{
+		FormulaRenderingWorkbook workbookWrapper = null;
+		if (XSSFSheet.class.isInstance(sheet))
+		{
+			workbookWrapper = XSSFEvaluationWorkbook.create(XSSFSheet.class.cast(sheet).getWorkbook());
+		}
+		else
+		{
+			workbookWrapper = HSSFEvaluationWorkbook.create(HSSFSheet.class.cast(sheet).getWorkbook());
+		}
+		return workbookWrapper;
 	}
 
 }

@@ -94,7 +94,7 @@ public class CamtTest extends Camt
 		String result = Fsl.execute("Camt.parse", "2345");
 		JsonNode responseNode = mapper.readTree(result);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
-		assertEquals("invalid json parameter (must be a valid json string)", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("invalid argument '2345'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test
@@ -103,7 +103,7 @@ public class CamtTest extends Camt
 		String result = Fsl.execute("Camt.parse", null);
 		JsonNode responseNode = mapper.readTree(result);
 		assertEquals(Executor.ERROR, responseNode.get(Executor.STATUS).asText());
-		assertEquals("missing argument 'xml_file' or 'xml_content'", responseNode.get(Executor.ERRORS).get(0).asText());
+		assertEquals("invalid argument 'null'", responseNode.get(Executor.ERRORS).get(0).asText());
 	}
 
 	@Test

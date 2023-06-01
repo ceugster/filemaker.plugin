@@ -1,5 +1,9 @@
 package ch.eugster.filemaker.fsl.plugin.pdf;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Base64;
 import java.util.Calendar;
@@ -13,7 +17,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
-import ch.eugster.filemaker.fsl.plugin.Fsl;
 
 public class Pdf extends Executor
 {
@@ -21,10 +24,61 @@ public class Pdf extends Executor
 	
 	public void getDocumentInfo(ObjectNode requestNode, ObjectNode responseNode)
 	{
-		JsonNode node = requestNode.get("content");
-		if (Objects.nonNull(node))
+		String content = null;
+		JsonNode node = requestNode.findPath("content");
+		if (node.isTextual())
 		{
-			String content = String.class.cast(node.asText());
+			content = node.asText();
+		}
+		else if (node.isMissingNode())
+		{
+			node = requestNode.findPath("file");
+			if (node.isTextual())
+			{
+				File file = new File(String.class.cast(node.asText()));
+				if (file.isFile())
+				{
+					if (file.canRead())
+					{
+						InputStream is = null;
+						try
+						{
+							is = new FileInputStream(file);
+							byte[] bytes = is.readAllBytes();
+							content = Base64.getEncoder().encodeToString(bytes);
+						}
+						catch (Exception e)
+						{
+							addErrorMessage(responseNode, "reading file failed");
+						}
+						finally
+						{
+							try
+							{
+								is.close();
+							}
+							catch (IOException e)
+							{
+							}
+						}
+					}
+					else
+					{
+						addErrorMessage(responseNode, "file not readable'" + node.asText() + "'");
+					}
+				}
+				else
+				{
+					addErrorMessage(responseNode, "not a file '" + node.asText() + "'");
+				}
+			}
+		}
+		else
+		{
+			addErrorMessage(responseNode, "missing_paramenter 'content'");
+		}
+		if (Objects.nonNull(content))
+		{
 			try
 			{
 				document = PDDocument.load(Base64.getDecoder().decode(content));
@@ -58,9 +112,6 @@ public class Pdf extends Executor
 				addErrorMessage(responseNode, e.getLocalizedMessage());
 			}
 		}
-		else
-		{
-			addErrorMessage(responseNode, "missing_paramenter 'content'");
-		}
 	}
+
 }

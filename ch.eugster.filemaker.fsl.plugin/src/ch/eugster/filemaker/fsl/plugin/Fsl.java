@@ -24,7 +24,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class Fsl
 {
-	private static Map<String, Executor> executors = new HashMap<String, Executor>();
+	private static Map<String, Fsl> fsls = new HashMap<String, Fsl>();
+	
+	private Map<String, Executor> executors = new HashMap<String, Executor>();
 
 	private static ObjectMapper mapper = new ObjectMapper();
 
@@ -37,7 +39,32 @@ public class Fsl
 	public static String execute(String command, String parameters)
 	{
 		initializeLogging();
-
+		return getFsl(System.getProperty("user.name")).doExecute(command, parameters);
+	}
+	
+	public static Fsl getFsl(String key)
+	{
+		Fsl fsl = fsls.get(System.getProperty("user.name"));
+		if (Objects.isNull(fsl))
+		{
+			fsl = new Fsl();
+			fsls.put(System.getProperty("user.name"), fsl);
+		}
+		return fsl;
+	}
+	
+	public static void log(Level level, String message)
+	{
+		logger.atLevel(level).log(message);
+	}
+	
+	public static void releaseFsls()
+	{
+		fsls.clear();
+	}
+	
+	private String doExecute(String command, String parameters)
+	{
 		logger.info("Build argument node");
 		ObjectNode requestNode = null;
 		ObjectNode responseNode = mapper.createObjectNode();
@@ -83,7 +110,7 @@ public class Fsl
 		return responseNode.put(Executor.STATUS, Objects.isNull(responseNode.get(Executor.ERRORS)) ? Executor.OK : Executor.ERROR).toString();
 	}
 	
-	public static boolean addErrorMessage(ObjectNode responseNode, String message)
+	public boolean addErrorMessage(ObjectNode responseNode, String message)
 	{
 		ArrayNode errors = ArrayNode.class.cast(responseNode.get(Executor.ERRORS));
 		if (Objects.isNull(errors))
@@ -98,12 +125,7 @@ public class Fsl
 		return false;
 	}
 	
-	public static void log(Level level, String message)
-	{
-		logger.atLevel(level).log(message);
-	}
-	
-	public static Executor getExecutor(String executorName)
+	public Executor getExecutor(String executorName)
 	{
 		Executor executor = null;
 		executor = executors.get(executorName);

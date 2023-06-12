@@ -37,14 +37,13 @@ import com.fasterxml.jackson.databind.node.TextNode;
 
 import ch.eugster.filemaker.fsl.plugin.Executor;
 import ch.eugster.filemaker.fsl.plugin.Fsl;
-import ch.eugster.filemaker.fsl.plugin.xls.Xls;
 
 public final class XlsCellTest extends AbstractXlsTest
 {
 	@Test
 	public void testSetCellsRightByIntegers() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		ObjectNode requestNode = mapper.createObjectNode();
 		ObjectNode cellNode = requestNode.objectNode();
 		cellNode.put("row", 1);
@@ -65,18 +64,16 @@ public final class XlsCellTest extends AbstractXlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
-				.getNumericCellValue(), 0);
+		assertEquals(10, sheet.getRow(1).getCell(6).getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
 	@Test
 	public void testSetCellsRight() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("B2");
 		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
@@ -96,18 +93,16 @@ public final class XlsCellTest extends AbstractXlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
-				.getNumericCellValue(), 0);
+		assertEquals(10, sheet.getRow(1).getCell(6).getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
 	@Test
 	public void testSetCellsRightOneCell() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("B2");
 		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode firstNode = requestNode.textNode(cellAddress.formatAsString());
@@ -120,10 +115,9 @@ public final class XlsCellTest extends AbstractXlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals("Title", xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(1)
+		assertEquals("Title", sheet.getRow(1)
 				.getCell(1).getStringCellValue());
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -131,7 +125,7 @@ public final class XlsCellTest extends AbstractXlsTest
 	@Test
 	public void testSetCellsLeft() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("G3");
 		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
@@ -151,18 +145,16 @@ public final class XlsCellTest extends AbstractXlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1)
-				.getNumericCellValue(), 0);
+		assertEquals(10, sheet.getRow(2).getCell(1).getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
 	@Test
 	public void testSetCellsUp() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("I30");
 		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
@@ -182,18 +174,16 @@ public final class XlsCellTest extends AbstractXlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(24).getCell(8)
-				.getNumericCellValue(), 0);
+		assertEquals(10, sheet.getRow(24).getCell(8).getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
 	@Test
 	public void testSetCellsDown() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("K3");
 		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
@@ -213,18 +203,16 @@ public final class XlsCellTest extends AbstractXlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
-				.getNumericCellValue(), 0);
+		assertEquals(10, sheet.getRow(7).getCell(10).getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
 	@Test
 	public void testSetCellsWithAddressValues() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("K3");
 		ObjectNode requestNode = mapper.createObjectNode();
 		ObjectNode cellNode = requestNode.objectNode();
@@ -246,18 +234,16 @@ public final class XlsCellTest extends AbstractXlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(7).getCell(10)
-				.getNumericCellValue(), 0);
+		assertEquals(10, sheet.getRow(7).getCell(10).getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
 
 	@Test
 	public void testSetCellsWithoutDirection() throws JsonMappingException, JsonProcessingException
 	{
-		prepareWorkbookAndSheetIfMissing();
+		Sheet sheet = prepareWorkbookAndSheetIfMissing();
 		CellAddress cellAddress = new CellAddress("B2");
 		ObjectNode requestNode = mapper.createObjectNode();
 		TextNode startNode = requestNode.textNode(cellAddress.formatAsString());
@@ -275,10 +261,9 @@ public final class XlsCellTest extends AbstractXlsTest
 
 		String response = Fsl.execute("Xls.setCells", requestNode.toString());
 
-		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		assertEquals(10, xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(1).getCell(6)
+		assertEquals(10, sheet.getRow(1).getCell(6)
 				.getNumericCellValue(), 0);
 		assertNull(responseNode.get(Executor.ERRORS));
 	}
@@ -286,10 +271,8 @@ public final class XlsCellTest extends AbstractXlsTest
 	@Test
 	public void testCopyFormula()
 	{
-		Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
 		String workbook = "./targets/copyFormula.xlsx";
-		prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
-		Sheet sheet = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex());
+		Sheet sheet = prepareWorkbookAndSheetIfMissing(workbook, SHEET0);
 		Row row = sheet.createRow(2);
 		Cell cell = row.createCell(2);
 		cell.setCellValue(1D);
@@ -459,7 +442,7 @@ public final class XlsCellTest extends AbstractXlsTest
 
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
-		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		cell = sheet.getRow(2).getCell(1);
 		FormulaEvaluator formulaEval = xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
@@ -505,9 +488,9 @@ public final class XlsCellTest extends AbstractXlsTest
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		FormulaEvaluator formulaEval = xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
-		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		cell = sheet.getRow(2).getCell(1);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
-		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		cell = sheet.getRow(2).getCell(2);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
 		requestNode = mapper.createObjectNode();
@@ -556,9 +539,9 @@ public final class XlsCellTest extends AbstractXlsTest
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		FormulaEvaluator formulaEval = xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
-		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		cell = sheet.getRow(2).getCell(1);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
-		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		cell = sheet.getRow(2).getCell(2);
 		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
 		requestNode = mapper.createObjectNode();
@@ -611,9 +594,9 @@ public final class XlsCellTest extends AbstractXlsTest
 		JsonNode responseNode = mapper.readTree(response);
 		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		FormulaEvaluator formulaEval = xls.activeWorkbook.getCreationHelper().createFormulaEvaluator();
-		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(1);
+		cell = sheet.getRow(2).getCell(1);
 		assertEquals(25D, formulaEval.evaluate(cell).getNumberValue(), 0D);
-		cell = xls.activeWorkbook.getSheetAt(xls.activeWorkbook.getActiveSheetIndex()).getRow(2).getCell(2);
+		cell = sheet.getRow(2).getCell(2);
 		assertEquals(125D, formulaEval.evaluate(cell).getNumberValue(), 0D);
 
 		requestNode = mapper.createObjectNode();

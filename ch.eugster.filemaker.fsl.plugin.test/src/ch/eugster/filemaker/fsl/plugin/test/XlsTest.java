@@ -353,9 +353,11 @@ public final class XlsTest extends AbstractXlsTest
 		prepareWorkbookIfMissing(workbook);
 		ObjectNode requestNode = mapper.createObjectNode();
 		requestNode.put("workbook", workbook);
-		String result = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
-		JsonNode resultNode = mapper.readTree(result);
-		assertEquals(Executor.OK, resultNode.get(Executor.STATUS).asText());
+		
+		String response = Fsl.execute("Xls.saveWorkbook", requestNode.toString());
+		
+		JsonNode responseNode = mapper.readTree(response);
+		assertEquals(Executor.OK, responseNode.get(Executor.STATUS).asText());
 		assertTrue(new File(workbook).exists());
 	}
 

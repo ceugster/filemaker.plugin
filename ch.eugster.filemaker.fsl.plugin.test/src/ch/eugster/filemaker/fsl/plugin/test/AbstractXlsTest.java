@@ -2,13 +2,14 @@ package ch.eugster.filemaker.fsl.plugin.test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,19 +25,29 @@ public abstract class AbstractXlsTest
 	
 	protected static final String SHEET0 = "Sheet0";
 
-	protected Xls xls = Xls.class.cast(Fsl.getExecutor("Xls"));
+	protected Xls xls;
 	
-	@BeforeAll
-	public static void beforeAll()
-	{
-	}
-
 	@BeforeEach
-	public void beforeEach()
+	protected void beforeEach()
 	{
-		releaseAllWorkbooks();
+		if (Objects.isNull(xls))
+		{
+			Fsl fsl = Fsl.getFsl(System.getProperty("user.name"));
+			xls = Xls.class.cast(fsl.getExecutor("Xls"));
+		}
 	}
-
+	
+	@AfterEach
+	protected void afterEach()
+	{
+		if (Objects.nonNull(xls))
+		{
+			Fsl fsl = Fsl.getFsl(System.getProperty("user.name"));
+			xls = Xls.class.cast(fsl.getExecutor("Xls"));
+			xls.releaseWorkbooks(mapper.createObjectNode(), mapper.createObjectNode());
+		}
+	}
+	
 	protected void openExistingWorkbook(String path) throws EncryptedDocumentException, IOException
 	{
 		File file = new File(path);
